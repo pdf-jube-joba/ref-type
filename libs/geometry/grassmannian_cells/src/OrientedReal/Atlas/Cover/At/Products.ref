@@ -1,0 +1,31 @@
+\import topological_constructions.Product[A := Chart.BasePoint, B := Signs.Carrier] \as Source;
+\import topological_constructions.Product[A := Chart.BasePoint, B := Covering.Fiber b] \as Target;
+\import Pair.Prop[A := Chart.BasePoint, B := Signs.Carrier] \as SourcePairs;
+\import Pair.Prop[A := Chart.BasePoint, B := Covering.Fiber b] \as TargetPairs;
+\definition forward[p: Chart.ProductPoint]: Target.CarrierSet := Pair.pair Chart.BasePoint (Covering.Fiber b)
+  (Pair.first Chart.BasePoint Signs.Carrier p) (sheet (Pair.second Chart.BasePoint Signs.Carrier p));
+\definition backward[p: Target.CarrierSet]: Chart.ProductPoint := Pair.pair Chart.BasePoint Signs.Carrier
+  (Pair.first Chart.BasePoint (Covering.Fiber b) p) (read (Pair.second Chart.BasePoint (Covering.Fiber b) p));
+\definition leftInverse: \forall (p: Chart.ProductPoint) -> backward (forward p) = p := \fun (p: Chart.ProductPoint) =>
+  SourcePairs.ext _ _ (\refl(Pair.first Chart.BasePoint Signs.Carrier p)) (readSheet (Pair.second Chart.BasePoint Signs.Carrier p));
+\definition rightInverse: \forall (p: Target.CarrierSet) -> forward (backward p) = p := \fun (p: Target.CarrierSet) =>
+  TargetPairs.ext _ _ (\refl(Pair.first Chart.BasePoint (Covering.Fiber b) p)) (sheetRead (Pair.second Chart.BasePoint (Covering.Fiber b) p));
+\definition forwardContinuous: topology.Continuity[A := Chart.ProductPoint, B := Target.CarrierSet].Continuous Chart.productTopology Around.productTopology forward :=
+  Target.Universal[X := Chart.ProductPoint].pairContinuous Chart.productTopology (Chart.baseTopology) FiberSpace.Discrete
+    (Pair.first Chart.BasePoint Signs.Carrier) (\fun (p: Chart.ProductPoint) => sheet (Pair.second Chart.BasePoint Signs.Carrier p))
+    (Source.Maps[].firstContinuous (Chart.baseTopology) Signs.topology)
+    (topology.Composition[A := Chart.ProductPoint, B := Signs.Carrier, C := Covering.Fiber b].composeContinuous
+      Chart.productTopology Signs.topology FiberSpace.Discrete (Pair.second Chart.BasePoint Signs.Carrier) sheet
+      (Source.Maps[].secondContinuous (Chart.baseTopology) Signs.topology) sheetContinuous);
+\definition backwardContinuous: topology.Continuity[A := Target.CarrierSet, B := Chart.ProductPoint].Continuous Around.productTopology Chart.productTopology backward :=
+  Source.Universal[X := Target.CarrierSet].pairContinuous Around.productTopology (Chart.baseTopology) Signs.topology
+    (Pair.first Chart.BasePoint (Covering.Fiber b)) (\fun (p: Target.CarrierSet) => read (Pair.second Chart.BasePoint (Covering.Fiber b) p))
+    (Target.Maps[].firstContinuous (Chart.baseTopology) FiberSpace.Discrete)
+    (topology.Composition[A := Target.CarrierSet, B := Covering.Fiber b, C := Signs.Carrier].composeContinuous
+      Around.productTopology FiberSpace.Discrete Signs.topology (Pair.second Chart.BasePoint (Covering.Fiber b)) read
+      (Target.Maps[].secondContinuous (Chart.baseTopology) FiberSpace.Discrete) readContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Chart.ProductPoint, B := Target.CarrierSet].Homeomorphism[Chart.productTopology, Around.productTopology] :=
+  topology.Homeomorphism[A := Chart.ProductPoint, B := Target.CarrierSet].Homeomorphism[Chart.productTopology, Around.productTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };

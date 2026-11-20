@@ -45,7 +45,7 @@
       value := real.Analysis[].one, positive := real.Analysis[].Estimates[].Product[].onePositive,
       agrees := trans!{Numbers.Complex} _ _ _ (Coordinates.onBasis A j (symbol.pivot j))
         (trans!{Numbers.Complex} _ _ _ ((Coordinates.laws A).pivot j j)
-          (trans!{Numbers.Complex} _ _ _ (Coordinates.Domain.Kronecker[].self j) (sym!{Numbers.Complex} _ _ H.Complex[].scalar.embedOne))),
+          (trans!{Numbers.Complex} _ _ _ (linear_algebra.Commutative[K := Numbers.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Complex Numbers.Algebra[].field].Coordinates[I := Fin.Fin k].Kronecker[].self j) (sym!{Numbers.Complex} _ _ H.Complex[].scalar.embedOne))),
     }, Triangular.At[k := k].Diagonal[symbol, Coordinates.linear A, j]),
   };
 \definition triangularFrameExists: \forall (A: Coordinates.Carrier) -> \exists Triangular.At[k := k].Factorization[symbol, Coordinates.linear A] :=
@@ -70,9 +70,36 @@
   }, InteriorPreimage[p])
 };
 
-\module Algebra(parameter: Rotations.Carrier, inside: Rotations.Interior parameter);
-\module Compare(first, second: Rotations.Carrier, firstInside: Rotations.Interior first, secondInside: Rotations.Interior second,
+\module Algebra(parameter: Rotations.Carrier);
+\module Compare(first, second: Rotations.Carrier, firstInside: Rotations.Interior first,
   same: map first = map second);
 \definition injectiveInterior: \forall (first, second: Rotations.Carrier) -> Rotations.Interior first -> Rotations.Interior second -> map first = map second -> first = second :=
   \fun (first, second: Rotations.Carrier)(firstInside: _)(secondInside: _)(same: _) => Compare[first := first, second := second,
-    firstInside := firstInside, secondInside := secondInside, same := same].equal;
+    firstInside := firstInside, same := same].equal;
+
+\definition interiorCell: \forall (parameter: Rotations.Carrier) -> Rotations.Interior parameter -> \In[Grassmannian.Carrier] cell (map parameter) :=
+  \fun (parameter: Rotations.Carrier)(inside: _) => Algebra[parameter := parameter].Interior[inside := inside].belongs;
+
+\definition cellInterior: \forall (parameter: Rotations.Carrier) -> \In[Grassmannian.Carrier] cell (map parameter) -> Rotations.Interior parameter := \block {
+  \fun (parameter: Rotations.Carrier)(member: _) \then
+  \let p: Cell := \into[Grassmannian.Carrier](map parameter, cell) \by { member } \then
+  \takefrom preimage: InteriorPreimage[p] \by interiorSurjective p \then
+  \let same: preimage.parameter = parameter := Compare[first := preimage.parameter, second := parameter,
+    firstInside := preimage.inside, same := preimage.image].equal \then
+  \return \idelim preimage.parameter = parameter \with A: Rotations.Carrier => Rotations.Interior A \by { base: preimage.inside, equality: same }
+};
+\definition boundaryAvoids: \forall (parameter: Rotations.Carrier) -> Rotations.Boundary parameter -> Logic.Not (\In[Grassmannian.Carrier] cell (map parameter)) := \block {
+  \fun (parameter: Rotations.Carrier)(boundary: _)(member: _) \then
+  \takefrom j: \Cast[Fin.Fin k] ({ j: Fin.Fin k \where InnerLaws.squared (parameter j) = real.Analysis[].one }) \by boundary \then
+  \return dedekind_reals.DedekindReal[].Order[].ltNotEq _ real.Analysis[].one (cellInterior parameter member j)
+    (\bysub(Fin.Fin k, { j: Fin.Fin k \where InnerLaws.squared (parameter j) = real.Analysis[].one }, j))
+};
+
+\definition cellDimension: std.Data[].Nat[].Nat^ := Symbols.complexDimension symbol;
+\structure BoundaryImage[p: Grassmannian.Carrier]: \Set := {
+  symbol: Symbols.Symbol,
+  lower: std.Data[].Nat[].Basic[].Prop[].Lt (Symbols.complexDimension symbol) cellDimension,
+  contains: \In[Grassmannian.Carrier] (\root.Complex[n := n, k := k, symbol := symbol].Canonical[].cell) p,
+};
+\definition boundaryLower: \forall (parameter: Rotations.Carrier) -> Rotations.Boundary parameter -> \exists BoundaryImage[map parameter] :=
+  \fun (parameter: Rotations.Carrier)(boundary: _) => Algebra[parameter := parameter].boundaryLower boundary;

@@ -1,0 +1,17 @@
+\definition head: \forall (s: Symbols.Symbol)(t: Signs.Carrier)(tail: Lists.List[Index]) ->
+  IndexMembers.Occurs (Index::# s t) (Lists.List[Index]::cons (Index::# s Signs.positive) (Lists.List[Index]::cons (Index::# s Signs.negative) tail)) :=
+  \fun (s: Symbols.Symbol)(t: Signs.Carrier)(tail: Lists.List[Index]) => either!{{(Signs.laws t)}
+    {IndexMembers.Occurs (Index::# s t) (Lists.List[Index]::cons (Index::# s Signs.positive) (Lists.List[Index]::cons (Index::# s Signs.negative) tail))}
+    {\fun (same: t = Signs.positive) => Logic.Or[_, _]::left (congr!{{Signs.Carrier} Index} (Index::# s) _ _ same)}
+    {\fun (same: t = Signs.negative) => Logic.Or[_, _]::right (Logic.Or[_, _]::left (congr!{{Signs.Carrier} Index} (Index::# s) _ _ same))}};
+\definition member: \forall (xs: Lists.List[Symbols.Symbol])(s: Symbols.Symbol)(t: Signs.Carrier) -> Members.Occurs s xs -> IndexMembers.Occurs (Index::# s t) (enumerate xs) :=
+  \induction (xs: Lists.List[Symbols.Symbol]) \return \forall (s: Symbols.Symbol)(t: Signs.Carrier) -> Members.Occurs s xs -> IndexMembers.Occurs (Index::# s t) (enumerate xs) \with {
+    | nil: \fun (s: Symbols.Symbol)(t: Signs.Carrier)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (first: Symbols.Symbol)(tail: Lists.List[Symbols.Symbol])(previous: _)(s: Symbols.Symbol)(t: Signs.Carrier)(included: _) =>
+      either!{included {IndexMembers.Occurs (Index::# s t) (enumerate (Lists.List[Symbols.Symbol]::cons first tail))}
+        {\fun (same: s = first) => \idelim first = s \with q: Symbols.Symbol => IndexMembers.Occurs (Index::# q t) (enumerate (Lists.List[Symbols.Symbol]::cons first tail)) \by {
+          base: head first t (enumerate tail), equality: sym!{{Symbols.Symbol}} _ _ same
+        }}
+        {\fun (old: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (previous s t old))}
+      }
+  };

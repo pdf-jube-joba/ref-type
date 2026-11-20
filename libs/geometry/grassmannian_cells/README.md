@@ -1,8 +1,9 @@
-# Grassmannian の Schubert 座標と弱位相
+# Grassmannian の Schubert セルと CW 構造
 
-B08 の途中実装である。
-有限 CW 構造と向き付き Grassmannian の被覆は未実装であり、B08 は完了していない。
-以下の定義と証明項を追加したが、型検査は時間上限に達しており、検証済みの API ではない。
+B08 の要件に対応する定義と証明項を記述した。
+実・複素の有限 CW 構造、標準包含による骨格の比較、実の向き付き被覆と持ち上げた有限 CW 構造、安定化極限と有限段階化を含む。
+本追補では構文解析と module 読み込みのみを検査しており、型検査による証明項の確認は得ていない。
+以下の API は、型検査済みの定理としては扱わない。
 
 ## Schubert 記号と階段形
 
@@ -45,7 +46,8 @@ B08 の途中実装である。
 既存の安定化の終域の階数 \(0+k\) を `RankTransportReal`・`RankTransportComplex` で \(k\) に移送し、行列成分と連続性が移送で保たれることを示す。
 元のブロックへの制限が元の射影を復元することから単射性を示す。
 `ClosedEmbedding` はコンパクト性と Hausdorff 性から像への同相写像と像の閉性を構成し、各 `Ambient` がこれを適用する。
-これらの包含とセルの付着写像との比較は未実装である。
+`AmbientReal.CW`・`AmbientComplex.CW` は標準包含の骨格に関する `cellular` と `reflects`、および対応するセル上の `cellHomeomorphism` を公開する。
+`CWReal.With.filtrationEquals`・`CWComplex.With.filtrationEquals` によって、この骨格が実際に構成した有限 CW 構造の骨格であることを比較する。
 
 ## 弱位相と有限段階化
 
@@ -84,7 +86,8 @@ B08 の途中実装である。
 `Canonical.Characteristic.map` はそのユニタリ変換で座標平面の射影を共役した連続写像である。
 `Characteristic.diskExists` はこのパラメータ空間と標準円板の同相を返し、境界と内部の条件を両方向に保存する。
 `StandardDisk.map` はこの同相を既存の連続写像へ合成する。
-内部の逆写像の連続性と境界の次元低下を合わせた `FiniteComplex` の構成には、まだ接続していない。
+`StandardDisk.interiorImage` は内部の像が対応するセルであることを、`interiorHomeomorphism` は内部への制限の同相を記述する。
+`StandardDisk.cellLaws` は、閉円板のコンパクト性と Grassmannian の Hausdorff 性を使って既存の `CW.CellLaws` を構成する。
 
 ## 標準円板と内部の代数
 
@@ -97,7 +100,7 @@ B08 の途中実装である。
 `FiniteMaximumReal` は最大値の上界、最小性、到達、連続性と非負のスカラー倍を扱う。
 `GaugeDisk` は既存の `thom_spaces.Thom.Quadratic` の動径変換と `Levels` を用い、正定値の二次同次ゲージの単位閉球を標準円板へ同一視する。
 `Rotations.Parameters.Disk` はゲージの閉球と回転パラメータ空間との往復を構成する。
-実の場合は自由成分の全単射、複素の場合はその実数化を用いて、`Characteristic.diskExists` の実次元をそれぞれ (sum_i(p_i-i)) と (2sum_i(p_i-i)) にする。
+実の場合は自由成分の全単射、複素の場合はその実数化を用いて、`Characteristic.diskExists` の実次元をそれぞれ \(\sum_i(p_i-i)\) と \(2\sum_i(p_i-i)\) にする。
 
 `Reflection.Hemisphere.Disk.Inverse` は半球の点から軸成分を引き、閉球への逆変換を構成する。
 `TriangularGram` は既存の Gram–Schmidt の帰納法に階段状の支持と正の実主成分を加える。
@@ -108,24 +111,54 @@ B08 の途中実装である。
 `Characteristic.interiorSurjective` は各セルの点に内部の原像を与え、`injectiveInterior` は内部での単射性を述べる。
 これらは追補の証明項であり、型検査による確認は得ていない。
 
-## B08 の残り
+## 境界と有限 CW 構造
 
-1. 内部の像がちょうど対応するセルであることと逆写像の連続性を合わせ、内部の同相を公開する。
-2. 境界の像が低次元セルへ入ることを示し、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
-3. 標準包含と特性写像および CW 構造の比較を接続する。
-4. 向き付き Grassmannian の被覆と、被覆へ持ち上げた CW 構造を構成する。
+`TriangularGram.At.FlagComparison` は、階段状の支持を持つ単射フレームを階段形へ変換した際、その pivot 列が元の記号以下になることを記述する。
+最初の \(j+1\) 列がより高い pivot を持つと仮定し、その係数を最初の \(j\) 座標へ制限した単射を作ると、`Reduction.rankBound` に反する。
+`EchelonComparison` と `FrameComparison` は、元のセルに戻った場合にはすべての主成分が正であり、パラメータが内部にあることを示す。
+これにより境界では記号が真に小さくなる。
+`Symbols.Dimensions.strict`・`complexStrict` は pivot の成分ごとの比較から総次元の狭義減少を導く。
+`Characteristic.boundaryLower` は境界の各点に、その点を含む低次元のセルを返す。
 
-## 検査
+`CompactCell` はコンパクトな標準閉円板から Hausdorff 空間への写像について、内部での単射性と内部の点のファイバーが内部にある条件から `CW.CellLaws` と内部の同相を構成する。
+逆写像の連続性には、円板内の開集合の補集合の像が閉であることを使う。
+`FiniteCW` は有限個のこのような特性写像から弱位相の条件を示す。
+`CWReal.exists`・`CWComplex.exists` は Schubert 記号の有限列挙と特性写像を合わせ、仮定なしで既存の `algebraic_topology.CW.FiniteComplex` の存在を述べる。
+内部の網羅性、非交叉、低次元の境界、弱位相をすべてこの構造へ渡す。
 
-階段形分解と安定化極限を追加した時点の構文検査は終了コード0。
-2026-11-20 の追補では、標準円板、総次元、内部の原像と単射性までを含む対象パッケージ全体に構文検査を実行した。
-型検査は実行していない。
-型検査は初期実装に対して共有キャッシュ `libs/refcache` を使って実行し、300秒で終了要求、5秒の終了猶予後に強制停止された（終了コード137）。
-合否判定と JSON レポートは得られていない。
-その実行後に追加した有限段階化・自由座標の同相・包含の証明項も含め、提出時点の型検査は未完了である。
-自由座標の同相・包含を追加した追補では、型検査を実行していない。
+## 向き付き実 Grassmannian
+
+`OrientedReal[n, k].Orientation` は、同じ平面の各正規直交フレームに対する符号の割り当てである。
+`Change` は二つのフレームの座標変換を直交群の元として構成し、既存の `lie_groups.OrthogonalOrientation.determinantSign` を使う。
+割り当ての整合条件は、フレームの変更に伴いこの行列式の符号を掛けることである。
+`fromFrame` は一つのフレームと符号から割り当てを構成し、`reconstruct` はその逆を示す。
+符号は \(\{+1,-1\}\) を用い、このモデルは階数0でも二つの符号の選択を保持する。
+
+`Atlas` は既存の連続な局所正規直交フレームを用い、そのフレームでの符号の評価と基底への射影から位相を生成する。
+`TransitionFamily.continuous` は変更行列の成分の連続性と既存の行列式の連続性を接続する。
+`Atlas.In.homeomorphism` は各局所領域の逆像を領域と符号の積へ同一視する。
+`covering` は既存の `covering_spaces.Projection.Covering`、`twoSheets` は各ファイバーと二つの符号との全単射の存在である。
+異なる基点は基底の Hausdorff 性で、同じ基点上の二つの点は局所フレームでの符号で分離する。
+
+`Lift` は閉円板上で連続な回転フレームを使い、各 Schubert 特性写像を符号ごとに持ち上げる。
+`Lift.Cell` はその内部の同相と `CW.CellLaws` を構成する。
+`OrientedReal.CW.exists` は記号と符号の有限列挙から持ち上げた有限 CW 構造を返す。
+各セルの次元は基底のセルと同じであり、`CW.With.projects` は特性写像と被覆の射影の可換性を述べる。
+`filtrationEqualsPreimage` は向き付き空間の各骨格が基底の同じ骨格の逆像であることを述べる。
+
+## 検査と未検証の範囲
+
+2026-11-20 の追補全体に対し、次の構文解析と module 読み込みを実行し、終了コード0を得た。
+`git diff --check` も終了コード0である。
+新しい公理宣言や未証明のための置き換えは追加していない。
 
 ```sh
 target/release/cli libs/geometry/grassmannian_cells --parse-only --diagnostics compact
-timeout --signal=TERM --kill-after=5s 300s target/release/cli libs/geometry/grassmannian_cells --cache-dir libs/refcache --memory-mib 8192 --diagnostics compact --time-limit-seconds 300
+git diff --check
 ```
+
+この追補では対象・全体のいずれも型検査を実行していない。
+構文解析は名前解決、型の整合性、証明項が要求された命題を満たすことを検証しない。
+上記の全要件に対応する証明項を記述した範囲と、型検査による確認がまだない範囲を区別する。
+未検証の範囲は、自由成分の次元式、標準円板、内部と境界、有限 CW 構造、標準包含の比較、向き付き被覆と CW 構造を含む追補全体である。
+引き継ぎ前の初期実装に対する型検査も300秒で未完了となっており、過去の型検査結果を今回の確認として流用していない。

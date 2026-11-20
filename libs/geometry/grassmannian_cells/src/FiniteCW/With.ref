@@ -1,0 +1,75 @@
+\definition emptyClosed: Space.IsClosedIn space Space.Empty :=
+  \idelim Space.Whole = Space.Complement Space.Empty \with U: \Pow A => Space.IsOpenIn space U \by {
+    base: (Space.topologyLaws space).wholeOpen,
+    equality: \axiom:setext(Space.Whole, Space.Complement Space.Empty,
+      \fun (x: A)(member: _)(empty: Logic.False) => empty, \fun (x: A)(outside: _) => \refl(x))
+  };
+\definition Bad[cell: CW.CellData][U: \Pow A]: \Pow A := topology.Maps[A := Euclidean.Disk cell.dimension, B := A].Image cell.characteristic
+  ({ p: Euclidean.Disk cell.dimension \where Logic.Not (\In[A] U (cell.characteristic p)) });
+\definition excluded[cells: CW.Cells][U: \Pow A]: \Pow A := Lists.foldr CW.CellData (\Pow A)
+  (\fun (cell: CW.CellData)(rest: \Pow A) => Space.Finite[].Join (Bad cell U) rest) Space.Empty cells;
+\module Cell(cell: CW.CellData, laws: CW.CellLaws[space, cell], U: \Pow A, open: CW.DiskOpen cell.dimension (CW.Pullback cell U));
+\definition excludedClosed: \forall (cells: CW.Cells)(U: \Pow A) ->
+  (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.CellLaws[space, cell]) ->
+  (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) ->
+  Space.IsClosedIn space (excluded cells U) :=
+  \induction (cells: CW.Cells) \return \forall (U: \Pow A) ->
+    (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.CellLaws[space, cell]) ->
+    (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) ->
+    Space.IsClosedIn space (excluded cells U) \with {
+    | nil: \fun (U: \Pow A)(laws: _)(open: _) => emptyClosed
+    | cons: \fun (head: CW.CellData)(tail: CW.Cells)(previous: _)(U: \Pow A)(laws: _)(open: _) =>
+        Space.Finite[].joinClosed space (Bad head U) (excluded tail U)
+          Cell[cell := head, laws := laws head (Logic.Or[_, _]::left (\refl(head))), U := U, open := open head (Logic.Or[_, _]::left (\refl(head)))].closed
+          (previous U (\fun (cell: CW.CellData)(old: _) => laws cell (Logic.Or[_, _]::right old))
+            (\fun (cell: CW.CellData)(old: _) => open cell (Logic.Or[_, _]::right old)))
+  };
+\definition outside: \forall (cells: CW.Cells)(U: \Pow A)(x: A) -> \In[A] (excluded cells U) x -> Logic.Not (\In[A] U x) :=
+  \induction (cells: CW.Cells) \return \forall (U: \Pow A)(x: A) -> \In[A] (excluded cells U) x -> Logic.Not (\In[A] U x) \with {
+    | nil: \fun (U: \Pow A)(x: A)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (head: CW.CellData)(tail: CW.Cells)(previous: _)(U: \Pow A)(x: A)(member: _) => Logic.orElim[_, _, _] member
+      (\fun (bad: _) => topology.Maps[A := Euclidean.Disk head.dimension, B := A].imageElim head.characteristic
+        ({ p: Euclidean.Disk head.dimension \where Logic.Not (\In[A] U (head.characteristic p)) }) x (Logic.Not (\In[A] U x))
+        (\fun (p: Euclidean.Disk head.dimension)(outside: _)(same: _) => \idelim head.characteristic p = x
+          \with y: A => Logic.Not (\In[A] U y) \by { base: outside, equality: same }) bad)
+      (previous U x)
+  };
+\definition contains: \forall (cells: CW.Cells)(U: \Pow A)(cell: CW.CellData) -> CW.CellMember cells cell ->
+  \forall (x: A) -> \In[A] (Bad cell U) x -> \In[A] (excluded cells U) x :=
+  \induction (cells: CW.Cells) \return \forall (U: \Pow A)(cell: CW.CellData) -> CW.CellMember cells cell ->
+    \forall (x: A) -> \In[A] (Bad cell U) x -> \In[A] (excluded cells U) x \with {
+    | nil: \fun (U: \Pow A)(cell: CW.CellData)(empty: Logic.False)(x: A)(bad: _) => Logic.falseElim _ empty
+    | cons: \fun (head: CW.CellData)(tail: CW.Cells)(previous: _)(U: \Pow A)(cell: CW.CellData)(member: _)(x: A)(bad: _) => Logic.orElim[_, _, _] member
+      (\fun (same: _) => Logic.Or[_, _]::left (\idelim cell = head \with c: CW.CellData => \In[A] (Bad c U) x \by { base: bad, equality: same }))
+      (\fun (old: _) => Logic.Or[_, _]::right (previous U cell old x bad))
+  };
+\definition excludedIsComplement[U: \Pow A]: excluded data.cells U = Space.Complement U :=
+  \axiom:setext(excluded data.cells U, Space.Complement U, outside data.cells U,
+    \block {
+      \fun (x: A)(notInU: _) \then
+      \takefrom cover: CW.CoverWitness[data.cells, x] \by data.covers x \then
+      \takefrom p: \Cast[Euclidean.Disk cover.cell.dimension] ({ p: Euclidean.Disk cover.cell.dimension \where
+        Logic.And[\In[Euclidean.coordinateCarrier cover.cell.dimension] (Euclidean.interiorAt cover.cell.dimension) p, cover.cell.characteristic p = x] }) \by cover.contains \then
+      \let same: cover.cell.characteristic p = x := (\bysub(Euclidean.Disk cover.cell.dimension,
+        { p: Euclidean.Disk cover.cell.dimension \where Logic.And[\In[Euclidean.coordinateCarrier cover.cell.dimension] (Euclidean.interiorAt cover.cell.dimension) p, cover.cell.characteristic p = x] }, p)).right \then
+      \return contains data.cells U cover.cell cover.member x
+        (\idelim cover.cell.characteristic p = x \with y: A => \In[A] (Bad cover.cell U) y \by {
+          base: topology.Maps[A := Euclidean.Disk cover.cell.dimension, B := A].imageMember cover.cell.characteristic
+            ({ q: Euclidean.Disk cover.cell.dimension \where Logic.Not (\In[A] U (cover.cell.characteristic q)) }) p
+            (\idelim x = cover.cell.characteristic p \with y: A => Logic.Not (\In[A] U y) \by { base: notInU, equality: sym!{A} _ _ same }),
+          equality: same
+        })
+    });
+\definition weakTopology: \forall (U: \Pow A) -> Logic.PropEquiv[Space.IsOpenIn space U,
+  \forall (cell: CW.CellData) -> CW.CellMember data.cells cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)] :=
+  \fun (U: \Pow A) => Logic.PropEquiv[_, _] {
+    ltr := \fun (open: _)(cell: CW.CellData)(member: _) => (data.cellLaws cell member).continuous U open,
+    rtl := \fun (local: _) => \idelim Space.Complement (excluded data.cells U) = U \with V: \Pow A => Space.IsOpenIn space V \by {
+      base: excludedClosed data.cells U data.cellLaws local,
+      equality: trans!{\Pow A} _ _ _ (congr!{\Pow A {\Pow A}} Space.Complement _ _ (excludedIsComplement U)) (Space.Finite[].doubleComplement U)
+    },
+  };
+\definition complex: CW.FiniteComplex[space] := CW.FiniteComplex[space] {
+  cells := data.cells, hausdorff := data.hausdorff, cellLaws := data.cellLaws, covers := data.covers,
+  disjoint := data.disjoint, boundary := data.boundary, weakTopology := weakTopology,
+};

@@ -2,16 +2,26 @@
 
 ## 作業状況
 
-[grassmannian_cells](../../libs/geometry/grassmannian_cells/README.md) に Schubert 記号、自由座標と階段形の同相、直交射影モデル内の各セルとの同相、周囲次元の標準包含と閉埋め込み、弱位相の増大列の有限段階化の証明項を追加した。
-初回の型検査は300秒の時間上限で未完了であり、追補では型検査を実行していない。
-追加で、階段形への帰納的な変換、セルの網羅性と非交叉、記号の有限性、零延長行列による安定化極限と具体的な有限段階化の証明項を記述した。
-自由成分の有限列挙、列ごとの次元式、有限実座標との同相、標準包含のセル上の同相、および閉球の積から射影モデルへの連続写像を追加した。
-回転を合成したフレームの階段状の支持と、閉球の境界で対応する主成分が零になることの証明項も追加した。
-2026-11-20 に、自由成分全体の個数と Schubert 次元式の一致、列ごとの閉球からなるパラメータ空間と標準円板の同一視、境界と内部の条件の往復、および標準円板からの連続写像の証明項を追加した。
-階段状の支持と正の主成分を保つ Gram–Schmidt、半球から閉球への逆変換、回転フレームからのパラメータ復元、各セルの点の内部原像と内部での単射性の証明項も追加した。
-内部の像のセルとの一致と逆写像の連続性、境界の次元低下による有限 CW 構造、標準包含との CW 比較、向き付き被覆と持ち上げた CW 構造は未実装である。
-追補は構文検査のみを行い、型検査による確認は得ていない。
-B08 全体は未完了であり、途中成果を [PR #81](https://github.com/pdf-jube-joba/ref-type/pull/81) にまとめている。
+[grassmannian_cells](../../libs/geometry/grassmannian_cells/README.md) に全要件に対応する定義と証明項を記述した。
+実装した範囲と型検査による確認がない範囲を区別し、以下を記録する。
+
+| 要件 | 実装した API |
+| --- | --- |
+| Schubert 座標、総次元式、階段形分解、網羅性・非交叉 | `Symbols.FreeCount`、`Canonical.FiniteCoordinates`、`Reduction`、`DecompositionReal`・`DecompositionComplex` |
+| 閉球の積と標準円板の同一視 | `Rotations.Parameters.Disk`、`Characteristic.diskExists` |
+| 特性写像の内部同相、境界の低次元セルへの包含 | `StandardDisk.interiorImage`・`interiorHomeomorphism`、`Characteristic.boundaryLower` |
+| 実・複素の有限 CW 構造 | `CWReal.exists`・`CWComplex.exists`、既存の `algebraic_topology.CW.FiniteComplex` |
+| 周囲次元の標準包含と CW 構造の比較 | `AmbientReal.CW`・`AmbientComplex.CW` の `cellular`・`reflects`・`cellHomeomorphism`、`With.filtrationEquals` |
+| 向き付き実 Grassmannian の被覆 | `OrientedReal.covering`・`twoSheets`、`Atlas.In.homeomorphism` |
+| 被覆へ持ち上げた有限 CW 構造と比較 | `OrientedReal.CW.exists`、`With.projects`・`filtrationEqualsPreimage` |
+| 安定化極限、球面写像・ホモトピーの有限段階化 | `StableReal`・`StableComplex` の `weakTopology`・`Maps.exists`・`Spheres.sphereMap`・`sphereHomotopy` |
+
+2026-11-20 の追補では、対象パッケージの `--parse-only --diagnostics compact` と `git diff --check` が終了コード0で完了した。
+対象・全体の型検査は実行していない。
+構文解析は名前解決や型の整合性を検査しないため、上表の追補全体は型検査による確認がない。
+引き継ぎ前の初回型検査も300秒で未完了であり、B08 の形式的な検証完了は宣言しない。
+新しい公理宣言や未証明のための置き換えは追加していない。
+成果は既存の [Draft PR #81](https://github.com/pdf-jube-joba/ref-type/pull/81) に継続してまとめる。
 
 ## 要件
 

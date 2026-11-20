@@ -1,0 +1,57 @@
+\import Linear.Coordinates[I := Fin.Fin (N.Nat^::succ j)] \as PrefixDomain;
+\import \root.CoordinatePrefix[K := K, ring := std.Alg[].Field[].fieldAsCommutativeRing K field, n := k, m := N.Nat^::succ j,
+  bound := Natural.succLeOfLt k j (Fin.bound k j)] \as Prefix;
+\import Geometry.Finite[n := j] \as Lower;
+\import Linear.Linear[V := PrefixDomain.Vector, W := Lower.Vector, source := PrefixDomain.space, target := Lower.space] \as Maps;
+\import Linear.Linear[V := Domain.Vector, W := Ambient.Vector, source := Domain.space, target := Ambient.space].Composition[
+  U := PrefixDomain.Vector, domain := PrefixDomain.space] \as Compose;
+\definition prefix: Linear.Linear[V := PrefixDomain.Vector, W := Ambient.Vector, source := PrefixDomain.space, target := Ambient.space].Map := Compose.compose A Prefix.map;
+\import \root.CoordinateMapExt[K := K, ring := std.Alg[].Field[].fieldAsCommutativeRing K field, n := n, k := k] \as Expansion;
+\import Linear.Sums[I := Fin.Fin k].Prop[] \as Sums;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition support: \forall (v: PrefixDomain.Vector)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> prefix.apply v r = Linear.zero :=
+  \fun (v: PrefixDomain.Vector)(r: Fin.Fin n)(upper: _) => trans!{K} _ _ _ (Expansion.expansion A (Prefix.extend v) r)
+    (trans!{K} _ _ _ (Sums.congruent (Fin.elements k)
+      (\fun (i: Fin.Fin k) => Linear.mul (column A i r) (Prefix.extend v i)) (\fun (i: Fin.Fin k) => Linear.zero)
+      (\fun (i: Fin.Fin k) => either!{{(Classical.excludedMiddle (Natural.Lt i (N.Nat^::succ j)))} {Linear.mul (column A i r) (Prefix.extend v i) = Linear.zero}
+        {\fun (bound: _) => trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => Linear.mul a (Prefix.extend v i)) _ _
+          (above i r (Natural.leLtTrans _ _ _ (monotone symbol i j (N.Induction[].belowSuccessor i j bound)) upper))) (Linear.mulZeroLeft (Prefix.extend v i))}
+        {\fun (outside: _) => trans!{K} _ _ _ (congr!{K K} (Linear.mul (column A i r)) _ _ (Prefix.outside v i outside)) (Linear.mulZeroRight (column A i r))}
+      })) (Sums.zeroSum (Fin.elements k)));
+\definition coefficients[v: PrefixDomain.Vector]: Domain.Vector := Echelon.coordinates (prefix.apply v);
+\definition highZero: \forall (v: PrefixDomain.Vector)(i: Fin.Fin k) -> Logic.Not (Natural.Lt i j) -> coefficients v i = Linear.zero :=
+  \fun (v: PrefixDomain.Vector)(i: Fin.Fin k)(outside: _) => support v (other.pivot i)
+    (Natural.ltLeTrans _ _ _ greater
+      (monotone other j i (\root.NaturalBounds[].reverse i j outside)));
+\definition reconstruct: \forall (v: PrefixDomain.Vector) -> (Echelon.linear B).apply (coefficients v) = prefix.apply v := \block {
+  \fun (v: PrefixDomain.Vector) \then
+  \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where (Echelon.linear B).apply w = prefix.apply v }) \by contained (Prefix.extend v) \then
+  \let same: (Echelon.linear B).apply w = prefix.apply v := \bysub(Domain.Vector, { w: Domain.Vector \where (Echelon.linear B).apply w = prefix.apply v }, w) \then
+  \let coefficient: w = coefficients v := trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (Echelon.leftInverse B w))
+    (congr!{{Ambient.Vector} {Domain.Vector}} Echelon.coordinates _ _ same) \then
+  \return trans!{{Ambient.Vector}} _ _ _ (congr!{{Domain.Vector} {Ambient.Vector}} (Echelon.linear B).apply _ _ (sym!{{Domain.Vector}} _ _ coefficient)) same
+};
+\definition include[i: Fin.Fin j]: Fin.Fin k := \into[N.Nat^](i, Fin.Fin k) \by { Natural.ltTrans i j k (Fin.bound j i) (Fin.bound k j) };
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (v: PrefixDomain.Vector)(i: Fin.Fin j) => coefficients v (include i),
+  preservesAdd := \fun (v, w: PrefixDomain.Vector) => \axiom:funext((\fun (i: Fin.Fin j) => coefficients (PrefixDomain.space.add v w) (include i)),
+    (\fun (i: Fin.Fin j) => Linear.add (coefficients v (include i)) (coefficients w (include i))),
+    \fun (i: Fin.Fin j) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x (other.pivot (include i))) _ _ (prefix.preservesAdd v w)),
+  preservesScale := \fun (a: K)(v: PrefixDomain.Vector) => \axiom:funext((\fun (i: Fin.Fin j) => coefficients (PrefixDomain.space.smul a v) (include i)),
+    (\fun (i: Fin.Fin j) => Linear.mul a (coefficients v (include i))),
+    \fun (i: Fin.Fin j) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x (other.pivot (include i))) _ _ (prefix.preservesScale a v)),
+};
+\definition oneToOne: \forall (v, w: PrefixDomain.Vector) -> map.apply v = map.apply w -> v = w := \block {
+  \fun (v, w: PrefixDomain.Vector)(same: _) \then
+  \let full: coefficients v = coefficients w := \axiom:funext(coefficients v, coefficients w,
+    \fun (i: Fin.Fin k) => either!{{(Classical.excludedMiddle (Natural.Lt i j))} {coefficients v i = coefficients w i}
+      {\fun (bound: _) => congr!{{Lower.Vector} K} (\fun (x: Lower.Vector) => x (\into[N.Nat^](i, Fin.Fin j) \by { bound })) _ _ same}
+      {\fun (outside: _) => trans!{K} _ _ _ (highZero v i outside) (sym!{K} _ _ (highZero w i outside))}
+    }) \then
+  \return Prefix.injective v w (injective (Prefix.extend v) (Prefix.extend w) (trans!{{Ambient.Vector}} _ _ _
+    (sym!{{Ambient.Vector}} _ _ (reconstruct v)) (trans!{{Ambient.Vector}} _ _ _
+      (congr!{{Domain.Vector} {Ambient.Vector}} (Echelon.linear B).apply _ _ full) (reconstruct w))))
+};
+\definition contradiction: Logic.False := Natural.ltIrrefl j (Natural.ltOfSuccLe j j
+  (\root.Reduction[K := K, field := field, scalar := scalar, n := j].At[k := N.Nat^::succ j].rankBound map oneToOne));

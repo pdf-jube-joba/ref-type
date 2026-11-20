@@ -1,0 +1,88 @@
+\definition cell[a: Index]: CW.CellData := Lift[symbol := a.symbol, disk := disks a.symbol].Cell[s := a.sign].cell;
+\import thom_spaces.Thom[].CWType[].ListMapping[A := Index, B := CW.CellData, transform := cell] \as List;
+\definition indices: Lists.List[Index] := enumerate symbols;
+\definition cells: CW.Cells := List.map indices;
+\definition member[a: Index]: CW.CellMember cells (cell a) := List.member indices a (\idelim Index::# a.symbol a.sign = a \with b: Index => IndexMembers.Occurs b indices \by {
+  base: Enumeration[].member symbols a.symbol a.sign (exhaustive a.symbol), equality: indexEta a
+});
+\definition cellLaws: \forall (c: CW.CellData) -> CW.CellMember cells c -> CW.CellLaws[Atlas.topology, c] := \block {
+  \fun (c: CW.CellData)(included: _) \then
+  \takefrom w: List.Witness[indices, c] \by List.witness indices c included \then
+  \return \idelim cell w.cell = c \with d: CW.CellData => CW.CellLaws[Atlas.topology, d] \by {
+    base: Lift[symbol := w.cell.symbol, disk := disks w.cell.symbol].Cell[s := w.cell.sign].laws,
+    equality: sym!{{CW.CellData}} _ _ w.same
+  }
+};
+\module Interior(a: Index);
+\definition covers: \forall (e: Carrier) -> \exists CW.CoverWitness[cells, e] := \block {
+  \fun (e: Carrier) \then
+  \takefrom s: \Cast[Symbols.Symbol] ({ s: Symbols.Symbol \where \In[Base.Carrier] (Decomposition.cell s) e.base }) \by Decomposition.covers e.base \then
+  \takefrom w: Lift[symbol := s, disk := disks s].InteriorPreimage[e] \by Lift[symbol := s, disk := disks s].interiorOnto e
+    (\bysub(Symbols.Symbol, { s: Symbols.Symbol \where \In[Base.Carrier] (Decomposition.cell s) e.base }, s)) \then
+  \return \exact(CW.CoverWitness[cells, e] { cell := cell (Index::# s w.sign), member := member (Index::# s w.sign),
+    contains := Interior[a := Index::# s w.sign].contains w.point w.inside e w.image,
+  }, CW.CoverWitness[cells, e])
+};
+\module Same(s: Symbols.Symbol, left, right: Signs.Carrier);
+\definition disjointNamed: \forall (a, b: Index)(e: Carrier) -> \In[Carrier] (CW.InteriorImage (cell a)) e ->
+  \In[Carrier] (CW.InteriorImage (cell b)) e -> cell a = cell b := \block {
+  \fun (a, b: Index)(e: Carrier)(first: _)(second: _) \then
+  \let same: a.symbol = b.symbol := Decomposition.disjoint a.symbol b.symbol e.base
+    (Interior[a := a].projects e first) (Interior[a := b].projects e second) \then
+  \return (\idelim a.symbol = b.symbol \with s: Symbols.Symbol => \forall (t: Signs.Carrier) ->
+    \In[Carrier] (CW.InteriorImage (cell (Index::# s t))) e -> cell a = cell (Index::# s t) \by {
+      base: \fun (t: Signs.Carrier)(included: _) => Same[s := a.symbol, left := a.sign, right := t].equal e first included,
+      equality: same
+    }) b.sign second
+};
+\definition disjoint: \forall (c, d: CW.CellData) -> CW.CellMember cells c -> CW.CellMember cells d -> \forall (e: Carrier) ->
+  \In[Carrier] (CW.InteriorImage c) e -> \In[Carrier] (CW.InteriorImage d) e -> c = d := \block {
+  \fun (c, d: CW.CellData)(first: _)(second: _)(e: Carrier)(left: _)(right: _) \then
+  \takefrom a: List.Witness[indices, c] \by List.witness indices c first \then
+  \takefrom b: List.Witness[indices, d] \by List.witness indices d second \then
+  \let leftMember: \In[Carrier] (CW.InteriorImage (cell a.cell)) e := \idelim c = cell a.cell \with f: CW.CellData => \In[Carrier] (CW.InteriorImage f) e \by { base: left, equality: a.same } \then
+  \let rightMember: \In[Carrier] (CW.InteriorImage (cell b.cell)) e := \idelim d = cell b.cell \with f: CW.CellData => \In[Carrier] (CW.InteriorImage f) e \by { base: right, equality: b.same } \then
+  \return trans!{{CW.CellData}} _ _ _ a.same (trans!{{CW.CellData}} _ _ _ (disjointNamed a.cell b.cell e leftMember rightMember) (sym!{{CW.CellData}} _ _ b.same))
+};
+\module Boundary(a: Index);
+\definition boundary: \forall (c: CW.CellData) -> CW.CellMember cells c -> \forall (p: Euclidean.Disk c.dimension) ->
+  \In[Euclidean.coordinateCarrier c.dimension] (Euclidean.boundaryAt c.dimension) p -> \exists CW.BoundaryWitness[cells, c, c.characteristic p] := \block {
+  \fun (c: CW.CellData)(included: _) \then
+  \takefrom w: List.Witness[indices, c] \by List.witness indices c included \then
+  \return \idelim cell w.cell = c \with d: CW.CellData => \forall (p: Euclidean.Disk d.dimension) ->
+    \In[Euclidean.coordinateCarrier d.dimension] (Euclidean.boundaryAt d.dimension) p -> \exists CW.BoundaryWitness[cells, d, d.characteristic p] \by {
+      base: Boundary[a := w.cell].exists, equality: sym!{{CW.CellData}} _ _ w.same
+    }
+};
+\definition presentation: Finite.Presentation := Finite.Presentation { cells := cells, hausdorff := Atlas.hausdorff,
+  cellLaws := cellLaws, covers := covers, disjoint := disjoint, boundary := boundary,
+};
+\definition projects: \forall (a: Index)(p: Euclidean.Disk (cell a).dimension) -> projection ((cell a).characteristic p) =
+  \root.Real[n := n, k := k, symbol := a.symbol].Canonical[].Characteristic[].StandardDisk[disk := disks a.symbol].map p :=
+  \fun (a: Index)(p: Euclidean.Disk (cell a).dimension) => \refl(projection ((cell a).characteristic p));
+
+\definition cellDimension: \forall (a: Index) -> (cell a).dimension = Symbols.realDimension a.symbol := \fun (a: Index) => \refl(Symbols.realDimension a.symbol);
+\definition filtration[q: N.Nat^]: \Pow Carrier := { e: Carrier \where \exists
+  ( c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Carrier] (CW.InteriorImage c) e]] ) };
+\definition filtrationEqualsPreimage: \forall (q: N.Nat^) -> filtration q = topology.Maps[A := Carrier, B := Base.Carrier].Preimage projection (Ordinary.skeleton q) :=
+  \fun (q: N.Nat^) => \axiom:setext(filtration q, topology.Maps[A := Carrier, B := Base.Carrier].Preimage projection (Ordinary.skeleton q),
+    \block {
+      \fun (e: Carrier)(included: _) \then
+      \takefrom c: \Cast[CW.CellData] ({ c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Carrier] (CW.InteriorImage c) e]] }) \by included \then
+      \let laws: Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Carrier] (CW.InteriorImage c) e]] := \bysub(CW.CellData,
+        { c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Carrier] (CW.InteriorImage c) e]] }, c) \then
+      \takefrom w: List.Witness[indices, c] \by List.witness indices c laws.left \then
+      \let member: \In[Carrier] (CW.InteriorImage (cell w.cell)) e := \idelim c = cell w.cell \with d: CW.CellData => \In[Carrier] (CW.InteriorImage d) e \by { base: laws.right.right, equality: w.same } \then
+      \return \exact(Ordinary.SkeletalPoint[q, e.base] { symbol := w.cell.symbol,
+        bound := \idelim c = cell w.cell \with d: CW.CellData => N.Basic[].Prop[].Le d.dimension q \by { base: laws.right.left, equality: w.same },
+        contains := Interior[a := w.cell].projects e member,
+      }, Ordinary.SkeletalPoint[q, e.base])
+    },
+    \block {
+      \fun (e: Carrier)(included: _) \then
+      \takefrom s: Ordinary.SkeletalPoint[q, e.base] \by included \then
+      \takefrom w: Lift[symbol := s.symbol, disk := disks s.symbol].InteriorPreimage[e] \by Lift[symbol := s.symbol, disk := disks s.symbol].interiorOnto e s.contains \then
+      \return Logic.existsIntro[CW.CellData, { c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Carrier] (CW.InteriorImage c) e]] }]
+        (cell (Index::# s.symbol w.sign)) (Logic.And[_, _]::# (member (Index::# s.symbol w.sign))
+          (Logic.And[_, _]::# s.bound (Interior[a := Index::# s.symbol w.sign].contains w.point w.inside e w.image)))
+    });

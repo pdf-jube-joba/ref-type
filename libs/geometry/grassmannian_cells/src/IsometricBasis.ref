@@ -1,0 +1,17 @@
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := scalar, topological := topological].At[n := n] \as Ambient;
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := scalar].Finite[n := k] \as Domain;
+\import Ambient.OnProjection[P := P].Rank[k := k] \as Rank;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition frame[b: Rank.Basis][isometry: \forall (v, w: Domain.Vector) -> Ambient.dot (b.value.apply v) (b.value.apply w) = Domain.dot v w]: Rank.Frame :=
+  Rank.Frame { basis := b, isometry := isometry,
+    adjoint := \fun (v: Domain.Vector)(w: Ambient.Vector) => eq_reason_in!{K _
+      "=" _ "by" { congr!{{Ambient.Vector} K} (\fun (z: Ambient.Vector) => Ambient.dot z w) _ _ (sym!{{Ambient.Vector}} _ _ (Rank.fixed b v)) }
+      "=" _ "by" { P.selfAdjoint (b.value.apply v) w }
+      "=" _ "by" { congr!{{Ambient.Vector} K} (Ambient.dot (b.value.apply v)) _ _ (sym!{{Ambient.Vector}} _ _ (b.reconstruction w)) }
+      "=" _ "by" { isometry v (b.coordinate.apply w) }
+    },
+  };

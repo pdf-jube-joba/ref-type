@@ -1,0 +1,64 @@
+/* The two real signs, retaining two choices also in rank zero. */
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\import lie_groups.OrthogonalOrientation[] \as Orientation;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\definition predicate: \Pow R.Real := { x: R.Real \where Orientation.Sign x };
+\definition Carrier: \Set := \Cast[R.Real] predicate;
+\definition laws[s: Carrier]: Orientation.Sign s := \bysub(R.Real, predicate, s);
+\definition positive: Carrier := \into[R.Real](R.one, predicate) \by { Logic.Or[_, _]::left (\refl(R.one)) };
+\definition negative: Carrier := \into[R.Real](R.neg R.one, predicate) \by { Logic.Or[_, _]::right (\refl(R.neg R.one)) };
+\definition product[a, b: Carrier]: Carrier := \into[R.Real](R.mul a b, predicate) \by { Orientation.signProduct a b (laws a) (laws b) };
+\definition square: \forall (a: Carrier) -> R.mul a a = R.one := \fun (a: Carrier) => either!{{(laws a)} {R.mul a a = R.one}
+  {\fun (same: a = R.one) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ same same) (Arithmetic.fieldMulOneLeft R.one)}
+  {\fun (same: a = R.neg R.one) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ same same) Orientation.negativeSquare}};
+\definition cancel: \forall (a, b: Carrier) -> product a (product a b) = b := \fun (a, b: Carrier) => eq_reason_in!{R.Real _
+  "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc a a b) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c b) _ _ (square a) }
+  "=" _ "by" { Arithmetic.fieldMulOneLeft b }
+};
+\definition oneLeft: \forall (a: Carrier) -> product positive a = a := Arithmetic.fieldMulOneLeft;
+\definition oneRight: \forall (a: Carrier) -> product a positive = a := R.Algebra[].mulOneRight;
+\definition associative: \forall (a, b, c: Carrier) -> product (product a b) c = product a (product b c) := Arithmetic.fieldMulAssoc;
+\definition commutative: \forall (a, b: Carrier) -> product a b = product b a := Arithmetic.fieldMulComm;
+\definition negativeBelowZero: Order.Lt (R.neg R.one) R.zero := Order.ltReplaceRight _ (R.neg R.zero) R.zero Arithmetic.negZero
+  (Arithmetic.negStrictAntitone R.zero R.one R.Estimates[].Product[].onePositive);
+\definition distinct: Logic.Not (positive = negative) := \fun (same: _) =>
+  Order.Order[].ltNotEq _ _ (Order.Order[].ltTrans _ _ _ negativeBelowZero R.Estimates[].Product[].onePositive) (sym!{R.Real} _ _ same);
+\definition opposite[a: Carrier]: Carrier := product negative a;
+\definition oppositeDifferent: \forall (a: Carrier) -> Logic.Not (a = opposite a) := \fun (a: Carrier)(same: _) => distinct
+  (eq_reason_in!{R.Real R.one
+    "=" _ "by" { sym!{R.Real} _ _ (square a) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (x: R.Real) => R.mul x a) _ _ same }
+    "=" _ "by" { Arithmetic.fieldMulAssoc negative a a }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul negative) _ _ (square a) }
+    "=" _ "by" { R.Algebra[].mulOneRight negative }
+  });
+\definition two: \forall (a, b: Carrier) -> Logic.Not (a = b) -> b = opposite a := \fun (a, b: Carrier)(different: _) =>
+  either!{{(laws a)} {b = opposite a}
+    {\fun (first: a = R.one) => either!{{(laws b)} {b = opposite a}
+      {\fun (second: b = R.one) => Logic.falseElim (b = opposite a) (different (trans!{R.Real} _ _ _ first (sym!{R.Real} _ _ second)))}
+      {\fun (second: b = R.neg R.one) => trans!{R.Real} _ _ _ second (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul negative) _ _ first) (R.Algebra[].mulOneRight negative)))}}}
+    {\fun (first: a = R.neg R.one) => either!{{(laws b)} {b = opposite a}
+      {\fun (second: b = R.one) => trans!{R.Real} _ _ _ second (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul negative) _ _ first) Orientation.negativeSquare))}
+      {\fun (second: b = R.neg R.one) => Logic.falseElim (b = opposite a) (different (trans!{R.Real} _ _ _ first (sym!{R.Real} _ _ second)))}}}};
+\import topology.Topology[Carrier := R.Real] \as Ambient;
+\import Ambient.Subspace[S := predicate] \as Subspace;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition topology: Space.Topology := Subspace.topology metric_spaces.RealLine[].topology;
+\definition hausdorff: Space.IsT2 topology := Subspace.Properties[].hausdorff metric_spaces.RealLine[].topology
+  (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].Hausdorff[].topologyT2 metric_spaces.RealMetric[].metric);
+\module Singleton(a: Carrier);
+\definition allOpen: \forall (U: \Pow Carrier) -> Space.IsOpenIn topology U := \fun (U: \Pow Carrier) => Space.openOfNeighborhoods topology U
+  (\fun (a: Carrier)(member: _) => Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.OpenNeighborhood[topology, a, U, V] }] (Space.Singleton a)
+    (Space.OpenNeighborhood[topology, a, U, Space.Singleton a] { open := Singleton[a := a].open, contains := \refl(a),
+      within := \fun (b: Carrier)(same: b = a) => \idelim a = b \with c: Carrier => Space.Member U c \by { base: member, equality: sym!{Carrier} _ _ same }, }));
+\definition discrete: topology = Space.Discrete := Space.Ext[].law topology Space.Discrete (\fun (U: \Pow Carrier) => Logic.PropEquiv[_, _] { ltr := \fun (_: _) => Space.discreteOpen U, rtl := \fun (_: _) => allOpen U });
+\module Functions(X: \Set);

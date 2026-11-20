@@ -1,0 +1,82 @@
+/* An orientation is a compatible sign on the orthonormal frames of a plane. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import real.Analysis[] \as R;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological] \as Geometry;
+\import Geometry.At[n := n] \as Ambient;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := k] \as Domain;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Linear;
+\import Linear.FiniteCoordinates[n := k].Top[] \as Top;
+\import grassmannians.Real[n := n, k := k].Model[] \as Base;
+\import \root.Signs[] \as Signs;
+\definition Frame[p: Base.Carrier]: \Set := Ambient.OnProjection[P := Base.projection p].Rank[k := k].Frame;
+\definition frameExists: \forall (p: Base.Carrier) -> \exists Frame p := \fun (p: Base.Carrier) =>
+  Ambient.OnProjection[P := Base.projection p].Rank[k := k].frameExists (Base.rank p);
+\module Change(p: Base.Carrier, f, g: Frame p);
+\definition transition[p: Base.Carrier][f, g: Frame p]: Signs.Carrier := Change[p := p, f := f, g := g].sign;
+\definition transitionSelf: \forall (p: Base.Carrier)(f: Frame p) -> transition p f f = Signs.positive :=
+  \fun (p: Base.Carrier)(f: Frame p) => Change[p := p, f := f, g := f].self (\refl(f));
+\definition transitionCompose: \forall (p: Base.Carrier)(f, g, h: Frame p) -> transition p f h = Signs.product (transition p f g) (transition p g h) :=
+  \fun (p: Base.Carrier)(f, g, h: Frame p) => Change[p := p, f := f, g := g].compose h;
+\structure OrientationData[p: Base.Carrier]: \Set := { value: Frame p -> Signs.Carrier };
+\definition Compatible[p: Base.Carrier][a: OrientationData[p]]: \Prop :=
+  \forall (f, g: Frame p) -> a.value g = Signs.product (a.value f) (transition p f g);
+\definition Orientation[p: Base.Carrier]: \Set := \Cast[OrientationData[p]] ({ a: OrientationData[p] \where Compatible p a });
+\definition orientationLaws[p: Base.Carrier][a: Orientation p]: Compatible p a := \bysub(OrientationData[p], Orientation p, a);
+\definition orientationEta: \forall (p: Base.Carrier)(a: OrientationData[p]) -> OrientationData[p]::# a.value = a :=
+  \fun (p: Base.Carrier) => \induction (a: OrientationData[p]) \return OrientationData[p]::# a.value = a \with {
+    | # : \fun (v: Frame p -> Signs.Carrier) => \refl(OrientationData[p]::# v)
+  };
+\definition orientationExt: \forall (p: Base.Carrier)(a, b: Orientation p)(f: Frame p) -> a.value f = b.value f -> a = b :=
+  \fun (p: Base.Carrier)(a, b: Orientation p)(f: Frame p)(same: _) => trans!{OrientationData[p]} _ _ _ (sym!{OrientationData[p]} _ _ (orientationEta p a))
+    (trans!{OrientationData[p]} _ _ _ (congr!{{Frame p -> Signs.Carrier} {OrientationData[p]}} OrientationData[p]::# _ _
+      (\axiom:funext(a.value, b.value, \fun (g: Frame p) => eq_reason_in!{{Signs.Carrier} _
+        "=" _ "by" { orientationLaws p a f g }
+        "=" _ "by" { congr!{{Signs.Carrier} {Signs.Carrier}} (\fun (s: Signs.Carrier) => Signs.product s (transition p f g)) _ _ same }
+        "=" _ "by" { sym!{{Signs.Carrier}} _ _ (orientationLaws p b f g) }
+      }))) (orientationEta p b));
+\definition fromFrame[p: Base.Carrier][f: Frame p][sign: Signs.Carrier]: Orientation p :=
+  \into[OrientationData[p]](OrientationData[p] { value := \fun (g: Frame p) => Signs.product sign (transition p f g) }, Orientation p) \by {
+    \fun (g, h: Frame p) => trans!{{Signs.Carrier}} _ _ _
+      (congr!{{Signs.Carrier} {Signs.Carrier}} (Signs.product sign) _ _ (transitionCompose p f g h))
+      (sym!{{Signs.Carrier}} _ _ (Signs.associative sign (transition p f g) (transition p g h)))
+  };
+\definition fromFrameAt: \forall (p: Base.Carrier)(f: Frame p)(s: Signs.Carrier) -> (fromFrame p f s).value f = s :=
+  \fun (p: Base.Carrier)(f: Frame p)(s: Signs.Carrier) => trans!{{Signs.Carrier}} _ _ _
+    (congr!{{Signs.Carrier} {Signs.Carrier}} (Signs.product s) _ _ (transitionSelf p f)) (Signs.oneRight s);
+\definition reconstruct: \forall (p: Base.Carrier)(f: Frame p)(a: Orientation p) -> fromFrame p f (a.value f) = a :=
+  \fun (p: Base.Carrier)(f: Frame p)(a: Orientation p) => orientationExt p _ a f (fromFrameAt p f (a.value f));
+\structure Carrier: \Set := { base: Base.Carrier, orientation: Orientation base };
+\definition projection[p: Carrier]: Base.Carrier := p.base;
+\definition include[p: Base.Carrier][f: Frame p][s: Signs.Carrier]: Carrier := Carrier { base := p, orientation := fromFrame p f s };
+\definition eta: \forall (p: Carrier) -> Carrier::# p.base p.orientation = p :=
+  \induction (p: Carrier) \return Carrier::# p.base p.orientation = p \with {
+    | # : \fun (b: Base.Carrier)(a: Orientation b) => \refl(Carrier::# b a)
+  };
+\module TransitionFamily(X: \Set, source: topology.Topology[Carrier := X].Topology, p: X -> Base.Carrier,
+  f, g: \forall (x: X) -> Frame (p x),
+  coordinates: Geometry.At[n := k].Families[X := X].Matrix[m := n].Regular source (\fun (x: X) => (f x).basis.coordinate),
+  regular: Ambient.Families[X := X].Matrix[m := k].Regular source (\fun (x: X) => (g x).basis.value));
+\module Atlas;
+\module Family(X: \Set, source: topology.Topology[Carrier := X].Topology, p: X -> Base.Carrier,
+  baseContinuous: topology.Continuity[A := X, B := Base.Carrier].Continuous source Base.topology p,
+  frame: \forall (x: X) -> Frame (p x),
+  regular: Ambient.Families[X := X].Matrix[m := k].Regular source (\fun (x: X) => (frame x).basis.value),
+  coordinates: Geometry.At[n := k].Families[X := X].Matrix[m := n].Regular source (\fun (x: X) => (frame x).basis.coordinate));
+\module Lift(symbol: \root.Symbols[n := n, k := k].Symbol,
+  disk: \root.Real[n := n, k := k, symbol := symbol].Canonical[].Characteristic[].DiskData);
+\module CW;
+
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Atlas[].topology;
+\definition hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Atlas[].hausdorff;
+\definition projectionContinuous: topology.Continuity[A := Carrier, B := Base.Carrier].Continuous topology Base.topology projection := Atlas[].projectionContinuous;
+\definition covering: covering_spaces.Projection[E := Carrier, B := Base.Carrier, total := topology, base := Base.topology, projection := projection].Covering := Atlas[].Cover[].covering;
+\definition twoSheets: \forall (b: Base.Carrier) -> \exists Atlas[].Cover[].TwoSheets[b] := Atlas[].Cover[].twoSheets;

@@ -1,0 +1,38 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Model;
+\import algebraic_topology.CW[A := A] \as CW;
+\import topology.Topology[Carrier := A] \as Space;
+\import topology.Topology[Carrier := Model.Disk] \as DiskSpace;
+\import topology.Maps[A := Model.Disk, B := A] \as Images;
+\definition imageMember[S: \Pow Model.Disk][p: Model.Disk][x: A][member: \In[Model.Disk] S p][same: f p = x]: \In[A] (Images.Image f S) x :=
+  \idelim f p = x \with y: A => \In[A] (Images.Image f S) y \by { base: Images.imageMember f S p member, equality: same };
+\definition cell: CW.CellData := CW.CellData { dimension := d, characteristic := f };
+\definition closedImage: CW.ClosedImage cell = Images.Image f DiskSpace.Whole :=
+  \axiom:setext(CW.ClosedImage cell, Images.Image f DiskSpace.Whole,
+    \block {
+      \fun (x: A)(member: _) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where f p = x }) \by member \then
+      \return imageMember DiskSpace.Whole p x (\refl(p)) (\bysub(Model.Disk, { p: Model.Disk \where f p = x }, p))
+    },
+    \block {
+      \fun (x: A)(member: _) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[p = p, f p = x] }) \by member \then
+      \return Logic.existsIntro[Model.Disk, { q: Model.Disk \where f q = x }] p (\bysub(Model.Disk, { p: Model.Disk \where Logic.And[p = p, f p = x] }, p)).right
+    });
+\definition closed: Space.IsClosedIn space (CW.ClosedImage cell) :=
+  \idelim Images.Image f DiskSpace.Whole = CW.ClosedImage cell \with F: \Pow A => Space.IsClosedIn space F \by {
+    base: Space.Compactness[].compactClosed space hausdorff (Images.Image f DiskSpace.Whole)
+      (topology.Compactness[A := Model.Disk, B := A].continuousImage Model.diskTopology space f continuous DiskSpace.Whole Model.Compactness[].compact),
+    equality: sym!{\Pow A} _ _ closedImage
+  };
+\module Open(U: \Pow Model.Disk, open: DiskSpace.IsOpenIn Model.diskTopology U);
+\definition laws: CW.CellLaws[space, cell] := CW.CellLaws[space, cell] {
+  continuous := continuous, closed := closed, injectiveInterior := injective,
+  inverseContinuous := \fun (U: \Pow Model.Disk)(open: _) => Logic.existsIntro[\Pow A,
+    { V: \Pow A \where Logic.And[Space.IsOpenIn space V, CW.InteriorPart cell U = Space.Intersection (CW.InteriorImage cell) V] }]
+    Open[U := U, open := open].neighborhood (Logic.And[_, _]::# Open[U := U, open := open].isOpen Open[U := U, open := open].same),
+};
+\module Interior;

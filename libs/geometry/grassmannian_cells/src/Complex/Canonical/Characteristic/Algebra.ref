@@ -1,7 +1,8 @@
+\import linear_algebra.Commutative[K := Numbers.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Complex Numbers.Algebra[].field].Coordinates[I := Fin.Fin n].Kronecker[] \as PivotDelta;
 \import Geometry.Finite[n := k] \as Domain;
 \import Ambient.Unitary[] \as Unitary;
 \import Action.Rank[k := k, u := Rotations.unitary parameter, basis := Pivot[].basis] \as Rank;
-\definition columns: Triangular.At[k := k].Gram.Map := Rank.value.value;
+\definition columns: Triangular.At[k := k].Map := Rank.value.value;
 \definition onBasis: \forall (j: Fin.Fin k) -> columns.apply (Domain.basis j) = frame parameter j :=
   \fun (j: Fin.Fin k) => congr!{{Ambient.Vector} {Ambient.Vector}} (Rotations.unitary parameter).forward.apply _ _ (Pivot[].onBasis j);
 \import Pivot[] \as Pivot;
@@ -13,23 +14,37 @@
     (congr!{{Ambient.Vector} {Ambient.Vector} Numbers.Complex} Euclidean.dot _ _ _ _ (Pivot.onBasis i) (Pivot.onBasis j))
     (trans!{Numbers.Complex} _ _ _ (Euclidean.dotBasis (symbol.pivot i) (Euclidean.basis (symbol.pivot j)))
       (trans!{Numbers.Complex} _ _ _
-        (either!{{(Classical.excludedMiddle (j = i))} {Pivot.Delta.delta (symbol.pivot j) (symbol.pivot i) = SmallDelta.delta j i}
-          {\fun (same: _) => trans!{Numbers.Complex} _ _ _ (Pivot.Delta.equal _ _ (congr!{{Fin.Fin k} {Fin.Fin n}} symbol.pivot _ _ same)) (sym!{Numbers.Complex} _ _ (SmallDelta.equal j i same))}
-          {\fun (different: _) => trans!{Numbers.Complex} _ _ _ (Pivot.Delta.different _ _ (\fun (same: _) => different (Symbols.injective symbol j i same))) (sym!{Numbers.Complex} _ _ (SmallDelta.different j i different))}
+        (either!{{(Classical.excludedMiddle (j = i))} {PivotDelta.delta (symbol.pivot j) (symbol.pivot i) = SmallDelta.delta j i}
+          {\fun (same: _) => trans!{Numbers.Complex} _ _ _ (PivotDelta.equal _ _ (congr!{{Fin.Fin k} {Fin.Fin n}} symbol.pivot _ _ same)) (sym!{Numbers.Complex} _ _ (SmallDelta.equal j i same))}
+          {\fun (different: _) => trans!{Numbers.Complex} _ _ _ (PivotDelta.different _ _ (\fun (same: _) => different (Symbols.injective symbol j i same))) (sym!{Numbers.Complex} _ _ (SmallDelta.different j i different))}
         }) (sym!{Numbers.Complex} _ _ (Domain.dotBasis i (Domain.basis j)))));
 \definition pivotIsometry: \forall (v, w: Domain.Vector) -> Euclidean.dot (Pivot[].basis.value.apply v) (Pivot[].basis.value.apply w) = Domain.dot v w :=
   Triangular.At[k := k].Columns[A := Pivot[].basis.value, orthonormal := pivotOrthonormal].isometry;
 \definition isometry: \forall (v, w: Domain.Vector) -> Euclidean.dot (columns.apply v) (columns.apply w) = Domain.dot v w :=
   \fun (v, w: Domain.Vector) => trans!{Numbers.Complex} _ _ _ (Unitary.isometry (Rotations.unitary parameter) (Pivot[].basis.value.apply v) (Pivot[].basis.value.apply w)) (pivotIsometry v w);
-\definition triangular: Triangular.At[k := k].Laws[symbol, columns] := Triangular.At[k := k].Laws[symbol, columns] {
-  above := \fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{Numbers.Complex} _ _ _
-    (congr!{{Ambient.Vector} Numbers.Complex} (\fun (v: Ambient.Vector) => v r) _ _ (onBasis j)) (Rotations.above parameter j r above),
-  diagonal := \fun (j: Fin.Fin k) => \exact(Triangular.At[k := k].Diagonal[symbol, columns, j] {
-    value := Rotations.Column[j := j].radius parameter,
-    positive := Rotations.Column[j := j].radiusPositive parameter (inside j),
-    agrees := trans!{Numbers.Complex} _ _ _ (congr!{{Ambient.Vector} Numbers.Complex} (\fun (v: Ambient.Vector) => v (symbol.pivot j)) _ _ (onBasis j)) (Rotations.diagonal parameter j),
-  }, Triangular.At[k := k].Diagonal[symbol, columns, j]),
-};
 \definition fixed: \forall (v: Domain.Vector) -> (map parameter).map.apply (columns.apply v) = columns.apply v :=
   \fun (v: Domain.Vector) => trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ (Rank.value.reconstruction (columns.apply v)))
     (congr!{{Domain.Vector} {Ambient.Vector}} columns.apply _ _ (Rank.value.leftInverse v));
+
+
+\definition weakTriangular: Triangular.At[k := k].WeakLaws[symbol, columns] := Triangular.At[k := k].WeakLaws[symbol, columns] {
+  above := \fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{Numbers.Complex} _ _ _
+    (congr!{{Ambient.Vector} Numbers.Complex} (\fun (v: Ambient.Vector) => v r) _ _ (onBasis j)) (Rotations.above parameter j r above),
+  diagonal := \fun (j: Fin.Fin k) => \exact(Triangular.At[k := k].WeakDiagonal[symbol, columns, j] {
+    value := Rotations.Column[j := j].radius parameter,
+    nonnegative := Rotations.Column[j := j].radiusNonnegative parameter,
+    agrees := trans!{Numbers.Complex} _ _ _ (congr!{{Ambient.Vector} Numbers.Complex} (\fun (v: Ambient.Vector) => v (symbol.pivot j)) _ _ (onBasis j)) (Rotations.diagonal parameter j),
+  }, Triangular.At[k := k].WeakDiagonal[symbol, columns, j]),
+};
+\module Interior(inside: Rotations.Interior parameter);
+
+\import \root.Reduction[K := Numbers.Complex, field := Numbers.Algebra[].field, scalar := H.Complex[].scalar, n := n].At[k := k] \as Reduction;
+\module Decomposition(form: Reduction.NormalForm[columns]);
+\definition boundaryLower: Rotations.Boundary parameter -> \exists BoundaryImage[map parameter] := \block {
+  \fun (boundary: _) \then
+  \takefrom form: Reduction.NormalForm[columns] \by Reduction.normalFormExists columns
+    (Ambient.OnProjection[P := Grassmannian.projection (map parameter)].Rank[k := k].injective Rank.value) \then
+  \return \exact(Decomposition[form := form].boundaryImage boundary, BoundaryImage[map parameter])
+};
+
+\definition basis: Ambient.OnProjection[P := Grassmannian.projection (map parameter)].Rank[k := k].Basis := Rank.value;

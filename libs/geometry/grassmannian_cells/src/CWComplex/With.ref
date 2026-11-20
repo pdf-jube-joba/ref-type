@@ -1,0 +1,73 @@
+\definition cell[s: Symbols.Symbol]: CW.CellData := \root.Complex[n := n, k := k, symbol := s].Canonical[].Characteristic[].StandardDisk[disk := disks s].cellData;
+\definition interior[s: Symbols.Symbol]: CW.InteriorImage (cell s) = Decomposition.cell s :=
+  \root.Complex[n := n, k := k, symbol := s].Canonical[].Characteristic[].StandardDisk[disk := disks s].interiorImage;
+\import thom_spaces.Thom[].CWType[].ListMapping[A := Symbols.Symbol, B := CW.CellData, transform := cell] \as List;
+\definition cells: CW.Cells := List.map symbols;
+\definition member[s: Symbols.Symbol]: CW.CellMember cells (cell s) := List.member symbols s (exhaustive s);
+\definition cellLaws: \forall (c: CW.CellData) -> CW.CellMember cells c -> CW.CellLaws[Grassmannian.topology, c] := \block {
+  \fun (c: CW.CellData)(included: _) \then
+  \takefrom w: List.Witness[symbols, c] \by List.witness symbols c included \then
+  \return \idelim cell w.cell = c \with d: CW.CellData => CW.CellLaws[Grassmannian.topology, d] \by {
+    base: \root.Complex[n := n, k := k, symbol := w.cell].Canonical[].Characteristic[].StandardDisk[disk := disks w.cell].cellLaws,
+    equality: sym!{CW.CellData} _ _ w.same
+  }
+};
+\definition contains[s: Symbols.Symbol][x: Grassmannian.Carrier][member: \In[Grassmannian.Carrier] (Decomposition.cell s) x]: \In[Grassmannian.Carrier] (CW.InteriorImage (cell s)) x :=
+  \idelim Decomposition.cell s = CW.InteriorImage (cell s) \with U: \Pow Grassmannian.Carrier => \In[Grassmannian.Carrier] U x \by {
+    base: member, equality: sym!{\Pow Grassmannian.Carrier} _ _ (interior s)
+  };
+\definition covers: \forall (x: Grassmannian.Carrier) -> \exists CW.CoverWitness[cells, x] := \block {
+  \fun (x: Grassmannian.Carrier) \then
+  \takefrom s: \Cast[Symbols.Symbol] ({ s: Symbols.Symbol \where \In[Grassmannian.Carrier] (Decomposition.cell s) x }) \by Decomposition.covers x \then
+  \return \exact(CW.CoverWitness[cells, x] { cell := cell s, member := member s,
+    contains := contains s x (\bysub(Symbols.Symbol, { s: Symbols.Symbol \where \In[Grassmannian.Carrier] (Decomposition.cell s) x }, s)),
+  }, CW.CoverWitness[cells, x])
+};
+\definition readInterior[c: CW.CellData][s: Symbols.Symbol][same: c = cell s][x: Grassmannian.Carrier]
+  [member: \In[Grassmannian.Carrier] (CW.InteriorImage c) x]: \In[Grassmannian.Carrier] (Decomposition.cell s) x :=
+  \idelim CW.InteriorImage (cell s) = Decomposition.cell s \with U: \Pow Grassmannian.Carrier => \In[Grassmannian.Carrier] U x \by {
+    base: \idelim c = cell s \with d: CW.CellData => \In[Grassmannian.Carrier] (CW.InteriorImage d) x \by { base: member, equality: same },
+    equality: interior s
+  };
+\definition disjoint: \forall (c, d: CW.CellData) -> CW.CellMember cells c -> CW.CellMember cells d ->
+  \forall (x: Grassmannian.Carrier) -> \In[Grassmannian.Carrier] (CW.InteriorImage c) x -> \In[Grassmannian.Carrier] (CW.InteriorImage d) x -> c = d := \block {
+  \fun (c, d: CW.CellData)(first: _)(second: _)(x: Grassmannian.Carrier)(left: _)(right: _) \then
+  \takefrom a: List.Witness[symbols, c] \by List.witness symbols c first \then
+  \takefrom b: List.Witness[symbols, d] \by List.witness symbols d second \then
+  \let same: a.cell = b.cell := Decomposition.disjoint a.cell b.cell x (readInterior c a.cell a.same x left) (readInterior d b.cell b.same x right) \then
+  \return trans!{CW.CellData} _ _ _ a.same (trans!{CW.CellData} _ _ _ (congr!{Symbols.Symbol CW.CellData} cell _ _ same) (sym!{CW.CellData} _ _ b.same))
+};
+\module Boundary(s: Symbols.Symbol);
+\definition boundary: \forall (c: CW.CellData) -> CW.CellMember cells c -> \forall (p: Euclidean.Disk c.dimension) ->
+  \In[Euclidean.coordinateCarrier c.dimension] (Euclidean.boundaryAt c.dimension) p -> \exists CW.BoundaryWitness[cells, c, c.characteristic p] := \block {
+  \fun (c: CW.CellData)(included: _) \then
+  \takefrom w: List.Witness[symbols, c] \by List.witness symbols c included \then
+  \return \idelim cell w.cell = c \with d: CW.CellData => \forall (p: Euclidean.Disk d.dimension) ->
+    \In[Euclidean.coordinateCarrier d.dimension] (Euclidean.boundaryAt d.dimension) p -> \exists CW.BoundaryWitness[cells, d, d.characteristic p] \by {
+      base: Boundary[s := w.cell].exists, equality: sym!{CW.CellData} _ _ w.same
+    }
+};
+\definition presentation: Finite.Presentation := Finite.Presentation {
+  cells := cells, hausdorff := Grassmannian.hausdorff, cellLaws := cellLaws, covers := covers, disjoint := disjoint, boundary := boundary,
+};
+
+\definition filtration[q: N.Nat^]: \Pow Grassmannian.Carrier := { x: Grassmannian.Carrier \where \exists
+  ( c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Grassmannian.Carrier] (CW.InteriorImage c) x]] ) };
+\definition filtrationEquals: \forall (q: N.Nat^) -> filtration q = skeleton q := \fun (q: N.Nat^) => \axiom:setext(filtration q, skeleton q,
+  \block {
+    \fun (x: Grassmannian.Carrier)(member: _) \then
+    \takefrom c: \Cast[CW.CellData] ({ c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Grassmannian.Carrier] (CW.InteriorImage c) x]] }) \by member \then
+    \let laws: Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Grassmannian.Carrier] (CW.InteriorImage c) x]] :=
+      \bysub(CW.CellData, { c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Grassmannian.Carrier] (CW.InteriorImage c) x]] }, c) \then
+    \takefrom w: List.Witness[symbols, c] \by List.witness symbols c laws.left \then
+    \return \exact(SkeletalPoint[q, x] { symbol := w.cell,
+      bound := \idelim c = cell w.cell \with d: CW.CellData => N.Basic[].Prop[].Le d.dimension q \by { base: laws.right.left, equality: w.same },
+      contains := readInterior c w.cell w.same x laws.right.right,
+    }, SkeletalPoint[q, x])
+  },
+  \block {
+    \fun (x: Grassmannian.Carrier)(included: _) \then
+    \takefrom w: SkeletalPoint[q, x] \by included \then
+    \return Logic.existsIntro[CW.CellData, { c: CW.CellData \where Logic.And[CW.CellMember cells c, Logic.And[N.Basic[].Prop[].Le c.dimension q, \In[Grassmannian.Carrier] (CW.InteriorImage c) x]] }]
+      (cell w.symbol) (Logic.And[_, _]::# (member w.symbol) (Logic.And[_, _]::# w.bound (contains w.symbol x w.contains)))
+  });

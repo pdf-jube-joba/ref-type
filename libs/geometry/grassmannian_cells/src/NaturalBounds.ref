@@ -1,0 +1,32 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Basic;
+\import N.Order[].Prop[] \as Order;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition leOfLt: \forall (a, b: N.Nat^) -> Basic.Lt a b -> Basic.Le a b :=
+  \fun (a, b: N.Nat^)(less: _) => Basic.leTrans a (N.Nat^::succ a) b (Basic.leSelfSucc a) (Basic.succLeOfLt b a less);
+\definition reverse: \forall (a, b: N.Nat^) -> Logic.Not (Basic.Lt a b) -> Basic.Le b a :=
+  \fun (a, b: N.Nat^)(outside: _) => \match Order.trichotomy a b \in std.Logic[].Order[].Trichotomy
+    \return (\fun (_: Order.Trichotomy a b) => Basic.Le b a) \with {
+    | less wrong: Logic.falseElim _ (outside wrong)
+    | equal same: \idelim a = b \with c: N.Nat^ => Basic.Le c a \by { base: Basic.leRefl a, equality: same }
+    | greater bound: leOfLt b a bound
+  };
+\definition addLeft: \forall (c, a, b: N.Nat^) -> Basic.Le a b -> Basic.Le (Nat.add c a) (Nat.add c b) :=
+  \fun (c, a, b: N.Nat^)(bound: _) => either!{{(N.Induction[].leCases a b bound)} {Basic.Le (Nat.add c a) (Nat.add c b)}
+    {\fun (less: _) => leOfLt _ _ (Order.ltAddLeft c a b less)}
+    {\fun (same: _) => \idelim a = b \with d: N.Nat^ => Basic.Le (Nat.add c a) (Nat.add c d) \by { base: Basic.leRefl (Nat.add c a), equality: same }}
+  };
+\definition addRight: \forall (a, b, c: N.Nat^) -> Basic.Le a b -> Basic.Le (Nat.add a c) (Nat.add b c) :=
+  \fun (a, b, c: N.Nat^)(bound: _) => either!{{(N.Induction[].leCases a b bound)} {Basic.Le (Nat.add a c) (Nat.add b c)}
+    {\fun (less: _) => leOfLt _ _ (Order.ltAddRight a b c less)}
+    {\fun (same: _) => \idelim a = b \with d: N.Nat^ => Basic.Le (Nat.add a c) (Nat.add d c) \by { base: Basic.leRefl (Nat.add a c), equality: same }}
+  };
+\definition add: \forall (a, b, c, d: N.Nat^) -> Basic.Le a b -> Basic.Le c d -> Basic.Le (Nat.add a c) (Nat.add b d) :=
+  \fun (a, b, c, d: N.Nat^)(first: _)(second: _) => Basic.leTrans _ _ _ (addRight a b c first) (addLeft b c d second);
+\definition subtract: \forall (start, a, b: N.Nat^) -> Basic.Le start a -> Basic.Le a b -> Basic.Le (Nat.sub a start) (Nat.sub b start) :=
+  \fun (start, a, b: N.Nat^)(lower: _)(bound: _) => either!{{(N.Induction[].leCases a b bound)} {Basic.Le (Nat.sub a start) (Nat.sub b start)}
+    {\fun (less: _) => leOfLt _ _ (Basic.subLtOfLe start a b lower less)}
+    {\fun (same: _) => \idelim a = b \with c: N.Nat^ => Basic.Le (Nat.sub a start) (Nat.sub c start) \by { base: Basic.leRefl (Nat.sub a start), equality: same }}
+  };
