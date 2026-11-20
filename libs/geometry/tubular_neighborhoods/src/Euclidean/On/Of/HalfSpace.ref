@@ -17,13 +17,16 @@
 \definition j: Fin.Fin d := fromIndex Half.normal;
 \import \parent.Neat[j := j] \as Slice;
 \definition coordinates[y: Half.manifold.Point][i: Fin.Fin d]: R.Real := Half.value y (toIndex i);
-\definition point[v: E.Vector][member: O.Le R.zero (v j)]: Half.manifold.Point := Half.point
-  (\into[CoordinateOpen.Carrier CoordinateOpen.whole](CoordinateOpen.Whole[].point (\fun (i: Fin.Fin Half.dimension) => v (fromIndex i)),Model.region Half.constraints CoordinateOpen.whole)
-    \by { Model.halfSpaceNonnegative Half.normal _ member });
+\definition coordinateInput[v: E.Vector][member: O.Le R.zero (v j)]: Half.Coordinates :=
+  \into[CoordinateOpen.Carrier CoordinateOpen.whole](CoordinateOpen.Whole[].point (\fun (i: Fin.Fin Half.dimension) => v (fromIndex i)),Model.region Half.constraints CoordinateOpen.whole)
+    \by { Model.halfSpaceNonnegative Half.normal (\fun (i: Fin.Fin Half.dimension) => v (fromIndex i)) member };
+\definition point[v: E.Vector][member: O.Le R.zero (v j)]: Half.manifold.Point := Half.point (coordinateInput v member);
 \definition coordinatesPoint[v: E.Vector][member: O.Le R.zero (v j)]: coordinates (point v member) = v :=
   \axiom:funext((coordinates (point v member)),v,\fun (i: Fin.Fin d) => congr!{{Half.Coordinates} {R.Real}}
-    (\fun (a: Half.Coordinates) => a (toIndex i)) _ _ (Half.rightInverse _));
+    (\fun (a: Half.Coordinates) => a (toIndex i)) (Half.coordinates (point v member)) (coordinateInput v member) (Half.rightInverse (coordinateInput v member)));
 \definition pointCoordinates[y: Half.manifold.Point][member: O.Le R.zero (coordinates y j)]: point (coordinates y) member = y := Half.leftInverse y;
+\definition nonnegative[y: Half.manifold.Point]: O.Le R.zero (coordinates y j) :=
+  O.leReplaceRight R.zero (Half.height y) (coordinates y j) (sym!{{R.Real}} _ _ (Half.last y)) (Half.nonnegative y);
 \structure Extension[f: EmbeddingsWithBoundary.Embedding]: \Set := {
   base: B.Point -> M.Point, agrees: \forall (x: B.Point) -> Maps.apply e (base x) = coordinates (BoundaryMaps.apply f x),
   covers: \forall (x: M.Point) -> O.Le R.zero (Slice.height x) -> \exists ( b: B.Point \where base b = x ),
@@ -41,25 +44,33 @@
     \definition domain: \Set := Tube.SourcePoint;
     \definition Image: \Pow Half.manifold.Point := { y: Half.manifold.Point \where T.Member t.tube.image.points (coordinates y) };
     \definition range: \Set := \Cast[Half.manifold.Point] Image;
-    \definition send[q: domain]: range := \block {
-      \let v: Tube.TargetPoint := Tube.forward q \then
-      \let h: O.Le R.zero (v j) := \bysub(E.Vector,Regular.Half,(v \of \Cast[E.Vector] Regular.Half)) \then
-      \return \into[Half.manifold.Point](point v h,Image) \by {
-        \idelim v = coordinates (point v h) \with a: E.Vector => T.Member t.tube.image.points a \by {
-          base: \bysub(E.Vector,t.tube.image.points,Tube.target v),equality: sym!{{E.Vector}} _ _ (coordinatesPoint v h)
-        }
+    \definition output[v: Tube.TargetPoint]: Half.manifold.Point := point v
+      (\bysub(E.Vector,Regular.Half,(v \of \Cast[E.Vector] Regular.Half)));
+    \definition outputCoordinates[v: Tube.TargetPoint]: coordinates (output v) = (v \of E.Vector) :=
+      coordinatesPoint v (\bysub(E.Vector,Regular.Half,(v \of \Cast[E.Vector] Regular.Half)));
+    \definition send[q: domain]: range := \into[Half.manifold.Point](output (Tube.forward q),Image) \by {
+      \idelim (Tube.forward q \of E.Vector) = coordinates (output (Tube.forward q)) \with a: E.Vector => T.Member t.tube.image.points a \by {
+        base: \bysub(E.Vector,t.tube.image.points,Tube.target (Tube.forward q)),
+        equality: sym!{{E.Vector}} _ _ (outputCoordinates (Tube.forward q))
       }
     };
     \definition input[y: range]: Tube.TargetPoint :=
-      \into[\Cast[E.Vector] Regular.Half](\into[E.Vector](coordinates y,Regular.Half) \by {
-        O.leReplaceRight _ _ _ (sym!{{R.Real}} _ _ (Half.last y)) (Half.nonnegative y) },Tube.image) \by { \bysub(Half.manifold.Point,Image,y) };
+      \into[\Cast[E.Vector] Regular.Half](\into[E.Vector](coordinates y,Regular.Half) \by { nonnegative y },Tube.image)
+        \by { \bysub(Half.manifold.Point,Image,y) };
     \definition undo[y: range]: domain := Tube.backward (input y);
+    \definition targetEquality[v,w: Tube.TargetPoint][same: (v \of E.Vector) = (w \of E.Vector)]: v = w :=
+      boundary_manifolds.Refinement[A := \Cast[E.Vector] Regular.Half].equality Tube.image v w
+        (boundary_manifolds.Refinement[A := E.Vector].equality Regular.Half
+          (v \of \Cast[E.Vector] Regular.Half) (w \of \Cast[E.Vector] Regular.Half) same);
     \definition left[q: domain]: undo (send q) = q :=
-      trans!{domain} _ _ _ (congr!{Tube.TargetPoint domain} Tube.backward _ _ (coordinatesPoint (Tube.forward q) _)) (t.tube.left (Tube.normal q));
-    \definition right[y: range]: send (undo y) = y := trans!{{Half.manifold.Point}} _ _ _
-      (congr!{{Half.Coordinates} {Half.manifold.Point}} Half.point _ _
-        (Model.equality Half.constraints CoordinateOpen.whole _ _ (\axiom:funext(_,_,\fun (i: Fin.Fin Half.dimension) =>
-          congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v (fromIndex i)) _ _ (t.tube.right (Tube.target (input y))))))) (Half.leftInverse y);
+      trans!{domain} _ _ _ (congr!{Tube.TargetPoint domain} Tube.backward (input (send q)) (Tube.forward q)
+        (targetEquality (input (send q)) (Tube.forward q) (outputCoordinates (Tube.forward q))))
+        (Tube.homeomorphism.leftInverse q);
+    \definition right[y: range]: send (undo y) = y := boundary_manifolds.Refinement[A := Half.manifold.Point].equality Image (send (undo y)) y
+      (trans!{{Half.manifold.Point}} _ _ _
+        (congr!{Tube.TargetPoint {Half.manifold.Point}} output (Tube.forward (Tube.backward (input y))) (input y)
+          (Tube.homeomorphism.rightInverse (input y)))
+        (pointCoordinates y (nonnegative y)));
     \definition atZero[x: B.Point]: coordinates (send (Tube.center (base x))) = coordinates (BoundaryMaps.apply f x) :=
       trans!{{E.Vector}} _ _ _ (coordinatesPoint (Tube.forward (Tube.center (base x))) _)
         (trans!{{E.Vector}} _ _ _ (Tube.centerFormula (base x)) (extension.agrees x));

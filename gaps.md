@@ -431,6 +431,41 @@ K11's smash associator uses this representation for its raw threefold product.
 ```
 
 
+## G06: 定義の引数に依存する部分多様体の写像型
+
+開集合を定義の引数として受け取り、その部分多様体を始域とする滑らかな写像の型を直接返したい。
+`std`、`calculus`、`manifolds` を依存に持つ playground で、次の6行は `unknown module expression scope` により失敗する。
+
+こう書きたい版:
+
+```ref
+\module Example(n: std.Data[].Nat[].Nat^) {
+  \import manifolds.Dimension[n := n].Examples[].Euclidean[] \as Ambient;
+  \import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+  \definition InverseMap[U: Open.OpenSet]: \Set := manifolds.SmoothMap[n := n,m := n].Between[
+    M := Ambient.Subspace[U := U].smoothManifold,N := Ambient.smoothManifold].Map;
+}
+```
+
+現在は開集合を引数に取る補助 module 内で始域と写像を import し、その型を参照する。
+次の10行は通常検査で終了コード0となる。
+`tubular_neighborhoods.Euclidean.On.Of.With.InverseOn` は同じ方法で逆写像の型と連続性を公開する。
+
+こう書いている版:
+
+```ref
+\module Example(n: std.Data[].Nat[].Nat^) {
+  \import manifolds.Dimension[n := n].Examples[].Euclidean[] \as Ambient;
+  \import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+  \module InverseOn(U: Open.OpenSet) {
+    \import Ambient.Subspace[U := U] \as Source;
+    \import manifolds.SmoothMap[n := n,m := n].Between[M := Source.smoothManifold,N := Ambient.smoothManifold] \as Maps;
+    \definition Map: \Set := Maps.Map;
+  }
+  \definition InverseMap[U: Open.OpenSet]: \Set := InverseOn[U := U].Map;
+}
+```
+
 ## 依存する module 引数型の内部量化と後続定義のスコープ
 
 境界のない多様体を指定する条件を、module 引数の型へ直接書きたい。

@@ -33,9 +33,9 @@
 };
 \definition scale[a: R.Real][p: Normal.Point]: Normal.Point := Normal.include p.base ((Normal.fiberSpace p.base).smul a p.vector);
 \definition cancel[a,b: R.Real][p: Normal.Point][inverse: R.mul a b = R.one]: scale a (scale b p) = p :=
-  Sub.ext _ _ (\refl(p.base)) (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (E.space.scalarAssoc a b p.vector))
+  Sub.ext (scale a (scale b p)) p (\refl(p.base)) (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (E.space.scalarAssoc a b p.vector))
     (trans!{{E.Vector}} _ _ _ (congr!{{R.Real} {E.Vector}} (\fun (c: R.Real) => E.space.smul c p.vector) _ _ inverse) (E.space.scalarOne p.vector)));
-\definition scaleZero[p: Normal.Point]: scale R.zero p = zero p.base := Sub.ext _ _ (\refl(p.base)) (Laws.zeroScale p.vector);
+\definition scaleZero[p: Normal.Point]: scale R.zero p = zero p.base := Sub.ext (scale R.zero p) (zero p.base) (\refl(p.base)) (Laws.zeroScale p.vector);
 \module Family(X: \Set, source: topology.Structures[].Topology[X], a: X -> R.Real, q: X -> Normal.Point,
   scalar: metric_spaces.RealFunctions[A := X].Continuous source a, regular: topology.Continuity[A := X,B := Normal.Point].Continuous source Normal.topology q);
 
@@ -49,7 +49,8 @@
   outside: \forall (x: E.Vector) -> (\forall (v: Point) -> Logic.Not (embedded r v = x)) -> f x = Quotient.point,
 };
 \definition unique[r: R.Real][f,g: E.Vector -> Thom][a: CollapseLaw[r,f]][b: CollapseLaw[r,g]]: f = g := \axiom:funext(f,g,\fun (x: E.Vector) =>
-  Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( v: Point \where embedded r v = x )))
+  Logic.orElim (\exists ( v: Point \where embedded r v = x )) (Logic.Not (\exists ( v: Point \where embedded r v = x )))
+    (f x = g x) (Classical.excludedMiddle (\exists ( v: Point \where embedded r v = x )))
     (\block {
       \fun (h: _) \then
       \takefrom v: \Cast[Point] ({ v: Point \where embedded r v = x }) \by h \then
