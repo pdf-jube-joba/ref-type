@@ -10,9 +10,13 @@
 \definition measurable[f: Point -> C.Complex][valid: Characterization.Measurable f]: \forall (d: E.Directions) -> Characterization.Measurable (apply f d) :=
   \induction (d: E.Directions) \return Characterization.Measurable (apply f d) \with {
     | nil: valid
-    | cons: \fun (i: E.Coordinate)(tail: E.Directions)(previous: _) => \block {
-      \let coord: M.IsMeasurable LE.measure (\fun (x: Point) => Real.neg (x i)) := Functions.negMeasurable _ (Compact.continuousMeasurable _ (Compact.smoothContinuous _ (Open.Examples[].projectionSmooth Open.whole i))) \then
-      \return Logic.And[_, _]::# (L.Products[].measurable _ _ coord (Functions.negMeasurable _ previous.right)) (L.Products[].measurable _ _ coord previous.left)
+    | cons: \fun (i: E.Coordinate)(tail: E.Directions)(previous: Characterization.Measurable (apply f tail)) => \block {
+      \let coord: M.IsMeasurable LE.measure (\fun (x: Point) => Real.neg (x i)) := Functions.negMeasurable (\fun (x: Point) => x i)
+        (Compact.continuousMeasurable (\fun (x: Point) => x i) (Compact.smoothContinuous (\fun (x: Point) => x i) (Open.Examples[].projectionSmooth Open.whole i))) \then
+      \return Logic.And[_, _]::#
+        (L.Products[].measurable (\fun (x: Point) => Real.neg (x i)) (\fun (x: Point) => Real.neg (C.im (apply f tail x))) coord
+          (Functions.negMeasurable (\fun (x: Point) => C.im (apply f tail x)) previous.right))
+        (L.Products[].measurable (\fun (x: Point) => Real.neg (x i)) (\fun (x: Point) => C.re (apply f tail x)) coord previous.left)
     }
   };
 \definition squared[f: Point -> C.Complex][xi: Point]: \forall (d: E.Directions) ->

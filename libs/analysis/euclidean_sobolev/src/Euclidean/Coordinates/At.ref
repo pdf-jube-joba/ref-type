@@ -18,15 +18,17 @@
     "=" _ "by" { sym!{L2.Space} _ _ (Core.recovers g) }
   });
 \definition inside[f: S.Function][x: Open.Carrier U]: S.value (map f) x = D.scale (a x) (S.value f (Maps.apply U V e.forward x)) :=
-  CL.ext _ _ (LocalProduct[a := a, h := Chain.function (restrict f.real)].inside x) (LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside x);
+  CL.ext _ _ (\parent.LocalProduct[a := a, h := Chain.function (restrict f.real)].inside x) (\parent.LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside x);
 \definition outside[f: S.Function][x: Point][absent: Logic.Not (Sets.Member U.points x)]: S.value (map f) x = D.zero :=
-  CL.ext _ _ (Local.outside _ LocalProduct[a := a, h := Chain.function (restrict f.real)].conditions x absent)
-    (Local.outside _ LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].conditions x absent);
+  CL.ext _ _ (Local.outside _ \parent.LocalProduct[a := a, h := Chain.function (restrict f.real)].conditions x absent)
+    (Local.outside _ \parent.LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].conditions x absent);
 \definition addition[f,g: S.Function]: applyCore (S.add f g) = L2.add (applyCore f) (applyCore g) :=
-  trans!{L2.Space} _ _ _ (equal _ (S.add (map f) (map g)) (\fun (x: Point) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member U.points x))
+  trans!{L2.Space} _ _ _ (equal (map (S.add f g)) (S.add (map f) (map g)) (\fun (x: Point) =>
+    Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x))
+      (S.value (map (S.add f g)) x = S.value (S.add (map f) (map g)) x) (Classical.excludedMiddle (Sets.Member U.points x))
     (\fun (member: _) => \block {
       \let p: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
-      \return eq_reason_in!{C.Complex _
+      \return eq_reason_in!{C.Complex {S.value (map (S.add f g)) x}
         "=" _ "by" { inside (S.add f g) p }
         "=" _ "by" { CL.ext _ _ (Laws.fieldMulAdd _ _ _) (Laws.fieldMulAdd _ _ _) }
         "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (inside f p)) (sym!{C.Complex} _ _ (inside g p)) }
@@ -38,10 +40,11 @@
       "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (outside f x absent)) (sym!{C.Complex} _ _ (outside g x absent)) }
     }))) (Core.additive _ _);
 \definition scalarCore[c: C.Complex][f: S.Function]: applyCore (S.scale c f) = L2.scale c (applyCore f) :=
-  trans!{L2.Space} _ _ _ (equal _ (S.scale c (map f)) (\fun (x: Point) => eq_reason_in!{C.Complex _
-    "=" _ "by" { Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member U.points x)) (\fun (member: _) => \block {
+  trans!{L2.Space} _ _ _ (equal (map (S.scale c f)) (S.scale c (map f)) (\fun (x: Point) => eq_reason_in!{C.Complex {S.value (map (S.scale c f)) x}
+    "=" _ "by" { Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x))
+      (S.value (map (S.scale c f)) x = D.mul c (S.value (map f) x)) (Classical.excludedMiddle (Sets.Member U.points x)) (\fun (member: _) => \block {
       \let p: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
-      \return eq_reason_in!{C.Complex _
+      \return eq_reason_in!{C.Complex {S.value (map (S.scale c f)) x}
         "=" _ "by" { inside (S.scale c f) p }
         "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (a x)) _ _ (S.jetScale c f E.Directions::nil (Maps.apply U V e.forward p)) }
         "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleRight _ _ _) }
