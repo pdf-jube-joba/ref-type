@@ -60,3 +60,16 @@
     \bysub(Lists.List[A], Enumeration.DistinctEnumeration[({ a: A \where a = a })], xs) \then
   \return \exact(Of[xs := xs, distinct := laws.distinct, exhaustive := \fun (a: A) => laws.enumerates.exhaustive a (\refl(a))].data, Data)
 };
+\definition foldedMembers[xs: Lists.List[A]]: \Pow A := Lists.foldr A (\Pow A)
+  (\fun (head: A)(rest: \Pow A) => { x: A \where Logic.Or[x = head, \In[A] rest x] })
+  ({ x: A \where Logic.False }) xs;
+\definition foldMember: \forall (xs: Lists.List[A])(x: A) -> Membership.Occurs x xs -> \In[A] (foldedMembers xs) x :=
+  \induction (xs: Lists.List[A]) \return \forall (x: A) -> Membership.Occurs x xs -> \In[A] (foldedMembers xs) x \with {
+    | nil: \fun (x: A)(empty: Logic.False) => empty
+    | cons: \fun (head: A)(tail: Lists.List[A])
+      (previous: \forall (x: A) -> Membership.Occurs x tail -> \In[A] (foldedMembers tail) x)
+      (x: A)(member: Membership.Occurs x (Lists.List[A]::cons head tail)) =>
+      Logic.orElim[x = head, Membership.Occurs x tail, \In[A] (foldedMembers (Lists.List[A]::cons head tail)) x] member
+        (\fun (same: x = head) => Logic.Or[x = head, \In[A] (foldedMembers tail) x]::left same)
+        (\fun (old: Membership.Occurs x tail) => Logic.Or[x = head, \In[A] (foldedMembers tail) x]::right (previous x old))
+  };
