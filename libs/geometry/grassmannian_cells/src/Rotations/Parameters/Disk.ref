@@ -1,0 +1,74 @@
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Standard;
+\import topology.Homeomorphism[A := Standard.Coordinate, B := Coordinates] \as Chart;
+\definition chartLaws: Chart.Laws[Standard.topology, source, chart] := Chart.laws Standard.topology source chart;
+\definition q[x: Standard.Coordinate]: R.Real := gauge (chart.forward x);
+\definition qContinuous: metric_spaces.RealFunctions[A := Standard.Coordinate].Continuous Standard.topology q :=
+  topology.Composition[A := Standard.Coordinate, B := Coordinates, C := R.Real].composeContinuous
+    Standard.topology source metric_spaces.RealLine[].topology chart.forward gauge chartLaws.forwardContinuous continuous;
+\definition qZero: q Standard.Contraction[].zero = R.zero :=
+  trans!{R.Real} _ _ _ (congr!{Coordinates R.Real} gauge _ _ chartZero) gaugeZero;
+\definition qDefinite: \forall (x: Standard.Coordinate) -> q x = R.zero -> x = Standard.Contraction[].zero :=
+  \fun (x: Standard.Coordinate)(atZero: _) => trans!{{Standard.Coordinate}} _ _ _ (sym!{{Standard.Coordinate}} _ _ (chartLaws.leftInverse x))
+    (trans!{{Standard.Coordinate}} _ _ _ (congr!{Coordinates {Standard.Coordinate}} chart.backward _ _
+      (trans!{Coordinates} _ _ _ (definite (chart.forward x) atZero) (sym!{Coordinates} _ _ chartZero)))
+      (chartLaws.leftInverse Standard.Contraction[].zero));
+\definition qHomogeneous: \forall (a: R.Real)(x: Standard.Coordinate) ->
+  q (Standard.Contraction[].scale a x) = R.mul (R.mul a a) (q x) :=
+  \fun (a: R.Real)(x: Standard.Coordinate) => trans!{R.Real} _ _ _
+    (congr!{Coordinates R.Real} gauge _ _ (chartScale a x)) (Homogeneity[].gauge a (chart.forward x));
+\import \root.GaugeDisk[d := d, q := q, continuous := qContinuous,
+  nonnegative := \fun (x: Standard.Coordinate) => nonnegative (chart.forward x), zero := qZero, definite := qDefinite, homogeneous := qHomogeneous] \as Round;
+\definition roundLaws: topology.Homeomorphism[A := Standard.Disk, B := Round.Carrier].Laws[Standard.diskTopology, Round.topology, Round.homeomorphism] :=
+  topology.Homeomorphism[A := Standard.Disk, B := Round.Carrier].laws Standard.diskTopology Round.topology Round.homeomorphism;
+\definition forward[x: Standard.Disk]: Carrier := \into[Matrices.Carrier](fill (chart.forward (Round.homeomorphism.forward x)), Carrier) \by {
+  ParameterLaws[fill (chart.forward (Round.homeomorphism.forward x))] {
+    support := support (chart.forward (Round.homeomorphism.forward x)),
+    bounded := \fun (j: Fin.Fin k) => Order.leTrans _ (q (Round.homeomorphism.forward x)) R.one
+      (upper (chart.forward (Round.homeomorphism.forward x)) j)
+      (\bysub(Standard.Coordinate, Round.ClosedBall, Round.homeomorphism.forward x)),
+  }
+};
+\definition readForward: \forall (x: Standard.Disk) -> read (forward x) = chart.forward (Round.homeomorphism.forward x) :=
+  \fun (x: Standard.Disk) => \axiom:funext(read (forward x), chart.forward (Round.homeomorphism.forward x), readFill (chart.forward (Round.homeomorphism.forward x)));
+\definition readBound: \forall (A: Carrier) -> Order.Le (gauge (read A)) R.one :=
+  \fun (A: Carrier) => Maximum.least (Fin.elements k) (columnSquared (read A)) R.one Order.Arithmetic[].Prop[].oneNonnegative
+    (\fun (j: Fin.Fin k)(member: _) => Order.leReplaceLeft (Inner.squared (A j)) (columnSquared (read A) j) R.one
+      (sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} Inner.squared _ _ (congr!{{Matrices.Carrier} {E.Vector}} (\fun (B: Matrices.Carrier) => B j) _ _ (fillRead A)))) ((laws A).bounded j));
+\definition intoRound[A: Carrier]: Round.Carrier := \into[Standard.Coordinate](chart.backward (read A), Round.ClosedBall) \by {
+  Order.leReplaceLeft (gauge (read A)) (q (chart.backward (read A))) R.one
+    (sym!{R.Real} _ _ (congr!{Coordinates R.Real} gauge _ _ (chartLaws.rightInverse (read A)))) (readBound A)
+};
+\definition backward[A: Carrier]: Standard.Disk := Round.homeomorphism.backward (intoRound A);
+\definition forwardContinuous: topology.Continuity[A := Standard.Disk, B := Carrier].Continuous Standard.diskTopology \parent.\parent.topology forward :=
+  topology.Continuity[A := Standard.Disk, B := Matrices.Carrier].Corestriction[S := { A: Matrices.Carrier \where ParameterLaws[A] }].corestrictContinuous
+    Standard.diskTopology (Matrices.topology topological.space) forward
+    (topology.Composition[A := Standard.Disk, B := Standard.Coordinate, C := Matrices.Carrier].composeContinuous
+      Standard.diskTopology Standard.topology (Matrices.topology topological.space)
+      (\fun (x: Standard.Disk) => Round.homeomorphism.forward x) (\fun (x: Standard.Coordinate) => fill (chart.forward x))
+      (topology.Composition[A := Standard.Disk, B := Round.Carrier, C := Standard.Coordinate].composeContinuous
+        Standard.diskTopology Round.topology Standard.topology Round.homeomorphism.forward (\fun (x: Round.Carrier) => x)
+        roundLaws.forwardContinuous (topology.Continuity[A := Round.Carrier, B := Standard.Coordinate].Corestriction[S := Round.ClosedBall].inclusionContinuous Standard.topology))
+      (topology.Composition[A := Standard.Coordinate, B := Coordinates, C := Matrices.Carrier].composeContinuous
+        Standard.topology source (Matrices.topology topological.space) chart.forward fill chartLaws.forwardContinuous fillContinuous));
+\definition readContinuous: topology.Continuity[A := Carrier, B := Coordinates].Continuous \parent.\parent.topology source read :=
+  CoordinateSpace.Universal[A := Carrier].continuous \parent.\parent.topology topological.space read
+    (\fun (s: Symbols.Free symbol) => \parent.\parent.entryContinuous s.column s.row);
+\definition intoRoundContinuous: topology.Continuity[A := Carrier, B := Round.Carrier].Continuous \parent.\parent.topology Round.topology intoRound :=
+  topology.Continuity[A := Carrier, B := Standard.Coordinate].Corestriction[S := Round.ClosedBall].corestrictContinuous
+    \parent.\parent.topology Standard.topology intoRound
+    (topology.Composition[A := Carrier, B := Coordinates, C := Standard.Coordinate].composeContinuous
+      \parent.\parent.topology source Standard.topology read chart.backward readContinuous chartLaws.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Standard.Disk, B := Carrier].Homeomorphism[Standard.diskTopology, \parent.\parent.topology] :=
+  topology.Homeomorphism[A := Standard.Disk, B := Carrier].Homeomorphism[Standard.diskTopology, \parent.\parent.topology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous,
+    backwardContinuous := topology.Composition[A := Carrier, B := Round.Carrier, C := Standard.Disk].composeContinuous
+      \parent.\parent.topology Round.topology Standard.diskTopology intoRound Round.homeomorphism.backward intoRoundContinuous roundLaws.backwardContinuous,
+    leftInverse := \fun (x: Standard.Disk) => trans!{{Standard.Disk}} _ _ _
+      (congr!{{Round.Carrier} {Standard.Disk}} Round.homeomorphism.backward _ _
+        (trans!{{Standard.Coordinate}} _ _ _ (congr!{Coordinates {Standard.Coordinate}} chart.backward _ _ (readForward x))
+          (chartLaws.leftInverse (Round.homeomorphism.forward x)))) (roundLaws.leftInverse x),
+    rightInverse := \fun (A: Carrier) => trans!{{Matrices.Carrier}} _ _ _
+      (congr!{{Standard.Coordinate} {Matrices.Carrier}} (\fun (x: Standard.Coordinate) => fill (chart.forward x)) _ _ (roundLaws.rightInverse (intoRound A)))
+      (trans!{{Matrices.Carrier}} _ _ _ (congr!{Coordinates {Matrices.Carrier}} fill _ _ (chartLaws.rightInverse (read A))) (fillRead A)),
+  };
+\module Boundary;

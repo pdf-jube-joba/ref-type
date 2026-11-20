@@ -20,3 +20,59 @@
         base: Pivot[].fixesBasis j,
         equality: sym!{{Euclidean.Vector}} _ _ ((Rotations.unitary A).leftInverse (Euclidean.basis (symbol.pivot j)))
       });
+
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\import algebraic_topology.Euclidean[].Dimension[n := Symbols.realDimension symbol] \as Standard;
+\structure DiskData: \Set := {
+  homeomorphism: topology.Homeomorphism[A := Standard.Disk, B := Rotations.Carrier].Homeomorphism[Standard.diskTopology, Rotations.topology],
+  forwardBoundary: \forall (x: Standard.Disk) -> Standard.normSquared x = real.Analysis[].one -> Rotations.Boundary (homeomorphism.forward x),
+  backwardBoundary: \forall (A: Rotations.Carrier) -> Rotations.Boundary A -> Standard.normSquared (homeomorphism.backward A) = real.Analysis[].one,
+  interiorForward: \forall (x: Standard.Disk) -> dedekind_reals.DedekindReal[].Lt (Standard.normSquared x) real.Analysis[].one -> Rotations.Interior (homeomorphism.forward x),
+  interiorBackward: \forall (A: Rotations.Carrier) -> Rotations.Interior A -> dedekind_reals.DedekindReal[].Lt (Standard.normSquared (homeomorphism.backward A)) real.Analysis[].one,
+};
+\module Disk(index: Symbols.FreeCount[symbol := symbol].Bijection);
+\definition diskExists: \exists DiskData := \block {
+  \takefrom index: Symbols.FreeCount[symbol := symbol].Bijection \by Symbols.FreeCount[symbol := symbol].exists \then
+  \return \exact(Disk[index := index].value, DiskData)
+};
+\module StandardDisk(disk: DiskData);
+
+\import \root.TriangularGram[K := Numbers.Real, field := Numbers.Algebra[].field, scalar := H.Real[].scalar, n := n] \as Triangular;
+\definition triangularLaws: \forall (A: Coordinates.Carrier) -> Triangular.At[k := k].Laws[symbol, Coordinates.linear A] :=
+  \fun (A: Coordinates.Carrier) => Triangular.At[k := k].Laws[symbol, Coordinates.linear A] {
+    above := \fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{Numbers.Real} _ _ _ (Coordinates.onBasis A j r) ((Coordinates.laws A).above r j above),
+    diagonal := \fun (j: Fin.Fin k) => \exact(Triangular.At[k := k].Diagonal[symbol, Coordinates.linear A, j] {
+      value := real.Analysis[].one, positive := real.Analysis[].Estimates[].Product[].onePositive,
+      agrees := trans!{Numbers.Real} _ _ _ (Coordinates.onBasis A j (symbol.pivot j))
+        (trans!{Numbers.Real} _ _ _ ((Coordinates.laws A).pivot j j)
+          (trans!{Numbers.Real} _ _ _ (Coordinates.Domain.Kronecker[].self j) (sym!{Numbers.Real} _ _ H.Real[].scalar.embedOne))),
+    }, Triangular.At[k := k].Diagonal[symbol, Coordinates.linear A, j]),
+  };
+\definition triangularFrameExists: \forall (A: Coordinates.Carrier) -> \exists Triangular.At[k := k].Factorization[symbol, Coordinates.linear A] :=
+  \fun (A: Coordinates.Carrier) => Triangular.exists k symbol (Coordinates.linear A) (Coordinates.injective A) (triangularLaws A);
+\module Frame(A: Coordinates.Carrier, factor: Triangular.At[k := k].Factorization[symbol, Coordinates.linear A]);
+
+\structure InteriorPreimage[p: Cell]: \Set := {
+  parameter: Rotations.Carrier,
+  inside: Rotations.Interior parameter,
+  image: map parameter = p,
+};
+\definition interiorSurjective: \forall (p: Cell) -> \exists InteriorPreimage[p] := \block {
+  \fun (p: Cell) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where \parent.into A = p }) \by \parent.onto p \then
+  \takefrom factor: Triangular.At[k := k].Factorization[symbol, Coordinates.linear A] \by triangularFrameExists A \then
+  \takefrom presentation: Rotations.FromFrame[].Presentation[Fin.elements k, Frame[A := A, factor := factor].frame]
+    \by Frame[A := A, factor := factor].presentationExists \then
+  \return \exact(InteriorPreimage[p] {
+    parameter := presentation.parameter, inside := presentation.interior,
+    image := trans!{{Grassmannian.Carrier}} _ _ _ (Frame[A := A, factor := factor].Using[presentation := presentation].mapEquality)
+      (\bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where \parent.into A = p }, A)),
+  }, InteriorPreimage[p])
+};
+
+\module Algebra(parameter: Rotations.Carrier, inside: Rotations.Interior parameter);
+\module Compare(first, second: Rotations.Carrier, firstInside: Rotations.Interior first, secondInside: Rotations.Interior second,
+  same: map first = map second);
+\definition injectiveInterior: \forall (first, second: Rotations.Carrier) -> Rotations.Interior first -> Rotations.Interior second -> map first = map second -> first = second :=
+  \fun (first, second: Rotations.Carrier)(firstInside: _)(secondInside: _)(same: _) => Compare[first := first, second := second,
+    firstInside := firstInside, secondInside := secondInside, same := same].equal;

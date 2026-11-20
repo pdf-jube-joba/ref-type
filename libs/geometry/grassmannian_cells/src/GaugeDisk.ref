@@ -1,0 +1,72 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].Pair[] \as Pair;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Euclidean;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := Point.Carrier, n := d, baseSpace := Point.topology] \as Bundle;
+\import Bundles.Family[X := Point.Carrier, F := (\fun (x: Point.Carrier) => Euclidean.Coordinate)] \as Family;
+\import thom_spaces.Thom[].Quadratic[].Over[X := Point.Carrier, F := (\fun (x: Point.Carrier) => Euclidean.Coordinate), bundle := Bundle.bundle] \as Quadratic;
+\definition standard: Quadratic.Gauge := Quadratic.Gauge {
+  squared := \fun (p: Family.Point) => Euclidean.normSquared p.vector,
+  continuous := topology.Composition[A := Family.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous
+    Bundle.topology Euclidean.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => p.vector) Euclidean.normSquared
+    Bundle.vectorContinuous Euclidean.Geometry[].normSquaredContinuous,
+  nonnegative := \fun (p: Family.Point) => Euclidean.Geometry[].normSquaredNonnegative p.vector,
+  zero := \fun (x: Point.Carrier) => Euclidean.Contraction[].zeroSum (std.Data[].FinSet[].elements d),
+  definite := \fun (p: Family.Point)(atZero: _) => Euclidean.Geometry[].normSquaredZero p.vector atZero,
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => Euclidean.Contraction[].normScale a p.vector,
+};
+\definition gauge: Quadratic.Gauge := Quadratic.Gauge {
+  squared := \fun (p: Family.Point) => q p.vector,
+  continuous := topology.Composition[A := Family.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous
+    Bundle.topology Euclidean.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => p.vector) q Bundle.vectorContinuous continuous,
+  nonnegative := \fun (p: Family.Point) => nonnegative p.vector,
+  zero := \fun (x: Point.Carrier) => zero,
+  definite := \fun (p: Family.Point)(atZero: _) => definite p.vector atZero,
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => homogeneous a p.vector,
+};
+\definition include[v: Euclidean.Coordinate]: Family.Point := Family.include Point.point v;
+\definition pair[v: Euclidean.Coordinate]: Pair.Times^[Point.Carrier, Euclidean.Coordinate] := Pair.pair Point.Carrier Euclidean.Coordinate Point.point v;
+\definition includeContinuous: topology.Continuity[A := Euclidean.Coordinate, B := Family.Point].Continuous Euclidean.topology Bundle.topology include :=
+  topology.Composition[A := Euclidean.Coordinate, B := Pair.Times^[Point.Carrier, Euclidean.Coordinate], C := Family.Point].composeContinuous
+    Euclidean.topology (topological_constructions.Product[A := Point.Carrier, B := Euclidean.Coordinate].topology Point.topology Euclidean.topology)
+    Bundle.topology pair Bundle.backward
+    (topological_constructions.Product[A := Point.Carrier, B := Euclidean.Coordinate].Universal[X := Euclidean.Coordinate].pairContinuous
+      Euclidean.topology Point.topology Euclidean.topology (\fun (v: Euclidean.Coordinate) => Point.point) (\fun (v: Euclidean.Coordinate) => v)
+      (topology.Maps[A := Euclidean.Coordinate, B := Point.Carrier].constantContinuous Euclidean.topology Point.topology Point.point)
+      (topology.Maps[A := Euclidean.Coordinate, B := Euclidean.Coordinate].Identity[].continuous Euclidean.topology)) Bundle.backwardContinuous;
+\definition coordinates: topology.Homeomorphism[A := Euclidean.Coordinate, B := Family.Point].Homeomorphism[Euclidean.topology, Bundle.topology] :=
+  topology.Homeomorphism[A := Euclidean.Coordinate, B := Family.Point].Homeomorphism[Euclidean.topology, Bundle.topology] {
+    forward := include, backward := \fun (p: Family.Point) => p.vector,
+    forwardContinuous := includeContinuous, backwardContinuous := Bundle.vectorContinuous,
+    leftInverse := \fun (v: Euclidean.Coordinate) => \refl(v),
+    rightInverse := \fun (p: Family.Point) => trans!{Family.Point} _ _ _
+      (congr!{Point.Carrier Family.Point} (\fun (x: Point.Carrier) => Family.include x p.vector) _ _ (sym!{Point.Carrier} _ _ (Point.unique p.base))) (Family.eta p),
+  };
+\import Quadratic.Change[left := standard, right := gauge] \as Radial;
+\definition ambientHomeomorphism: topology.Homeomorphism[A := Euclidean.Coordinate, B := Euclidean.Coordinate].Homeomorphism[Euclidean.topology, Euclidean.topology] :=
+  topology.Homeomorphism[A := Euclidean.Coordinate, B := Family.Point].Composition[C := Euclidean.Coordinate].compose
+    Euclidean.topology Bundle.topology Euclidean.topology
+    (topology.Homeomorphism[A := Euclidean.Coordinate, B := Family.Point].Composition[C := Family.Point].compose
+      Euclidean.topology Bundle.topology Bundle.topology coordinates Radial.homeomorphism)
+    (topology.Homeomorphism[A := Euclidean.Coordinate, B := Family.Point].Inverse[].inverse Euclidean.topology Bundle.topology coordinates);
+\definition forwardSquared: \forall (x: Euclidean.Coordinate) -> q (ambientHomeomorphism.forward x) = Euclidean.normSquared x :=
+  \fun (x: Euclidean.Coordinate) => Radial.forwardSquared (include x);
+\definition backwardSquared: \forall (x: Euclidean.Coordinate) -> Euclidean.normSquared (ambientHomeomorphism.backward x) = q x :=
+  \fun (x: Euclidean.Coordinate) => Radial.backwardSquared (include x);
+\import thom_spaces.Thom[].Levels[A := Euclidean.Coordinate, B := Euclidean.Coordinate,
+  source := Euclidean.topology, target := Euclidean.topology, q := Euclidean.normSquared, r := q,
+  h := ambientHomeomorphism, forwardSquared := forwardSquared, backwardSquared := backwardSquared] \as Levels;
+\definition ClosedBall: \Pow Euclidean.Coordinate := { x: Euclidean.Coordinate \where Order.Le (q x) R.one };
+\definition Carrier: \Set := \Cast[Euclidean.Coordinate] ClosedBall;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := topology.Topology[Carrier := Euclidean.Coordinate].Subspace[S := ClosedBall].topology Euclidean.topology;
+\definition homeomorphism: topology.Homeomorphism[A := Euclidean.Disk, B := Carrier].Homeomorphism[Euclidean.diskTopology, topology] := Levels.diskHomeomorphism;
+\definition forwardBoundary: \forall (x: Euclidean.Disk) -> Euclidean.normSquared x = R.one -> q (homeomorphism.forward x) = R.one := Levels.preserves;
+\definition backwardBoundary: \forall (x: Carrier) -> q x = R.one -> Euclidean.normSquared (homeomorphism.backward x) = R.one := Levels.reversePreserves;

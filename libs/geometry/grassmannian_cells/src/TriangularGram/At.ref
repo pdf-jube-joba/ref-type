@@ -1,0 +1,24 @@
+\import Geometry.Finite[n := k] \as Domain;
+\import Inner.Gram[k := k] \as Gram;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\definition column[A: Gram.Map][j: Fin.Fin k]: Ambient.Vector := A.apply (Domain.basis j);
+\structure Diagonal[symbol: Symbols.Symbol, A: Gram.Map, j: Fin.Fin k]: \Set := {
+  value: R.Real,
+  positive: Order.Lt R.zero value,
+  agrees: column A j (symbol.pivot j) = Geometry.embed value,
+};
+\structure Laws[symbol: Symbols.Symbol, A: Gram.Map]: \Prop := {
+  above: \forall (j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> column A j r = Linear.zero,
+  diagonal: \forall (j: Fin.Fin k) -> \exists Diagonal[symbol, A, j],
+};
+\structure Factorization[symbol: Symbols.Symbol, A: Gram.Map]: \Set := {
+  factor: Gram.Factorization[A],
+  triangular: Laws[symbol, factor.frame],
+};
+\module Support(symbol: Symbols.Symbol, A: Gram.Map, triangular: Laws[symbol, A]);
+\module FrameComparison(symbol: Symbols.Symbol, f, g: Gram.Map,
+  fIsometry: \forall (v, w: Domain.Vector) -> Ambient.dot (f.apply v) (f.apply w) = Domain.dot v w,
+  gIsometry: \forall (v, w: Domain.Vector) -> Ambient.dot (g.apply v) (g.apply w) = Domain.dot v w,
+  fTriangular: Laws[symbol, f], gTriangular: Laws[symbol, g],
+  contained: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where f.apply w = g.apply v));
+\module Columns(A: Gram.Map, orthonormal: \forall (i, j: Fin.Fin k) -> Ambient.dot (column A i) (column A j) = Domain.dot (Domain.basis i) (Domain.basis j));

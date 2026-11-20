@@ -1,0 +1,19 @@
+\definition Same[A, B: Carrier][indices: Lists.List[Fin.Fin k]]: \Prop :=
+  \forall (j: Fin.Fin k) -> Fin.Occurs k j indices ->
+    (product A indices).forward.apply (axis j) = (product B indices).forward.apply (axis j);
+\definition Recovered[A, B: Carrier][indices: Lists.List[Fin.Fin k]]: \Prop :=
+  \forall (j: Fin.Fin k) -> Fin.Occurs k j indices -> A j = B j;
+\module Step(A, B: Carrier, head: Fin.Fin k, tail: Lists.List[Fin.Fin k],
+  ordered: Ordered.Ordered (Lists.List[Fin.Fin k]::cons head tail),
+  same: Same A B (Lists.List[Fin.Fin k]::cons head tail));
+\definition recover: \forall (indices: Lists.List[Fin.Fin k])(A, B: Carrier) -> Ordered.Ordered indices -> Same A B indices -> Recovered A B indices :=
+  \induction (indices: Lists.List[Fin.Fin k]) \return \forall (A, B: Carrier) -> Ordered.Ordered indices -> Same A B indices -> Recovered A B indices \with {
+    | nil: \fun (A, B: Carrier)(ordered: _)(same: _)(j: Fin.Fin k)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (head: Fin.Fin k)(tail: Lists.List[Fin.Fin k])(previous: _)(A, B: Carrier)(ordered: _)(same: _) =>
+        Step[A := A, B := B, head := head, tail := tail, ordered := ordered, same := same].recover
+          (previous A B ordered.right Step[A := A, B := B, head := head, tail := tail, ordered := ordered, same := same].tailSame)
+  };
+\definition injective: \forall (A, B: Carrier) ->
+  (\forall (j: Fin.Fin k) -> (unitary A).forward.apply (axis j) = (unitary B).forward.apply (axis j)) -> A = B :=
+  \fun (A, B: Carrier)(same: _) => \axiom:funext(A, B,
+    \fun (j: Fin.Fin k) => recover (Fin.elements k) A B (\root.FiniteOrder[].elements k) (\fun (i: Fin.Fin k)(member: _) => same i) j (Fin.exhaustive k j));

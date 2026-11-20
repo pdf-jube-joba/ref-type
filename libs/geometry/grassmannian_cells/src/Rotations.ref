@@ -44,10 +44,27 @@
   \fun (A: Carrier)(i, j: Fin.Fin k) => (laws A).support j (symbol.pivot i)
     (\fun (free: Free (symbol.pivot i) j) => free.nonpivot i (\refl(symbol.pivot i)));
 \module Column(j: Fin.Fin k);
+\module Parameters;
+\module Replace(j: Fin.Fin k, v: E.Vector,
+  support: \forall (i: Fin.Fin n) -> Logic.Not (Free i j) -> v i = Linear.zero,
+  bounded: Order.Le (Inner.squared v) R.one);
+\module FromFrame;
 \definition rotation[A: Carrier][j: Fin.Fin k]: Unitary.Carrier := Column[j := j].rotation A;
 \definition product[A: Carrier][indices: Lists.List[Fin.Fin k]]: Unitary.Carrier :=
   Lists.foldr (Fin.Fin k) Unitary.Carrier (\fun (j: Fin.Fin k)(rest: Unitary.Carrier) => Unitary.multiply (rotation A j) rest)
     Unitary.identity indices;
+\definition rotationCongruent: \forall (A, B: Carrier)(j: Fin.Fin k) -> A j = B j -> rotation A j = rotation B j :=
+  \fun (A, B: Carrier)(j: Fin.Fin k)(same: _) => congr!{{Column[j := j].Disk.Disk} {Unitary.Carrier}} Column[j := j].Disk.rotation _ _ same;
+\definition productCongruent: \forall (indices: Lists.List[Fin.Fin k])(A, B: Carrier) ->
+  (\forall (j: Fin.Fin k) -> Fin.Occurs k j indices -> A j = B j) -> product A indices = product B indices :=
+  \induction (indices: Lists.List[Fin.Fin k]) \return \forall (A, B: Carrier) ->
+    (\forall (j: Fin.Fin k) -> Fin.Occurs k j indices -> A j = B j) -> product A indices = product B indices \with {
+    | nil: \fun (A, B: Carrier)(same: _) => \refl(Unitary.identity)
+    | cons: \fun (head: Fin.Fin k)(tail: Lists.List[Fin.Fin k])(previous: _)(A, B: Carrier)(same: _) =>
+        congr!{{Unitary.Carrier} {Unitary.Carrier} {Unitary.Carrier}} Unitary.multiply _ _ _ _
+          (rotationCongruent A B head (same head (Logic.Or[_, _]::left (\refl(head)))))
+          (previous A B (\fun (j: Fin.Fin k)(member: _) => same j (Logic.Or[_, _]::right member)))
+  };
 \import Unitary.Families[X := Carrier] \as Families;
 \definition productRegular: \forall (indices: Lists.List[Fin.Fin k]) -> Families.Regular topology (\fun (A: Carrier) => product A indices) :=
   \induction (indices: Lists.List[Fin.Fin k]) \return Families.Regular topology (\fun (A: Carrier) => product A indices) \with {
@@ -62,6 +79,7 @@
   Families.continuous topology unitary regular;
 \definition Interior[A: Carrier]: \Prop := \forall (j: Fin.Fin k) -> Order.Lt (Inner.squared (A j)) R.one;
 \definition Boundary[A: Carrier]: \Prop := \exists (j: Fin.Fin k \where Inner.squared (A j) = R.one);
+\module FrameInjectivity;
 \definition fixes: \forall (A: Carrier)(indices: Lists.List[Fin.Fin k])(v: E.Vector) ->
   (\forall (j: Fin.Fin k) -> Lists.Membership[A := Fin.Fin k].Occurs j indices -> (rotation A j).forward.apply v = v) ->
   (product A indices).forward.apply v = v :=

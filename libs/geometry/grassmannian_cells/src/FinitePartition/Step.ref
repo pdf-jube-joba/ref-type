@@ -1,0 +1,77 @@
+\import Fin.Sum[m := width head, n := size tail] \as Sum;
+\definition all: Lists.List[I] := Lists.List[I]::cons head tail;
+\definition left[i: Fin.Fin (width head)]: Part all := \into[A](first.forward i, Part all) \by {
+  Logic.Or[_, _]::left (\bysub(A, Fiber head, first.forward i))
+};
+\definition right[i: Fin.Fin (size tail)]: Part all := \into[A](rest.forward i, Part all) \by {
+  Logic.Or[_, _]::right (\bysub(A, Part tail, rest.forward i))
+};
+\definition inflate: Sum.Index -> Part all := \induction (i: Sum.Index) \return Part all \with {
+  | inl: left
+  | inr: right
+};
+\definition leftInjective: \forall (i, j: Fin.Fin (width head)) -> left i = left j -> i = j :=
+  \fun (i, j: Fin.Fin (width head))(same: _) => trans!{{Fin.Fin (width head)}} _ _ _
+    (sym!{{Fin.Fin (width head)}} _ _ (first.leftInverse i))
+    (trans!{{Fin.Fin (width head)}} _ _ _ (congr!{{Fiber head} {Fin.Fin (width head)}} first.backward _ _ same) (first.leftInverse j));
+\definition rightInjective: \forall (i, j: Fin.Fin (size tail)) -> right i = right j -> i = j :=
+  \fun (i, j: Fin.Fin (size tail))(same: _) => trans!{{Fin.Fin (size tail)}} _ _ _
+    (sym!{{Fin.Fin (size tail)}} _ _ (rest.leftInverse i))
+    (trans!{{Fin.Fin (size tail)}} _ _ _ (congr!{{Part tail} {Fin.Fin (size tail)}} rest.backward _ _ same) (rest.leftInverse j));
+\definition different: \forall (i: Fin.Fin (width head))(j: Fin.Fin (size tail)) -> Logic.Not (left i = right j) :=
+  \fun (i: Fin.Fin (width head))(j: Fin.Fin (size tail))(same: _) => fresh
+    (\idelim label (rest.forward j) = head \with l: I => Members.Occurs l tail \by {
+      base: \bysub(A, Part tail, rest.forward j),
+      equality: trans!{I} _ _ _ (congr!{A I} label _ _ (sym!{A} _ _ same)) (\bysub(A, Fiber head, first.forward i))
+    });
+\definition inflateInjective: \forall (i, j: Sum.Index) -> inflate i = inflate j -> i = j :=
+  \induction (i: Sum.Index) \return \forall (j: Sum.Index) -> inflate i = inflate j -> i = j \with {
+    | inl: \fun (i: Fin.Fin (width head)) => \induction (j: Sum.Index) \return inflate (std.Data[].Sum[].Sum[_, _]::inl i) = inflate j -> std.Data[].Sum[].Sum[_, _]::inl i = j \with {
+      | inl: \fun (j: Fin.Fin (width head))(same: _) => congr!{{Fin.Fin (width head)} {Sum.Index}} std.Data[].Sum[].Sum[_, _]::inl _ _ (leftInjective i j same)
+      | inr: \fun (j: Fin.Fin (size tail))(same: _) => Logic.falseElim _ (different i j same)
+    }
+    | inr: \fun (i: Fin.Fin (size tail)) => \induction (j: Sum.Index) \return inflate (std.Data[].Sum[].Sum[_, _]::inr i) = inflate j -> std.Data[].Sum[].Sum[_, _]::inr i = j \with {
+      | inl: \fun (j: Fin.Fin (width head))(same: _) => Logic.falseElim _ (different j i (sym!{A} _ _ same))
+      | inr: \fun (j: Fin.Fin (size tail))(same: _) => congr!{{Fin.Fin (size tail)} {Sum.Index}} std.Data[].Sum[].Sum[_, _]::inr _ _ (rightInjective i j same)
+    }
+  };
+\definition forward[i: Fin.Fin Sum.total]: Part all := inflate (Sum.split i);
+\definition injective: \forall (i, j: Fin.Fin Sum.total) -> forward i = forward j -> i = j :=
+  \fun (i, j: Fin.Fin Sum.total)(same: _) => trans!{{Fin.Fin Sum.total}} _ _ _ (sym!{{Fin.Fin Sum.total}} _ _ (Sum.inflateSplit i))
+    (trans!{{Fin.Fin Sum.total}} _ _ _ (congr!{{Sum.Index} {Fin.Fin Sum.total}} Sum.inflate _ _ (inflateInjective (Sum.split i) (Sum.split j) same)) (Sum.inflateSplit j));
+\definition atLeft: \forall (i: Fin.Fin (width head)) -> forward (Sum.left i) = left i :=
+  \fun (i: Fin.Fin (width head)) => congr!{{Sum.Index} {Part all}} inflate _ _ (Sum.splitInflate (std.Data[].Sum[].Sum[_, _]::inl i));
+\definition atRight: \forall (i: Fin.Fin (size tail)) -> forward (Sum.right i) = right i :=
+  \fun (i: Fin.Fin (size tail)) => congr!{{Sum.Index} {Part all}} inflate _ _ (Sum.splitInflate (std.Data[].Sum[].Sum[_, _]::inr i));
+\definition Preimage[a: Part all]: \Set := \Cast[Fin.Fin Sum.total] ({ i: Fin.Fin Sum.total \where forward i = a });
+\definition onto: \forall (a: Part all) -> \exists Preimage a :=
+  \fun (a: Part all) => either!{{(\bysub(A, Part all, a))} {\exists Preimage a}
+    {\block {
+      \fun (same: label a = head) \then
+      \let x: Fiber head := \into[A](a, Fiber head) \by { same } \then
+      \return \exact(\into[Fin.Fin Sum.total](Sum.left (first.backward x), Preimage a) \by {
+        trans!{A} _ _ _ (atLeft (first.backward x)) (first.rightInverse x)
+      }, Preimage a)
+    }}
+    {\block {
+      \fun (member: Members.Occurs (label a) tail) \then
+      \let x: Part tail := \into[A](a, Part tail) \by { member } \then
+      \return \exact(\into[Fin.Fin Sum.total](Sum.right (rest.backward x), Preimage a) \by {
+        trans!{A} _ _ _ (atRight (rest.backward x)) (rest.rightInverse x)
+      }, Preimage a)
+    }}
+  };
+\definition unique: \forall (a: Part all)(i, j: Preimage a) -> i = j :=
+  \fun (a: Part all)(i, j: Preimage a) => injective i j
+    (trans!{A} _ _ _ (\bysub(Fin.Fin Sum.total, Preimage a, i)) (sym!{A} _ _ (\bysub(Fin.Fin Sum.total, Preimage a, j))));
+\definition backward[a: Part all]: Preimage a := \choice Preimage a \by { existence: onto a, uniqueness: unique a };
+\definition sumValue: std.Data[].Bijection[A := Fin.Fin Sum.total, B := Part all].Bijection := std.Data[].Bijection[A := Fin.Fin Sum.total, B := Part all].Bijection {
+  forward := forward,
+  backward := \fun (a: Part all) => backward a,
+  leftInverse := \fun (i: Fin.Fin Sum.total) => injective (backward (forward i)) i (\bysub(Fin.Fin Sum.total, Preimage (forward i), backward (forward i))),
+  rightInverse := \fun (a: Part all) => \bysub(Fin.Fin Sum.total, Preimage a, backward a),
+};
+
+\definition value: Index all := Equality.Transport[A := N.Nat^].cast
+  (\fun (d: N.Nat^) => std.Data[].Bijection[A := Fin.Fin d, B := Part all].Bijection)
+  Sum.total (size all) (N.Basic[].Prop[].addComm (size tail) (width head)) sumValue;

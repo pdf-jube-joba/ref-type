@@ -1,0 +1,112 @@
+\import std.Logic[].Classical[] \as Classical;
+\import topological_algebra.Coordinates[K := K, I := Symbols.Free symbol] \as CoordinateSpace;
+\definition Coordinates: \Set := Symbols.Free symbol -> K;
+\definition source: topology.Topology[Carrier := Coordinates].Topology := CoordinateSpace.topology topological.space;
+\import std.Set[].Extension[A := Symbols.Slot, B := K, domain := { slot: Symbols.Slot \where Symbols.FreeLaws[symbol, slot] }] \as Extension;
+\definition slot[i: Fin.Fin n][j: Fin.Fin k]: Symbols.Slot := Symbols.Slot::# i j;
+\definition freeSlot[i: Fin.Fin n][j: Fin.Fin k][free: Free i j]: Symbols.Free symbol :=
+  \into[Symbols.Slot](slot i j, Symbols.Free symbol) \by { free };
+\definition fill[z: Coordinates][j: Fin.Fin k][i: Fin.Fin n]: K := Extension.extend z Linear.zero (slot i j);
+\definition atFree: \forall (z: Coordinates)(i: Fin.Fin n)(j: Fin.Fin k)(free: Free i j) -> fill z j i = z (freeSlot i j free) :=
+  \fun (z: Coordinates)(i: Fin.Fin n)(j: Fin.Fin k)(free: _) => Extension.inside z Linear.zero (freeSlot i j free);
+\definition support: \forall (z: Coordinates)(j: Fin.Fin k)(i: Fin.Fin n) -> Logic.Not (Free i j) -> fill z j i = Linear.zero :=
+  \fun (z: Coordinates)(j: Fin.Fin k)(i: Fin.Fin n)(outside: _) => Extension.outside z Linear.zero (slot i j) outside;
+\definition supportOf: \forall (j: Fin.Fin k)(v: E.Vector) ->
+  (\forall (i: Fin.Fin k) -> v (symbol.pivot i) = Linear.zero) ->
+  (\forall (r: Fin.Fin n) -> N.Basic[].Prop[].Lt (symbol.pivot j) r -> v r = Linear.zero) ->
+  \forall (r: Fin.Fin n) -> Logic.Not (Free r j) -> v r = Linear.zero :=
+  \fun (j: Fin.Fin k)(v: E.Vector)(pivots: _)(above: _)(r: Fin.Fin n)(outside: _) =>
+    either!{{(Classical.excludedMiddle (\exists (i: Fin.Fin k \where r = symbol.pivot i)))} {v r = Linear.zero}
+      {\block {
+        \fun (found: _) \then
+        \takefrom i: \Cast[Fin.Fin k] ({ i: Fin.Fin k \where r = symbol.pivot i }) \by found \then
+        \return trans!{K} _ _ _ (congr!{{Fin.Fin n} K} v _ _ (\bysub(Fin.Fin k, { i: Fin.Fin k \where r = symbol.pivot i }, i))) (pivots i)
+      }}
+      {\fun (noPivot: _) => \match N.Order[].Prop[].trichotomy r (symbol.pivot j) \in std.Logic[].Order[].Trichotomy
+        \return (\fun (_: N.Order[].Prop[].Trichotomy r (symbol.pivot j)) => v r = Linear.zero) \with {
+        | less below: Logic.falseElim _ (outside (Symbols.FreeLaws[symbol, slot r j] {
+          below := below, nonpivot := \fun (i: Fin.Fin k)(same: _) => noPivot (Logic.existsIntro[Fin.Fin k, { i: Fin.Fin k \where r = symbol.pivot i }] i same),
+        }))
+        | equal same: trans!{K} _ _ _ (congr!{{Fin.Fin n} K} v _ _ same) (pivots j)
+        | greater upper: above r upper
+      }}
+    };
+\definition read[A: Carrier][s: Symbols.Free symbol]: K := A s.column s.row;
+\definition slotEta: \forall (s: Symbols.Free symbol) -> slot s.row s.column = s :=
+  \fun (s: Symbols.Free symbol) => Symbols.FreeEnumeration[symbol := symbol].eta s;
+\definition readFill: \forall (z: Coordinates)(s: Symbols.Free symbol) -> fill z s.column s.row = z s :=
+  \fun (z: Coordinates)(s: Symbols.Free symbol) => trans!{K} _ _ _
+    (atFree z s.row s.column (\bysub(Symbols.Slot, Symbols.Free symbol, s))) (congr!{{Symbols.Free symbol} K} z _ _ (slotEta s));
+\definition fillRead: \forall (A: Carrier) -> fill (read A) = A :=
+  \fun (A: Carrier) => \axiom:funext(fill (read A), A, \fun (j: Fin.Fin k) => \axiom:funext(fill (read A) j, A j,
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Free i j))} {fill (read A) j i = A j i}
+      {\fun (free: _) => atFree (read A) i j free}
+      {\fun (outside: _) => trans!{K} _ _ _ (support (read A) j i outside) (sym!{K} _ _ ((laws A).support j i outside))}
+    }));
+\definition entryContinuous: \forall (j: Fin.Fin k)(i: Fin.Fin n) ->
+  topology.Continuity[A := Coordinates, B := K].Continuous source topological.space (\fun (z: Coordinates) => fill z j i) :=
+  \fun (j: Fin.Fin k)(i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Free i j))}
+    {topology.Continuity[A := Coordinates, B := K].Continuous source topological.space (\fun (z: Coordinates) => fill z j i)}
+    {\fun (free: _) => \idelim CoordinateSpace.evaluate (freeSlot i j free) = (\fun (z: Coordinates) => fill z j i)
+      \with f: (Coordinates -> K) => topology.Continuity[A := Coordinates, B := K].Continuous source topological.space f \by {
+        base: CoordinateSpace.evaluationContinuous topological.space (freeSlot i j free),
+        equality: \axiom:funext(CoordinateSpace.evaluate (freeSlot i j free), (\fun (z: Coordinates) => fill z j i),
+          \fun (z: Coordinates) => sym!{K} _ _ (atFree z i j free))
+      }}
+    {\fun (outside: _) => \idelim (\fun (z: Coordinates) => Linear.zero) = (\fun (z: Coordinates) => fill z j i)
+      \with f: (Coordinates -> K) => topology.Continuity[A := Coordinates, B := K].Continuous source topological.space f \by {
+        base: topology.Maps[A := Coordinates, B := K].constantContinuous source topological.space Linear.zero,
+        equality: \axiom:funext((\fun (z: Coordinates) => Linear.zero), (\fun (z: Coordinates) => fill z j i),
+          \fun (z: Coordinates) => sym!{K} _ _ (support z j i outside))
+      }}
+  };
+\definition fillContinuous: topology.Continuity[A := Coordinates, B := Matrices.Carrier].Continuous source (Matrices.topology topological.space) fill :=
+  Matrices.Universal[A := Coordinates].continuous source topological.space fill entryContinuous;
+\import \root.FiniteMaximumReal[I := Fin.Fin k] \as Maximum;
+\definition columnSquared[z: Coordinates][j: Fin.Fin k]: R.Real := Inner.squared (fill z j);
+\definition gauge[z: Coordinates]: R.Real := Maximum.maximum (Fin.elements k) (columnSquared z);
+\definition nonnegative: \forall (z: Coordinates) -> Order.Le R.zero (gauge z) :=
+  \fun (z: Coordinates) => Maximum.nonnegative (Fin.elements k) (columnSquared z);
+\definition upper: \forall (z: Coordinates)(j: Fin.Fin k) -> Order.Le (columnSquared z j) (gauge z) :=
+  \fun (z: Coordinates)(j: Fin.Fin k) => Maximum.upper (Fin.elements k) (columnSquared z) j (Fin.exhaustive k j);
+\import Hermitian.Functions[X := Coordinates] \as Scalars;
+\import Ambient.Families[X := Coordinates] \as Vectors;
+\definition squaredContinuous: \forall (j: Fin.Fin k) -> metric_spaces.RealFunctions[A := Coordinates].Continuous source
+  (\fun (z: Coordinates) => columnSquared z j) :=
+  \fun (j: Fin.Fin k) => Scalars.realPart source (\fun (z: Coordinates) => E.dot (fill z j) (fill z j))
+    (Vectors.dotContinuous source (\fun (z: Coordinates) => fill z j) (\fun (z: Coordinates) => fill z j) (entryContinuous j) (entryContinuous j));
+\definition continuous: metric_spaces.RealFunctions[A := Coordinates].Continuous source gauge :=
+  Maximum.Functions[X := Coordinates, source := source].continuous (Fin.elements k) (\fun (j: Fin.Fin k)(z: Coordinates) => columnSquared z j) squaredContinuous;
+\definition zero: Coordinates := \fun (s: Symbols.Free symbol) => Linear.zero;
+\definition scale[a: R.Real][z: Coordinates][s: Symbols.Free symbol]: K := Linear.mul (Geometry.embed a) (z s);
+\definition fillZero: fill zero = (\fun (j: Fin.Fin k) => E.space.zero) :=
+  \axiom:funext(fill zero, (\fun (j: Fin.Fin k) => E.space.zero), \fun (j: Fin.Fin k) => \axiom:funext(fill zero j, E.space.zero,
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Free i j))} {fill zero j i = Linear.zero}
+      {\fun (free: _) => atFree zero i j free} {\fun (outside: _) => support zero j i outside}
+    }));
+\definition fillScale: \forall (a: R.Real)(z: Coordinates)(j: Fin.Fin k) -> fill (scale a z) j = E.space.smul (Geometry.embed a) (fill z j) :=
+  \fun (a: R.Real)(z: Coordinates)(j: Fin.Fin k) => \axiom:funext(fill (scale a z) j, E.space.smul (Geometry.embed a) (fill z j),
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Free i j))} {fill (scale a z) j i = Linear.mul (Geometry.embed a) (fill z j i)}
+      {\fun (free: _) => trans!{K} _ _ _ (atFree (scale a z) i j free)
+        (congr!{K K} (Linear.mul (Geometry.embed a)) _ _ (sym!{K} _ _ (atFree z i j free)))}
+      {\fun (outside: _) => trans!{K} _ _ _ (support (scale a z) j i outside) (sym!{K} _ _
+        (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Geometry.embed a)) _ _ (support z j i outside)) (Linear.mulZeroRight (Geometry.embed a))))}
+    });
+\definition squaredZero: Inner.squared E.space.zero = R.zero :=
+  trans!{R.Real} _ _ _ (congr!{K R.Real} scalar.realPart _ _ (E.zeroRight E.space.zero)) Geometry.reZero;
+\definition gaugeZero: gauge zero = R.zero := trans!{R.Real} _ _ _
+  (Maximum.congruent (Fin.elements k) (columnSquared zero) (\fun (j: Fin.Fin k) => R.zero)
+    (\fun (j: Fin.Fin k) => trans!{R.Real} _ _ _
+      (congr!{{E.Vector} R.Real} Inner.squared _ _ (congr!{{Matrices.Carrier} {E.Vector}} (\fun (A: Matrices.Carrier) => A j) _ _ fillZero)) squaredZero))
+  (Maximum.zero (Fin.elements k));
+\definition definite: \forall (z: Coordinates) -> gauge z = R.zero -> z = zero :=
+  \fun (z: Coordinates)(atZero: _) => \axiom:funext(z, zero, \fun (s: Symbols.Free symbol) => trans!{K} _ _ _ (sym!{K} _ _ (readFill z s))
+    (congr!{{E.Vector} K} (\fun (v: E.Vector) => v s.row) _ _ (Inner.squaredDefinite E.positive (fill z s.column)
+      (Order.leAntisym _ R.zero (Order.leReplaceRight _ (gauge z) R.zero atZero (upper z s.column)) (E.positive.nonnegative (fill z s.column))))));
+\module Homogeneity;
+\module Disk(d: N.Nat^,
+  chart: topology.Homeomorphism[A := algebraic_topology.Euclidean[].coordinateCarrier d, B := Coordinates].Homeomorphism[
+    algebraic_topology.Euclidean[].Dimension[n := d].topology, source],
+  chartZero: chart.forward algebraic_topology.Euclidean[].Dimension[n := d].Contraction[].zero = zero,
+  chartScale: \forall (a: R.Real)(x: algebraic_topology.Euclidean[].coordinateCarrier d) ->
+    chart.forward (algebraic_topology.Euclidean[].Dimension[n := d].Contraction[].scale a x) = scale a (chart.forward x));

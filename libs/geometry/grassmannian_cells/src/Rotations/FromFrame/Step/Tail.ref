@@ -1,0 +1,39 @@
+\definition member[j: Fin.Fin k][old: Fin.Occurs k j tail]: Fin.Occurs k j (Lists.List[Fin.Fin k]::cons head tail) := Logic.Or[_, _]::right old;
+\definition greater: \forall (j: Fin.Fin k) -> Fin.Occurs k j tail -> Natural.Lt (symbol.pivot head) (symbol.pivot j) :=
+  \fun (j: Fin.Fin k)(old: _) => Symbols.increasing symbol head j (ordered.left j old);
+\definition diagonalEntry: \forall (j: Fin.Fin k) -> Fin.Occurs k j tail -> tailFrame j (symbol.pivot j) = F j (symbol.pivot j) :=
+  \fun (j: Fin.Fin k)(old: _) => Head.inversePreservesAbove single (symbol.pivot j) (greater j old) (F j);
+\definition excluded: \forall (j: Fin.Fin k) -> Fin.Occurs k j tail -> \forall (i: Fin.Fin k) -> Logic.Not (Fin.Occurs k i tail) -> tailFrame j (symbol.pivot i) = Linear.zero :=
+  \fun (j: Fin.Fin k)(old: _)(i: Fin.Fin k)(outside: _) => either!{{(Classical.excludedMiddle (i = head))} {tailFrame j (symbol.pivot i) = Linear.zero}
+    {\fun (same: _) => \idelim head = i \with l: Fin.Fin k => tailFrame j (symbol.pivot l) = Linear.zero \by {
+      base: eq_reason_in!{K _
+        "=" _ "by" { sym!{K} _ _ (E.dotBasis (symbol.pivot head) (tailFrame j)) }
+        "=" _ "by" { sym!{K} _ _ (Unitary.adjoint (rotation single head) (axis head) (F j)) }
+        "=" _ "by" { congr!{{E.Vector} K} (\fun (v: E.Vector) => E.dot v (F j)) _ _ sendsHead }
+        "=" _ "by" { \parent.adapted.orthonormal head j headMember (member j old) }
+        "=" _ "by" { Delta.different head j (Natural.ltNe head j (ordered.left j old)) }
+      }, equality: sym!{{Fin.Fin k}} _ _ same
+    }}
+    {\fun (different: _) => eq_reason_in!{K _
+      "=" _ "by" { sym!{K} _ _ (E.dotBasis (symbol.pivot i) (tailFrame j)) }
+      "=" _ "by" { sym!{K} _ _ (Unitary.adjoint (rotation single head) (axis i) (F j)) }
+      "=" _ "by" { congr!{{E.Vector} K} (\fun (v: E.Vector) => E.dot v (F j)) _ _ (Head.fixesOtherAxis single i different) }
+      "=" _ "by" { E.dotBasis (symbol.pivot i) (F j) }
+      "=" _ "by" { \parent.adapted.excluded j (member j old) i
+        (\fun (present: Fin.Occurs k i (Lists.List[Fin.Fin k]::cons head tail)) => either!{present {Logic.False} {different} {outside}}) }
+    }}
+  };
+\definition adapted: Adapted[tail, tailFrame] := Adapted[tail, tailFrame] {
+  orthonormal := \fun (i, j: Fin.Fin k)(first: _)(second: _) => trans!{K} _ _ _
+    (Unitary.isometry (Unitary.inverse (rotation single head)) (F i) (F j)) (\parent.adapted.orthonormal i j (member i first) (member j second)),
+  above := \fun (j: Fin.Fin k)(old: _)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (Head.inversePreservesAbove single r (Natural.ltTrans _ _ _ (greater j old) above) (F j)) (\parent.adapted.above j (member j old) r above),
+  diagonal := \block {
+    \fun (j: Fin.Fin k)(old: _) \then
+    \takefrom diagonal: Height[F, j] \by \parent.adapted.diagonal j (member j old) \then
+    \return \exact(Height[tailFrame, j] {
+      value := diagonal.value, positive := diagonal.positive, agrees := trans!{K} _ _ _ (diagonalEntry j old) diagonal.agrees,
+    }, Height[tailFrame, j])
+  },
+  excluded := excluded,
+};

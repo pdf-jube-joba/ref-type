@@ -1,0 +1,15 @@
+\import Algebra[parameter := first, inside := firstInside] \as First;
+\import Algebra[parameter := second, inside := secondInside] \as Second;
+\definition contained: \forall (v: Coordinates.CoordinateVector) -> \exists (w: Coordinates.CoordinateVector \where First.columns.apply w = Second.columns.apply v) :=
+  \fun (v: Coordinates.CoordinateVector) => Logic.existsIntro[Coordinates.CoordinateVector,
+    { w: Coordinates.CoordinateVector \where First.columns.apply w = Second.columns.apply v }]
+    (First.Rank.value.coordinate.apply (Second.columns.apply v))
+    (trans!{{Ambient.Vector}} _ _ _ (First.Rank.value.reconstruction (Second.columns.apply v))
+      (\idelim map second = map first \with p: Grassmannian.Carrier => p.map.apply (Second.columns.apply v) = Second.columns.apply v \by {
+        base: Second.fixed v, equality: sym!{{Grassmannian.Carrier}} _ _ same
+      }));
+\import Triangular.At[k := k].FrameComparison[symbol := symbol, f := First.columns, g := Second.columns,
+  fIsometry := First.isometry, gIsometry := Second.isometry, fTriangular := First.triangular, gTriangular := Second.triangular, contained := contained] \as Frames;
+\definition equal: first = second := Rotations.FrameInjectivity[].injective first second
+  (\fun (j: Fin.Fin k) => trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ (First.onBasis j))
+    (trans!{{Ambient.Vector}} _ _ _ (Frames.equalBasis j) (Second.onBasis j)));

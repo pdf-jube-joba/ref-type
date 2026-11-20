@@ -11,7 +11,8 @@ B08 の途中実装である。
 `Free` は pivot ではない行のうち各列の pivot より手前にある成分を表す。
 `realDimension` は \(\sum_i(p_i-i)\)、`complexDimension` はその2倍である。
 `stabilize` は各 pivot を保ったまま周囲次元を1増やし、`stabilizationDimension` は上記の次元式が変わらないことを示す。
-自由成分の個数と次元式の一致はまだ証明していない。
+`FreeCount.exists` は自由成分全体と \(\mathrm{Fin}(\sum_i(p_i-i))\) の全単射を構成する。
+`FreeCount.cardinality` は任意の有限列挙の要素数がこの次元に等しいことを述べる。
 
 `Echelon[K, field, n, k, symbol].Carrier` は pivot 行が単位行列で、各列の pivot より後の成分が0である行列の集合である。
 `linear` はその列の線形結合を取り、`coordinates` は pivot 行を読み出す。
@@ -81,18 +82,44 @@ B08 の途中実装である。
 `Rotations` は自由成分を各列の閉球に制限し、これらの回転を順に合成する。
 `diagonal`・`above` は合成後のフレームの階段状の支持を記述し、`boundaryPivot` は閉球の境界で対応する主成分が零になることを示す。
 `Canonical.Characteristic.map` はそのユニタリ変換で座標平面の射影を共役した連続写像である。
-この段階では、閉球の積を一つの標準円板に同一視し、内部の同相と境界の次元低下を合わせた `FiniteComplex` の構成には接続していない。
+`Characteristic.diskExists` はこのパラメータ空間と標準円板の同相を返し、境界と内部の条件を両方向に保存する。
+`StandardDisk.map` はこの同相を既存の連続写像へ合成する。
+内部の逆写像の連続性と境界の次元低下を合わせた `FiniteComplex` の構成には、まだ接続していない。
+
+## 標準円板と内部の代数
+
+`FinitePartition` は有限個の相異なるラベルの各ファイバーの全単射を足し合わせる。
+`Symbols.FreeCount` はこれを各列の自由成分に適用する。
+`FiniteCoordinates.Data.dimensionFormula` と複素の場合の `RealData.dimensionFormula` は、任意の要素数ではなく Schubert 次元との等式を返す。
+`schubertExists` と `realSchubertExists` は、この次元を明示した同相を公開する。
+
+`Rotations.Parameters` は自由成分を残りの成分が零である行列へ延長し、列のノルムの最大値をゲージとする。
+`FiniteMaximumReal` は最大値の上界、最小性、到達、連続性と非負のスカラー倍を扱う。
+`GaugeDisk` は既存の `thom_spaces.Thom.Quadratic` の動径変換と `Levels` を用い、正定値の二次同次ゲージの単位閉球を標準円板へ同一視する。
+`Rotations.Parameters.Disk` はゲージの閉球と回転パラメータ空間との往復を構成する。
+実の場合は自由成分の全単射、複素の場合はその実数化を用いて、`Characteristic.diskExists` の実次元をそれぞれ (sum_i(p_i-i)) と (2sum_i(p_i-i)) にする。
+
+`Reflection.Hemisphere.Disk.Inverse` は半球の点から軸成分を引き、閉球への逆変換を構成する。
+`TriangularGram` は既存の Gram–Schmidt の帰納法に階段状の支持と正の実主成分を加える。
+`TriangularGram.At.Support` は、最大の非零係数を選ぶことで、像の支持より後の pivot に対応する係数が零になることを述べる。
+`FrameComparison` は同じ像に入る二つの正規直交フレームの支持と正の主成分から、それぞれの列が等しいことを示す。
+`Rotations.FromFrame` はフレームの最初の列を半球として読み、対応する回転を取り除いて帰納的にパラメータを復元する。
+`Rotations.FrameInjectivity` は回転から得たフレームの一致からパラメータの一致を示す。
+`Characteristic.interiorSurjective` は各セルの点に内部の原像を与え、`injectiveInterior` は内部での単射性を述べる。
+これらは追補の証明項であり、型検査による確認は得ていない。
 
 ## B08 の残り
 
-1. 列ごとの自由成分の列挙を合わせ、全体の次元式との一致を証明する。
-2. 各セルの閉円板からの特性写像を構成し、境界が低次元セルへ入ることを証明して、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
-3. 標準包含のセル上の同相を CW 構造へ接続し、向き付き Grassmannian の被覆に対する持ち上げた CW 構造を証明する。
+1. 内部の像がちょうど対応するセルであることと逆写像の連続性を合わせ、内部の同相を公開する。
+2. 境界の像が低次元セルへ入ることを示し、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
+3. 標準包含と特性写像および CW 構造の比較を接続する。
+4. 向き付き Grassmannian の被覆と、被覆へ持ち上げた CW 構造を構成する。
 
 ## 検査
 
 階段形分解と安定化極限を追加した時点の構文検査は終了コード0。
-標準包含のセル上の同相、有限座標の列挙、反射と閉球上の回転の追補全体については、構文検査・型検査とも未実施である。
+2026-11-20 の追補では、標準円板、総次元、内部の原像と単射性までを含む対象パッケージ全体に構文検査を実行した。
+型検査は実行していない。
 型検査は初期実装に対して共有キャッシュ `libs/refcache` を使って実行し、300秒で終了要求、5秒の終了猶予後に強制停止された（終了コード137）。
 合否判定と JSON レポートは得られていない。
 その実行後に追加した有限段階化・自由座標の同相・包含の証明項も含め、提出時点の型検査は未完了である。

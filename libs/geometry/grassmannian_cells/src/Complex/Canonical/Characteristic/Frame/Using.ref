@@ -1,0 +1,40 @@
+\definition parameter: Rotations.Carrier := presentation.parameter;
+\import Action.Rank[k := k, u := Rotations.unitary parameter, basis := Pivot[].basis] \as Image;
+\import \root.CoordinateMapExt[K := Numbers.Complex, ring := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Complex Numbers.Algebra[].field, n := n, k := k] \as Maps;
+\definition onBasis: \forall (j: Fin.Fin k) -> Image.value.value.apply (Coordinates.basis j) = frame j :=
+  \fun (j: Fin.Fin k) => trans!{{Ambient.Vector}} _ _ _
+    (congr!{{Ambient.Vector} {Ambient.Vector}} (Rotations.unitary parameter).forward.apply _ _ (Pivot[].onBasis j))
+    (presentation.represents j (Fin.exhaustive k j));
+\definition sameFrame: \forall (v: Coordinates.CoordinateVector) -> Image.value.value.apply v = factor.factor.frame.apply v :=
+  Maps.ext Image.value.value factor.factor.frame onBasis;
+\definition fixedValue: \forall (v: Coordinates.CoordinateVector) ->
+  (\parent.\parent.map parameter).map.apply (Image.value.value.apply v) = Image.value.value.apply v :=
+  \fun (v: Coordinates.CoordinateVector) => trans!{{Ambient.Vector}} _ _ _
+    (sym!{{Ambient.Vector}} _ _ (Image.value.reconstruction (Image.value.value.apply v)))
+    (congr!{{Coordinates.CoordinateVector} {Ambient.Vector}} Image.value.value.apply _ _ (Image.value.leftInverse v));
+\definition fromFixed: \forall (v: Ambient.Vector) -> (\parent.\parent.map parameter).map.apply v = v -> \In[Ambient.Vector] (Coordinates.Image A) v :=
+  \fun (v: Ambient.Vector)(fixed: _) => Logic.existsIntro[Coordinates.CoordinateVector,
+    { u: Coordinates.CoordinateVector \where (Coordinates.linear A).apply u = v }]
+    (factor.factor.change.backward.apply (Image.value.coordinate.apply v))
+    (trans!{{Ambient.Vector}} _ _ _ (factor.factor.formula (factor.factor.change.backward.apply (Image.value.coordinate.apply v)))
+      (trans!{{Ambient.Vector}} _ _ _ (congr!{{Coordinates.CoordinateVector} {Ambient.Vector}} factor.factor.frame.apply _ _ (factor.factor.change.rightInverse (Image.value.coordinate.apply v)))
+        (trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ (sameFrame (Image.value.coordinate.apply v)))
+          (trans!{{Ambient.Vector}} _ _ _ (Image.value.reconstruction v) fixed))));
+\definition fromImage: \forall (v: Ambient.Vector) -> \In[Ambient.Vector] (Coordinates.Image A) v -> (\parent.\parent.map parameter).map.apply v = v := \block {
+  \fun (v: Ambient.Vector)(member: _) \then
+  \takefrom w: \Cast[Coordinates.CoordinateVector] ({ w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = v }) \by member \then
+  \let same: Image.value.value.apply (factor.factor.change.forward.apply w) = v := trans!{{Ambient.Vector}} _ _ _
+    (sameFrame (factor.factor.change.forward.apply w))
+    (trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ (factor.factor.formula w))
+      (\bysub(Coordinates.CoordinateVector, { w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = v }, w))) \then
+  \return \idelim Image.value.value.apply (factor.factor.change.forward.apply w) = v \with x: Ambient.Vector => (\parent.\parent.map parameter).map.apply x = x \by {
+    base: fixedValue (factor.factor.change.forward.apply w), equality: same
+  }
+};
+\definition mapEquality: \parent.\parent.map parameter = \parent.\parent.\parent.map A :=
+  Grassmannian.ext _ _ (Uniqueness.unique (Grassmannian.projection (\parent.\parent.map parameter))
+    (Grassmannian.projection (\parent.\parent.\parent.map A))
+    (\fun (v: Ambient.Vector) => Logic.PropEquiv[_, _] {
+      ltr := \fun (fixed: _) => (\parent.\parent.\parent.represents A v).rtl (fromFixed v fixed),
+      rtl := \fun (fixed: _) => fromImage v ((\parent.\parent.\parent.represents A v).ltr fixed),
+    }));

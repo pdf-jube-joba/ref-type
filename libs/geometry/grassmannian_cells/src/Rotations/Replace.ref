@@ -1,0 +1,44 @@
+\import std.Data[].Bool[] \as Bool;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Natural;
+\definition matrix[A: Carrier][i: Fin.Fin k]: E.Vector := Bool.ite E.Vector (Nat.eqb i j) v (A i);
+\definition own: \forall (A: Carrier) -> matrix A j = v :=
+  \fun (A: Carrier) => \idelim Bool.Bool^::true = Nat.eqb j j \with b: Bool.Bool^ => Bool.ite E.Vector b v (A j) = v \by {
+    base: \refl(v), equality: sym!{{Bool.Bool^}} _ _ (Natural.eqbRefl j)
+  };
+\definition other: \forall (A: Carrier)(i: Fin.Fin k) -> Logic.Not (i = j) -> matrix A i = A i :=
+  \fun (A: Carrier)(i: Fin.Fin k)(different: _) => \idelim Bool.Bool^::false = Nat.eqb i j \with b: Bool.Bool^ => Bool.ite E.Vector b v (A i) = A i \by {
+    base: \refl(A i), equality: sym!{{Bool.Bool^}} _ _ (Natural.eqbFalseOfNe i j different)
+  };
+\import std.Logic[].Classical[] \as Classical;
+\definition value[A: Carrier]: Carrier := \into[Matrices.Carrier](matrix A, Carrier) \by {
+  ParameterLaws[matrix A] {
+    support := \fun (i: Fin.Fin k)(r: Fin.Fin n)(outside: _) => either!{{(Classical.excludedMiddle (i = j))} {matrix A i r = Linear.zero}
+      {\fun (same: _) => \idelim j = i \with l: Fin.Fin k => Logic.Not (Free r l) -> matrix A l r = Linear.zero \by {
+        base: \fun (absent: _) => trans!{K} _ _ _ (congr!{{E.Vector} K} (\fun (w: E.Vector) => w r) _ _ (own A)) (support r absent),
+        equality: sym!{{Fin.Fin k}} _ _ same
+      } outside}
+      {\fun (different: _) => trans!{K} _ _ _ (congr!{{E.Vector} K} (\fun (w: E.Vector) => w r) _ _ (other A i different)) ((laws A).support i r outside)}
+    },
+    bounded := \fun (i: Fin.Fin k) => either!{{(Classical.excludedMiddle (i = j))} {Order.Le (Inner.squared (matrix A i)) R.one}
+      {\fun (same: _) => \idelim j = i \with l: Fin.Fin k => Order.Le (Inner.squared (matrix A l)) R.one \by {
+        base: Order.leReplaceLeft (Inner.squared v) (Inner.squared (matrix A j)) R.one
+          (sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} Inner.squared _ _ (own A))) bounded,
+        equality: sym!{{Fin.Fin k}} _ _ same
+      }}
+      {\fun (different: _) => Order.leReplaceLeft (Inner.squared (A i)) (Inner.squared (matrix A i)) R.one
+        (sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} Inner.squared _ _ (other A i different))) ((laws A).bounded i)}
+    },
+  }
+};
+\definition interior: Order.Lt (Inner.squared v) R.one -> \forall (A: Carrier) -> Interior A -> Interior (value A) :=
+  \fun (inside: _)(A: Carrier)(previous: Interior A)(i: Fin.Fin k) =>
+    either!{{(Classical.excludedMiddle (i = j))} {Order.Lt (Inner.squared (value A i)) R.one}
+      {\fun (same: _) => \idelim j = i \with l: Fin.Fin k => Order.Lt (Inner.squared (value A l)) R.one \by {
+        base: Order.ltReplaceLeft (Inner.squared v) (Inner.squared (value A j)) R.one
+          (sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} Inner.squared _ _ (own A))) inside,
+        equality: sym!{{Fin.Fin k}} _ _ same
+      }}
+      {\fun (different: _) => Order.ltReplaceLeft (Inner.squared (A i)) (Inner.squared (value A i)) R.one
+        (sym!{R.Real} _ _ (congr!{{E.Vector} R.Real} Inner.squared _ _ (other A i different))) (previous i)}
+    };

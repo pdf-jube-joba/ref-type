@@ -1,0 +1,45 @@
+\definition laterZero: \forall (j: Fin.Fin k) -> Natural.Lt maximum.index j -> v j = Linear.zero :=
+  \fun (j: Fin.Fin k)(later: _) => either!{{(Classical.excludedMiddle (v j = Linear.zero))} {v j = Linear.zero}
+    {\fun (zero: _) => zero}
+    {\fun (nonzero: _) => Logic.falseElim _ (Natural.ltIrrefl maximum.index
+      (Natural.ltLeTrans maximum.index j maximum.index later (maximum.bound j nonzero)))}
+  };
+\definition component: \forall (j: Fin.Fin k) ->
+  Linear.mul (column A j (symbol.pivot maximum.index)) (v j) =
+    Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index)) (Basis.vectors maximum.index j) :=
+  \fun (j: Fin.Fin k) => \match N.Order[].Prop[].trichotomy j maximum.index \in std.Logic[].Order[].Trichotomy
+    \return (\fun (_: N.Order[].Prop[].Trichotomy j maximum.index) =>
+      Linear.mul (column A j (symbol.pivot maximum.index)) (v j) =
+        Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index)) (Basis.vectors maximum.index j)) \with {
+    | less before: trans!{K} _ _ _
+      (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => Linear.mul a (v j)) _ _
+        (triangular.above j (symbol.pivot maximum.index) (Symbols.increasing symbol j maximum.index before))) (Linear.mulZeroLeft (v j)))
+      (sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index))) _ _
+        (Delta.different maximum.index j (\fun (same: _) => Natural.ltNe j maximum.index before (sym!{{Fin.Fin k}} _ _ same)))) (Linear.mulZeroRight _)))
+    | equal same: \idelim maximum.index = j \with i: Fin.Fin k =>
+        Linear.mul (column A i (symbol.pivot maximum.index)) (v i) =
+          Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index)) (Basis.vectors maximum.index i) \by {
+      base: sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index))) _ _
+        (Delta.self maximum.index)) (Linear.mulOneRight _)), equality: sym!{{Fin.Fin k}} _ _ same
+    }
+    | greater after: trans!{K} _ _ _
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (column A j (symbol.pivot maximum.index))) _ _ (laterZero j after)) (Linear.mulZeroRight _))
+      (sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index))) _ _
+        (Delta.different maximum.index j (Natural.ltNe maximum.index j after))) (Linear.mulZeroRight _)))
+  };
+\definition evaluate: A.apply v (symbol.pivot maximum.index) = Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index) :=
+  trans!{K} _ _ _ (expansion v (symbol.pivot maximum.index))
+    (trans!{K} _ _ _ (SumLaws.congruent (Fin.elements k)
+      (\fun (j: Fin.Fin k) => Linear.mul (column A j (symbol.pivot maximum.index)) (v j))
+      (\fun (j: Fin.Fin k) => Linear.mul (Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index)) (Basis.vectors maximum.index j)) component)
+      (Basis.dualReconstruction (\fun (j: Fin.Fin k) => Linear.mul (column A maximum.index (symbol.pivot maximum.index)) (v maximum.index)) maximum.index));
+\definition nonzero: Logic.Not (A.apply v (symbol.pivot maximum.index) = Linear.zero) := \block {
+  \fun (zero: _) \then
+  \takefrom diagonal: Diagonal[symbol, A, maximum.index] \by triangular.diagonal maximum.index \then
+  \let pivotZero: column A maximum.index (symbol.pivot maximum.index) = Linear.zero :=
+    linear_algebra.Field[].Space[K := K, field := field].mulCancelRight _ Linear.zero (v maximum.index) maximum.member
+      (trans!{K} _ _ _ (sym!{K} _ _ evaluate) (trans!{K} _ _ _ zero (sym!{K} _ _ (Linear.mulZeroLeft (v maximum.index))))) \then
+  \let valueZero: diagonal.value = R.zero := Geometry.embedInjective _ _
+    (trans!{K} _ _ _ (sym!{K} _ _ diagonal.agrees) (trans!{K} _ _ _ pivotZero (sym!{K} _ _ scalar.embedZero))) \then
+  \return Order.Order[].ltNotEq R.zero diagonal.value diagonal.positive (sym!{R.Real} _ _ valueZero)
+};

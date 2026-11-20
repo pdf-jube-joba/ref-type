@@ -1,0 +1,36 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := I] \as Members;
+\import Lists.Distinct[A := I] \as Distinct;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition Fiber[i: I]: \Set := \Cast[A] ({ a: A \where label a = i });
+\definition Part[indices: Lists.List[I]]: \Set := \Cast[A] ({ a: A \where Members.Occurs (label a) indices });
+\definition size[indices: Lists.List[I]]: N.Nat^ :=
+  Lists.foldr I N.Nat^ (\fun (i: I)(rest: N.Nat^) => Nat.add (width i) rest) N.Nat^::zero indices;
+\definition Index[indices: Lists.List[I]]: \Set := std.Data[].Bijection[A := Fin.Fin (size indices), B := Part indices].Bijection;
+\definition empty: Index Lists.List[I]::nil := std.Data[].Bijection[A := Fin.Fin N.Nat^::zero, B := Part Lists.List[I]::nil].Bijection {
+  forward := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  backward := \fun (a: Part Lists.List[I]::nil) => Logic.falseElim _ (\bysub(A, Part Lists.List[I]::nil, a)),
+  leftInverse := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  rightInverse := \fun (a: Part Lists.List[I]::nil) => Logic.falseElim _ (\bysub(A, Part Lists.List[I]::nil, a)),
+};
+\module Step(head: I, tail: Lists.List[I], fresh: Logic.Not (Members.Occurs head tail),
+  first: std.Data[].Bijection[A := Fin.Fin (width head), B := Fiber head].Bijection, rest: Index tail);
+\definition exists: (\forall (i: I) -> \exists std.Data[].Bijection[A := Fin.Fin (width i), B := Fiber i].Bijection) ->
+  \forall (indices: Lists.List[I]) -> Distinct.Distinct indices -> \exists Index indices :=
+  \fun (fibers: _)(indices: Lists.List[I])(distinct: _) => distinct
+    (\fun (xs: Lists.List[I]) => \exists Index xs) (\exact(empty, Index Lists.List[I]::nil))
+    (\block {
+      \fun (head: I)(tail: Lists.List[I])(fresh: _)(previous: \exists Index tail) \then
+      \takefrom first: std.Data[].Bijection[A := Fin.Fin (width head), B := Fiber head].Bijection \by fibers head \then
+      \takefrom rest: Index tail \by previous \then
+      \return \exact(Step[head := head, tail := tail, fresh := fresh, first := first, rest := rest].value,
+        Index (Lists.List[I]::cons head tail))
+    });
