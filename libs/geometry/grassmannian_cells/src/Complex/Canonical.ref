@@ -1,0 +1,65 @@
+\import \root.ProjectionUniqueness[K := Numbers.Complex, field := Numbers.Algebra[].field,
+  scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n] \as Uniqueness;
+\definition Represents[A: Coordinates.Carrier][p: Grassmannian.Carrier]: \Prop :=
+  \forall (v: Ambient.Vector) -> Logic.PropEquiv[p.map.apply v = v, \In[Ambient.Vector] (Coordinates.Image A) v];
+\definition Point[A: Coordinates.Carrier]: \Set := \Cast[Grassmannian.Carrier]
+  ({ p: Grassmannian.Carrier \where Represents A p });
+\definition existence: \forall (A: Coordinates.Carrier) -> \exists Point A := \block {
+  \fun (A: Coordinates.Carrier) \then
+  \takefrom parametrization: Parametrization \by parametrizationExists \then
+  \return \exact(\into[Grassmannian.Carrier](parametrization.map A, Point A) \by { parametrization.image A }, Point A)
+};
+\definition unique: \forall (A: Coordinates.Carrier)(p, q: Point A) -> p = q :=
+  \fun (A: Coordinates.Carrier)(p, q: Point A) => Grassmannian.ext p q
+    (Uniqueness.unique (Grassmannian.projection p) (Grassmannian.projection q)
+      (\fun (v: Ambient.Vector) => Logic.PropEquiv[_, _] {
+        ltr := \fun (fixed: _) => ((\bysub(Grassmannian.Carrier, Point A, q)) v).rtl
+          (((\bysub(Grassmannian.Carrier, Point A, p)) v).ltr fixed),
+        rtl := \fun (fixed: _) => ((\bysub(Grassmannian.Carrier, Point A, p)) v).rtl
+          (((\bysub(Grassmannian.Carrier, Point A, q)) v).ltr fixed),
+      }));
+\definition point[A: Coordinates.Carrier]: Point A := \choice Point A \by { existence: existence A, uniqueness: unique A };
+\definition represents[A: Coordinates.Carrier]: Represents A (point A) := \bysub(Grassmannian.Carrier, Point A, point A);
+\definition agrees: \forall (p: Parametrization)(A: Coordinates.Carrier) -> point A = p.map A :=
+  \fun (p: Parametrization)(A: Coordinates.Carrier) => unique A (point A)
+    (\into[Grassmannian.Carrier](p.map A, Point A) \by { p.image A });
+\definition map[A: Coordinates.Carrier]: Grassmannian.Carrier := point A;
+\definition continuous: topology.Continuity[A := Coordinates.Carrier, B := Grassmannian.Carrier].Continuous CoordinateSpace.topology Grassmannian.topology map := \block {
+  \takefrom p: Parametrization \by parametrizationExists \then
+  \return \idelim p.map = map \with f: (Coordinates.Carrier -> Grassmannian.Carrier) =>
+    topology.Continuity[A := Coordinates.Carrier, B := Grassmannian.Carrier].Continuous CoordinateSpace.topology Grassmannian.topology f \by {
+      base: p.continuous,
+      equality: \axiom:funext(p.map, map, \fun (A: Coordinates.Carrier) => sym!{{Grassmannian.Carrier}} _ _ (agrees p A))
+    }
+};
+\definition injective: \forall (A, B: Coordinates.Carrier) -> map A = map B -> A = B := \block {
+  \fun (A, B: Coordinates.Carrier)(same: _) \then
+  \takefrom p: Parametrization \by parametrizationExists \then
+  \return p.injective A B (trans!{{Grassmannian.Carrier}} _ _ _ (sym!{{Grassmannian.Carrier}} _ _ (agrees p A))
+    (trans!{{Grassmannian.Carrier}} _ _ _ same (agrees p B)))
+};
+\import Coordinates.FreeCoordinates[] \as Free;
+\import Free.Topological[scalar := H.Complex[].topological.space] \as ParameterSpace;
+\definition fromCoordinates[z: Free.Coordinates]: Grassmannian.Carrier := map (Free.fill z);
+\definition fromCoordinatesContinuous: topology.Continuity[A := Free.Coordinates, B := Grassmannian.Carrier].Continuous
+  ParameterSpace.topology Grassmannian.topology fromCoordinates :=
+  topology.Composition[A := Free.Coordinates, B := Coordinates.Carrier, C := Grassmannian.Carrier].composeContinuous
+    ParameterSpace.topology CoordinateSpace.topology Grassmannian.topology Free.fill map ParameterSpace.fillContinuous continuous;
+\definition fromCoordinatesInjective: \forall (z, w: Free.Coordinates) -> fromCoordinates z = fromCoordinates w -> z = w :=
+  \fun (z, w: Free.Coordinates)(same: _) => trans!{{Free.Coordinates}} _ _ _ (sym!{{Free.Coordinates}} _ _ (Free.readFill z))
+    (trans!{{Free.Coordinates}} _ _ _ (congr!{{Coordinates.Carrier} {Free.Coordinates}} Coordinates.freeCoordinates _ _ (injective (Free.fill z) (Free.fill w) same)) (Free.readFill w));
+\definition cell: \Pow Grassmannian.Carrier := { p: Grassmannian.Carrier \where \exists ( A: Coordinates.Carrier \where map A = p ) };
+\definition Cell: \Set := \Cast[Grassmannian.Carrier] cell;
+\definition cellTopology: topology.Topology[Carrier := Cell].Topology :=
+  topology.Topology[Carrier := Grassmannian.Carrier].Subspace[S := cell].topology Grassmannian.topology;
+\definition into[A: Coordinates.Carrier]: Cell := \into[Grassmannian.Carrier](map A, cell) \by {
+  Logic.existsIntro[Coordinates.Carrier, { B: Coordinates.Carrier \where map B = map A }] A (\refl(map A))
+};
+\definition onto: \forall (p: Cell) -> \exists ( A: Coordinates.Carrier \where into A = p ) :=
+  \fun (p: Cell) => \bysub(Grassmannian.Carrier, cell, p);
+\definition intoContinuous: topology.Continuity[A := Coordinates.Carrier, B := Cell].Continuous CoordinateSpace.topology cellTopology into :=
+  topology.Continuity[A := Coordinates.Carrier, B := Grassmannian.Carrier].Corestriction[S := cell].corestrictContinuous CoordinateSpace.topology Grassmannian.topology into continuous;
+\module Pivot;
+\module Comparison(other: \root.Symbols[n := n, k := k].Symbol);
+\module Characteristic;
+\module FiniteCoordinates;

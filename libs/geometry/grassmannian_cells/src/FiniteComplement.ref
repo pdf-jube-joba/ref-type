@@ -1,0 +1,32 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition Absent[x: Fin.Fin n]: \Prop := \forall (i: Fin.Fin k) -> Logic.Not (f i = x);
+\definition Complement: \Set := \Cast[Fin.Fin n] ({ x: Fin.Fin n \where Absent x });
+\definition absent[x: Complement]: Absent x := \bysub(Fin.Fin n, Complement, x);
+\import std.Set[].FiniteSubset[A := Fin.Fin n] \as Sets;
+\import Sets.Enumeration[] \as Enumeration;
+\definition finite: Sets.Finite ({ i: Fin.Fin n \where i = i }) :=
+  \idelim Enumeration.Listed (Fin.elements n) = ({ i: Fin.Fin n \where i = i }) \with S: \Pow (Fin.Fin n) => Sets.Finite S \by {
+    base: Enumeration.listedFinite (Fin.elements n),
+    equality: \axiom:setext(Enumeration.Listed (Fin.elements n), ({ i: Fin.Fin n \where i = i }),
+      \fun (i: Fin.Fin n)(member: _) => \refl(i), \fun (i: Fin.Fin n)(member: _) => Fin.exhaustive n i)
+  };
+\import \root.FiniteRefinement[A := Fin.Fin n, S := { x: Fin.Fin n \where Absent x }] \as Refined;
+\import \root.FiniteIndex[A := Complement] \as Index;
+\definition indexExists: \exists Index.Data := Index.exists (Refined.finite finite);
+\definition Bijection: \Set := std.Data[].Bijection[A := Fin.Fin (Nat.sub n k), B := Complement].Bijection;
+\module With(index: Index.Data);
+\definition exists: \exists Bijection := \block {
+  \takefrom index: Index.Data \by indexExists \then
+  \return \exact(With[index := index].value, Bijection)
+};

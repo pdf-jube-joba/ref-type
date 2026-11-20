@@ -1,0 +1,64 @@
+\import \root.Real[n := n, k := k, symbol := symbol].Canonical[].Characteristic[] \as Characteristic;
+\import Characteristic.StandardDisk[disk := disk] \as Standard;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\import algebraic_topology.Euclidean[].Dimension[n := Symbols.realDimension symbol] \as Disk;
+\import \root.Rotations[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological,
+  n := n, k := k, symbol := symbol] \as Rotations;
+\import Ambient.Unitary[] \as Unitary;
+\import Atlas[] \as Atlas;
+\module RotationFrame;
+\definition frame[x: Disk.Disk]: Frame (Standard.map x) := RotationFrame[].frame (disk.homeomorphism.forward x);
+\definition diskLaws: topology.Homeomorphism[A := Disk.Disk, B := Rotations.Carrier].Laws[Disk.diskTopology, Rotations.topology, disk.homeomorphism] :=
+  topology.Homeomorphism[A := Disk.Disk, B := Rotations.Carrier].laws Disk.diskTopology Rotations.topology disk.homeomorphism;
+\definition regular: Ambient.Families[X := Disk.Disk].Matrix[m := k].Regular Disk.diskTopology (\fun (x: Disk.Disk) => (frame x).basis.value) :=
+  \fun (v: Domain.Vector)(i: Fin.Fin n) => topology.Composition[A := Disk.Disk, B := Rotations.Carrier, C := R.Real].composeContinuous
+    Disk.diskTopology Rotations.topology H.Real[].topological.space disk.homeomorphism.forward
+    (\fun (A: Rotations.Carrier) => (RotationFrame[].frame A).basis.value.apply v i) diskLaws.forwardContinuous (RotationFrame[].regular v i);
+\definition coordinates: Geometry.At[n := k].Families[X := Disk.Disk].Matrix[m := n].Regular Disk.diskTopology (\fun (x: Disk.Disk) => (frame x).basis.coordinate) :=
+  \fun (v: Ambient.Vector)(i: Fin.Fin k) => topology.Composition[A := Disk.Disk, B := Rotations.Carrier, C := R.Real].composeContinuous
+    Disk.diskTopology Rotations.topology H.Real[].topological.space disk.homeomorphism.forward
+    (\fun (A: Rotations.Carrier) => (RotationFrame[].frame A).basis.coordinate.apply v i) diskLaws.forwardContinuous (RotationFrame[].coordinates v i);
+\import Family[X := Disk.Disk, source := Disk.diskTopology, p := Standard.map, baseContinuous := Standard.continuous,
+  frame := frame, regular := regular, coordinates := coordinates] \as Family;
+\definition map[s: Signs.Carrier][x: Disk.Disk]: Carrier := include (Standard.map x) (frame x) s;
+\definition continuous: \forall (s: Signs.Carrier) -> topology.Continuity[A := Disk.Disk, B := Carrier].Continuous Disk.diskTopology Atlas.topology (map s) :=
+  \fun (s: Signs.Carrier) => Family.continuous (\fun (_: Disk.Disk) => s) (Signs.Functions[X := Disk.Disk].constant Disk.diskTopology s);
+\definition projects: \forall (s: Signs.Carrier)(x: Disk.Disk) -> projection (map s x) = Standard.map x := \fun (s: Signs.Carrier)(x: Disk.Disk) => \refl(Standard.map x);
+\definition injective: \forall (s: Signs.Carrier)(p, q: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> \In[Disk.Coordinate] Disk.Interior q -> map s p = map s q -> p = q :=
+  \fun (s: Signs.Carrier)(p, q: Disk.Disk)(pi: _)(qi: _)(same: _) => Standard.injective p q pi qi (congr!{Carrier {Base.Carrier}} projection _ _ same);
+\definition clean: \forall (s: Signs.Carrier)(p, q: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> map s p = map s q -> \In[Disk.Coordinate] Disk.Interior q :=
+  \fun (s: Signs.Carrier)(p, q: Disk.Disk)(pi: _)(same: _) => Standard.clean p q pi (congr!{Carrier {Base.Carrier}} projection _ _ same);
+\module Cell(s: Signs.Carrier);
+\definition realize: \forall (p: Disk.Disk)(a: Orientation (Standard.map p)) -> map (a.value (frame p)) p = Carrier::# (Standard.map p) a :=
+  \fun (p: Disk.Disk)(a: Orientation (Standard.map p)) => congr!{{Orientation (Standard.map p)} Carrier} (Carrier::# (Standard.map p)) _ _ (reconstruct (Standard.map p) (frame p) a);
+\definition over: \forall (p: Disk.Disk)(x: Base.Carrier) -> Standard.map p = x -> \forall (a: Orientation x) ->
+  \exists (s: Signs.Carrier \where map s p = Carrier::# x a) := \fun (p: Disk.Disk)(x: Base.Carrier)(same: _) =>
+  \idelim Standard.map p = x \with y: Base.Carrier => \forall (a: Orientation y) -> \exists (s: Signs.Carrier \where map s p = Carrier::# y a) \by {
+    base: \fun (a: Orientation (Standard.map p)) => Logic.existsIntro[Signs.Carrier, { s: Signs.Carrier \where map s p = Carrier::# (Standard.map p) a }] (a.value (frame p)) (realize p a), equality: same
+  };
+\structure InteriorPreimage[e: Carrier]: \Set := { sign: Signs.Carrier, point: Disk.Disk, inside: \In[Disk.Coordinate] Disk.Interior point, image: map sign point = e };
+\definition interiorOnto: \forall (e: Carrier) -> \In[Base.Carrier] (\root.Real[n := n, k := k, symbol := symbol].Canonical[].cell) e.base -> \exists InteriorPreimage[e] := \block {
+  \fun (e: Carrier)(member: _) \then
+  \let included: \In[Base.Carrier] (algebraic_topology.CW[A := Base.Carrier].InteriorImage Standard.cellData) e.base :=
+    \idelim \root.Real[n := n, k := k, symbol := symbol].Canonical[].cell = algebraic_topology.CW[A := Base.Carrier].InteriorImage Standard.cellData
+      \with U: \Pow Base.Carrier => \In[Base.Carrier] U e.base \by { base: member, equality: sym!{\Pow Base.Carrier} _ _ Standard.interiorImage } \then
+  \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, Standard.map p = e.base] }) \by included \then
+  \let data: Logic.And[\In[Disk.Coordinate] Disk.Interior p, Standard.map p = e.base] := \bysub(Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, Standard.map p = e.base] }, p) \then
+  \takefrom s: \Cast[Signs.Carrier] ({ s: Signs.Carrier \where map s p = Carrier::# e.base e.orientation }) \by over p e.base data.right e.orientation \then
+  \return \exact(InteriorPreimage[e] { sign := s, point := p, inside := data.left,
+    image := trans!{Carrier} _ _ _ (\bysub(Signs.Carrier, { s: Signs.Carrier \where map s p = Carrier::# e.base e.orientation }, s)) (eta e),
+  }, InteriorPreimage[e])
+};
+\definition signInjective: \forall (p: Disk.Disk)(s, t: Signs.Carrier) -> map s p = map t p -> s = t := \block {
+  \fun (p: Disk.Disk)(s, t: Signs.Carrier)(same: _) \then
+  \let evaluated: (map t p).orientation.value (frame p) = s :=
+    (\idelim map s p = map t p \with e: Carrier => \forall (equalBase: e.base = Standard.map p) ->
+      (\idelim e.base = Standard.map p \with x: Base.Carrier => Orientation x \by { base: e.orientation, equality: equalBase }).value (frame p) = s \by {
+        base: \fun (equalBase: _) => fromFrameAt (Standard.map p) (frame p) s, equality: same
+      }) (\refl(Standard.map p)) \then
+  \return trans!{{Signs.Carrier}} _ _ _ (sym!{{Signs.Carrier}} _ _ evaluated) (fromFrameAt (Standard.map p) (frame p) t)
+};
+
+\definition baseInjective: \forall (p, q: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> \In[Disk.Coordinate] Disk.Interior q -> Standard.map p = Standard.map q -> p = q := Standard.injective;
+\definition baseContains: \forall (p: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> \In[Base.Carrier] (\root.Real[n := n, k := k, symbol := symbol].Canonical[].cell) (Standard.map p) :=
+  \fun (p: Disk.Disk)(inside: _) => Characteristic.interiorCell (disk.homeomorphism.forward p) (disk.interiorForward p inside);

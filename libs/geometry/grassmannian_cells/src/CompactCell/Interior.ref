@@ -1,0 +1,41 @@
+\definition subset: \Pow Model.Disk := { p: Model.Disk \where \In[Model.Coordinate] Model.Interior p };
+\import DiskSpace.Subspace[S := subset] \as Domain;
+\import Space.Subspace[S := CW.InteriorImage cell] \as Target;
+\definition source: topology.Topology[Carrier := Domain.CarrierSet].Topology := Domain.topology Model.diskTopology;
+\definition target: topology.Topology[Carrier := Target.CarrierSet].Topology := Target.topology space;
+\definition forward[p: Domain.CarrierSet]: Target.CarrierSet := \into[A](f p, CW.InteriorImage cell) \by {
+  Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior q, f q = f p] }] p
+    (Logic.And[_, _]::# (\bysub(Model.Disk, subset, p)) (\refl(f p)))
+};
+\definition Preimage[x: Target.CarrierSet]: \Set := \Cast[Domain.CarrierSet] ({ p: Domain.CarrierSet \where f p = x });
+\definition exists: \forall (x: Target.CarrierSet) -> \exists Preimage x := \block {
+  \fun (x: Target.CarrierSet) \then
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] }) \by \bysub(A, CW.InteriorImage cell, x) \then
+  \let data: Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] := \bysub(Model.Disk,
+    { p: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] }, p) \then
+  \let q: Domain.CarrierSet := \into[Model.Disk](p, subset) \by { data.left } \then
+  \return \exact(\into[Domain.CarrierSet](q, Preimage x) \by { data.right }, Preimage x)
+};
+\definition unique: \forall (x: Target.CarrierSet)(p, q: Preimage x) -> p = q :=
+  \fun (x: Target.CarrierSet)(p, q: Preimage x) => injective p q (\bysub(Model.Disk, subset, p)) (\bysub(Model.Disk, subset, q))
+    (trans!{A} _ _ _ (\bysub(Domain.CarrierSet, Preimage x, p)) (sym!{A} _ _ (\bysub(Domain.CarrierSet, Preimage x, q))));
+\definition backward[x: Target.CarrierSet]: Domain.CarrierSet := \choice Preimage x \by { existence: exists x, uniqueness: unique x };
+\definition rightInverse: \forall (x: Target.CarrierSet) -> forward (backward x) = x :=
+  \fun (x: Target.CarrierSet) => \bysub(Domain.CarrierSet, Preimage x, (\choice Preimage x \by { existence: exists x, uniqueness: unique x }));
+\definition leftInverse: \forall (p: Domain.CarrierSet) -> backward (forward p) = p :=
+  \fun (p: Domain.CarrierSet) => injective (backward (forward p)) p
+    (\bysub(Model.Disk, subset, backward (forward p))) (\bysub(Model.Disk, subset, p)) (rightInverse (forward p));
+\definition forwardContinuous: topology.Continuity[A := Domain.CarrierSet, B := Target.CarrierSet].Continuous source target forward :=
+  topology.Continuity[A := Domain.CarrierSet, B := A].Corestriction[S := CW.InteriorImage cell].corestrictContinuous source space forward
+    (topology.Continuity[A := Model.Disk, B := A].Restriction[S := subset].restrictContinuous Model.diskTopology space f continuous);
+\module Open(U: \Pow Domain.CarrierSet, open: topology.Topology[Carrier := Domain.CarrierSet].IsOpenIn source U);
+\definition backwardContinuous: topology.Continuity[A := Target.CarrierSet, B := Domain.CarrierSet].Continuous target source backward :=
+  \fun (U: \Pow Domain.CarrierSet)(open: _) => Open[U := U, open := open].continuous;
+\definition homeomorphism: topology.Homeomorphism[A := Domain.CarrierSet, B := Target.CarrierSet].Homeomorphism[source, target] :=
+  topology.Homeomorphism[A := Domain.CarrierSet, B := Target.CarrierSet].Homeomorphism[source, target] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+
+\definition DomainPoint: \Set := Domain.CarrierSet;
+\definition TargetPoint: \Set := Target.CarrierSet;

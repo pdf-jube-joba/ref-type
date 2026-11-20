@@ -1,0 +1,34 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := \root.Symbols[n := n, k := k].Symbol] \as Members;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\import grassmannians.Complex[n := n, k := k].Model[] \as Grassmannian;
+\import \root.DecompositionComplex[n := n, k := k] \as Decomposition;
+\import algebraic_topology.CW[A := Grassmannian.Carrier] \as CW;
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import \root.FiniteCW[A := Grassmannian.Carrier, space := Grassmannian.topology] \as Finite;
+\definition Disks: \Set := \forall (s: Symbols.Symbol) -> \root.Complex[n := n, k := k, symbol := s].Canonical[].Characteristic[].DiskData;
+\definition disksExist: \exists Disks := \axiom:classicalIndefiniteChoice(Symbols.Symbol,
+  (\fun (s: Symbols.Symbol) => \root.Complex[n := n, k := k, symbol := s].Canonical[].Characteristic[].DiskData),
+  (\fun (s: Symbols.Symbol) => \root.Complex[n := n, k := k, symbol := s].Canonical[].Characteristic[].diskExists));
+\module With(disks: Disks, symbols: Lists.List[Symbols.Symbol], exhaustive: \forall (s: Symbols.Symbol) -> Members.Occurs s symbols);
+\definition exists: \exists CW.FiniteComplex[Grassmannian.topology] := \block {
+  \takefrom disks: Disks \by disksExist \then
+  \takefrom symbols: std.Set[].FiniteSubset[A := Symbols.Symbol].Enumeration[].DistinctEnumeration[Symbols.Enumeration[].whole] \by Symbols.Enumeration[].enumerationExists \then
+  \let laws: std.Set[].FiniteSubset[A := Symbols.Symbol].Enumeration[].DistinctEnumerationLaws[Symbols.Enumeration[].whole, symbols] :=
+    \bysub(Lists.List[Symbols.Symbol], std.Set[].FiniteSubset[A := Symbols.Symbol].Enumeration[].DistinctEnumeration[Symbols.Enumeration[].whole], symbols) \then
+  \return \exact(Finite.build With[disks := disks, symbols := symbols, exhaustive := \fun (s: Symbols.Symbol) => laws.enumerates.exhaustive s (\refl(s))].presentation,
+    CW.FiniteComplex[Grassmannian.topology])
+};
+
+\structure SkeletalPoint[q: N.Nat^, x: Grassmannian.Carrier]: \Set := {
+  symbol: Symbols.Symbol,
+  bound: N.Basic[].Prop[].Le (Symbols.complexDimension symbol) q,
+  contains: \In[Grassmannian.Carrier] (Decomposition.cell symbol) x,
+};
+\definition skeleton[q: N.Nat^]: \Pow Grassmannian.Carrier := { x: Grassmannian.Carrier \where \exists SkeletalPoint[q, x] };

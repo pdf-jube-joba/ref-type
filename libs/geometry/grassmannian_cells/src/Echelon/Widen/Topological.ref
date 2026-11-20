@@ -1,0 +1,34 @@
+\import \parent.\parent.Topological[scalar := scalar] \as SourceSpace;
+\import Target.Topological[scalar := scalar] \as TargetSpace;
+\import topological_algebra.Matrix[K := K, I := Fin.Fin Indices.total, J := Fin.Fin k] \as Matrices;
+\import topological_algebra.Matrix[K := K, I := Fin.Fin n, J := Fin.Fin k] \as SourceMatrices;
+\definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous SourceSpace.topology TargetSpace.topology map :=
+  topological_constructions.Induced[A := Target.Carrier, B := Matrices.Carrier].Universal[Z := Carrier].continuous
+    SourceSpace.topology (Matrices.topology scalar) (\fun (A: Target.Carrier) => A) map
+    (Matrices.Universal[A := Carrier].continuous SourceSpace.topology scalar entries
+      (cases (\fun (i: Fin.Fin Indices.total) => \forall (j: Fin.Fin k) ->
+        topology.Continuity[A := Carrier, B := K].Continuous SourceSpace.topology scalar (\fun (A: Carrier) => entries A i j))
+        (\fun (i: Fin.Fin n)(j: Fin.Fin k) =>
+          \idelim (\fun (A: Carrier) => A i j) = (\fun (A: Carrier) => entries A (Indices.left i) j)
+            \with f: (Carrier -> K) => topology.Continuity[A := Carrier, B := K].Continuous SourceSpace.topology scalar f \by {
+              base: SourceSpace.entryContinuous i j,
+              equality: \axiom:funext((\fun (A: Carrier) => A i j), (\fun (A: Carrier) => entries A (Indices.left i) j),
+                \fun (A: Carrier) => sym!{K} _ _ (leftEntry A i j))
+            })
+        (\fun (i: Fin.Fin m)(j: Fin.Fin k) =>
+          \idelim (\fun (_: Carrier) => Linear.zero) = (\fun (A: Carrier) => entries A (Indices.right i) j)
+            \with f: (Carrier -> K) => topology.Continuity[A := Carrier, B := K].Continuous SourceSpace.topology scalar f \by {
+              base: topology.Maps[A := Carrier, B := K].constantContinuous SourceSpace.topology scalar Linear.zero,
+              equality: \axiom:funext((\fun (_: Carrier) => Linear.zero), (\fun (A: Carrier) => entries A (Indices.right i) j),
+                \fun (A: Carrier) => sym!{K} _ _ (rightEntry A i j))
+            })));
+\definition restrictContinuous: topology.Continuity[A := Target.Carrier, B := Carrier].Continuous TargetSpace.topology SourceSpace.topology restrict :=
+  topological_constructions.Induced[A := Carrier, B := SourceMatrices.Carrier].Universal[Z := Target.Carrier].continuous
+    TargetSpace.topology (SourceMatrices.topology scalar) (\fun (A: Carrier) => A) restrict
+    (SourceMatrices.Universal[A := Target.Carrier].continuous TargetSpace.topology scalar restrict
+      (\fun (i: Fin.Fin n)(j: Fin.Fin k) => TargetSpace.entryContinuous (Indices.left i) j));
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Target.Carrier].Homeomorphism[SourceSpace.topology, TargetSpace.topology] :=
+  topology.Homeomorphism[A := Carrier, B := Target.Carrier].Homeomorphism[SourceSpace.topology, TargetSpace.topology] {
+    forward := map, backward := restrict, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := continuous, backwardContinuous := restrictContinuous,
+  };

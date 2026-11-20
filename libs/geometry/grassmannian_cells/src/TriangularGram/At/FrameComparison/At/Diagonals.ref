@@ -1,0 +1,45 @@
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\definition ratio: R.Real := R.mul second.value (Arithmetic.fieldInv first.value);
+\definition firstNonzero: Logic.Not (first.value = R.zero) :=
+  \fun (zero: _) => Order.Order[].ltNotEq R.zero first.value first.positive (sym!{R.Real} _ _ zero);
+\definition ratioNonnegative: Order.Le R.zero ratio := Arithmetic.fieldMulNonnegative second.value (Arithmetic.fieldInv first.value)
+  second.nonnegative (Order.Order[].leOfLt _ _ (R.Estimates[].Product[].invPositive first.value first.positive));
+\definition ratioTimesFirst: R.mul ratio first.value = second.value := trans!{R.Real} _ _ _
+  (Arithmetic.fieldMulAssoc second.value (Arithmetic.fieldInv first.value) first.value)
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul second.value) _ _ (Arithmetic.fieldInverseNonzero first.value firstNonzero)) (R.Algebra[].mulOneRight second.value));
+\definition embedNonzero: Logic.Not (Geometry.embed first.value = Linear.zero) :=
+  \fun (zero: _) => firstNonzero (Geometry.embedInjective _ _ (trans!{K} _ _ _ zero (sym!{K} _ _ scalar.embedZero)));
+\definition coefficientRatio: coefficient j j = Geometry.embed ratio :=
+  linear_algebra.Field[].Space[K := K, field := field].mulCancelRight _ _ (Geometry.embed first.value) embedNonzero
+    (eq_reason_in!{K _
+      "=" _ "by" { congr!{K K} (Linear.mul (coefficient j j)) _ _ (sym!{K} _ _ first.agrees) }
+      "=" _ "by" { sym!{K} _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v (symbol.pivot j)) _ _ scalarFormula) }
+      "=" _ "by" { second.agrees }
+      "=" _ "by" { congr!{R.Real K} Geometry.embed _ _ (sym!{R.Real} _ _ ratioTimesFirst) }
+      "=" _ "by" { scalar.embedMul ratio first.value }
+    });
+\definition vectorFormula: column g j = Ambient.space.smul (Geometry.embed ratio) (column f j) :=
+  trans!{{Ambient.Vector}} _ _ _ scalarFormula (congr!{K {Ambient.Vector}} (\fun (a: K) => Ambient.space.smul a (column f j)) _ _ coefficientRatio);
+\definition scaleSquared: \forall (a: R.Real)(v: Ambient.Vector) -> Inner.squared (Ambient.space.smul (Geometry.embed a) v) = R.mul (R.mul a a) (Inner.squared v) :=
+  \fun (a: R.Real)(v: Ambient.Vector) => Geometry.embedInjective _ _ (eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (Inner.selfReal (Ambient.space.smul (Geometry.embed a) v)) }
+    "=" _ "by" { Inner.scaleLeft (Geometry.embed a) v (Ambient.space.smul (Geometry.embed a) v) }
+    "=" _ "by" { congr!{K K K} Linear.mul _ _ _ _ (scalar.conjugateReal a)
+      (trans!{K} _ _ _ (Ambient.scaleRight (Geometry.embed a) v v) (congr!{K K} (Linear.mul (Geometry.embed a)) _ _ (Inner.selfReal v))) }
+    "=" _ "by" { sym!{K} _ _ (Linear.mulAssoc (Geometry.embed a) (Geometry.embed a) (Geometry.embed (Inner.squared v))) }
+    "=" _ "by" { congr!{K K} (\fun (s: K) => Linear.mul s (Geometry.embed (Inner.squared v))) _ _ (sym!{K} _ _ (scalar.embedMul a a)) }
+    "=" _ "by" { sym!{K} _ _ (scalar.embedMul (R.mul a a) (Inner.squared v)) }
+  });
+\definition ratioSquared: R.mul ratio ratio = R.one := eq_reason_in!{R.Real _
+  "=" _ "by" { sym!{R.Real} _ _ (R.Algebra[].mulOneRight (R.mul ratio ratio)) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.mul (R.mul ratio ratio)) _ _ (sym!{R.Real} _ _ (normBasis f fIsometry j)) }
+  "=" _ "by" { sym!{R.Real} _ _ (scaleSquared ratio (column f j)) }
+  "=" _ "by" { congr!{{Ambient.Vector} R.Real} Inner.squared _ _ (sym!{{Ambient.Vector}} _ _ vectorFormula) }
+  "=" _ "by" { normBasis g gIsometry j }
+};
+\definition ratioOne: ratio = R.one := R.SquareRoot[].squaresInjective ratio R.one
+  ratioNonnegative Arithmetic.oneNonnegative
+  (trans!{R.Real} _ _ _ ratioSquared (sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one)));
+\definition equal: column f j = column g j := sym!{{Ambient.Vector}} _ _ (trans!{{Ambient.Vector}} _ _ _ vectorFormula
+  (trans!{{Ambient.Vector}} _ _ _ (congr!{K {Ambient.Vector}} (\fun (a: K) => Ambient.space.smul a (column f j)) _ _
+    (trans!{K} _ _ _ (congr!{R.Real K} Geometry.embed _ _ ratioOne) scalar.embedOne)) (Ambient.space.scalarOne (column f j))));

@@ -1,0 +1,13 @@
+\import \root.Echelon[K := K, field := field, n := n, k := k, symbol := other] \as Echelon;
+\definition monotone: \forall (s: Symbols.Symbol)(i, j: Fin.Fin k) -> Natural.Le i j -> Natural.Le (s.pivot i) (s.pivot j) :=
+  \fun (s: Symbols.Symbol)(i, j: Fin.Fin k)(bound: _) => Logic.orElim[_, _, _] (N.Induction[].leCases i j bound)
+    (\fun (less: _) => \root.NaturalBounds[].leOfLt _ _ (Symbols.increasing s i j less))
+    (\fun (same: _) => \idelim i = j \with l: Fin.Fin k => Natural.Le (s.pivot i) (s.pivot l) \by { base: Natural.leRefl (s.pivot i), equality: same });
+\module At(j: Fin.Fin k, greater: Natural.Lt (symbol.pivot j) (other.pivot j));
+\definition below: Symbols.Below other symbol := \fun (j: Fin.Fin k) =>
+  \match N.Order[].Prop[].trichotomy (other.pivot j) (symbol.pivot j) \in std.Logic[].Order[].Trichotomy
+    \return (\fun (_: N.Order[].Prop[].Trichotomy (other.pivot j) (symbol.pivot j)) => Natural.Le (other.pivot j) (symbol.pivot j)) \with {
+    | less bound: \root.NaturalBounds[].leOfLt _ _ bound
+    | equal same: \idelim other.pivot j = symbol.pivot j \with r: Fin.Fin n => Natural.Le (other.pivot j) r \by { base: Natural.leRefl (other.pivot j), equality: same }
+    | greater wrong: Logic.falseElim _ At[j := j, greater := wrong].contradiction
+  };

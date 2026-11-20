@@ -1,0 +1,59 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field] \as Linear;
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := scalar] \as Geometry;
+\import Geometry.Finite[n := k] \as Lower;
+\import Geometry.Finite[n := N.Nat^::succ k] \as Domain;
+\import Geometry.Finite[n := n] \as Ambient;
+\import Lower.Successor[] \as Split;
+\import Linear.Linear[V := Domain.Vector, W := Ambient.Vector, source := Domain.space, target := Ambient.space] \as Maps;
+\import Linear.Linear[V := Domain.Vector, W := K, source := Domain.space, target := Linear.scalarSpace] \as Rows;
+\import Linear.Linear[V := Lower.Vector, W := K, source := Lower.space, target := Linear.scalarSpace] \as TailRows;
+\import Linear.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as End;
+\import Linear.Isomorphism[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as Isomorphisms;
+\import Linear.Isomorphism[V := Lower.Vector, W := Lower.Vector, source := Lower.space, target := Lower.space] \as LowerIsomorphisms;
+\import Linear.FiniteCoordinates[n := N.Nat^::succ k] \as Basis;
+\import Linear.Coordinates[I := Fin.Fin (N.Nat^::succ k)].Kronecker[] \as Delta;
+\definition row[A: Maps.Map][i: Fin.Fin n]: Rows.Map := Rows.Map {
+  apply := \fun (v: Domain.Vector) => A.apply v i,
+  preservesAdd := \fun (v, w: Domain.Vector) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x i) _ _ (A.preservesAdd v w),
+  preservesScale := \fun (a: K)(v: Domain.Vector) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x i) _ _ (A.preservesScale a v),
+};
+\definition Injective[A: Maps.Map]: \Prop := \forall (v, w: Domain.Vector) -> A.apply v = A.apply w -> v = w;
+\definition NonzeroRow[A: Maps.Map][i: Fin.Fin n]: \Prop :=
+  \exists (j: Fin.Fin (N.Nat^::succ k) \where Logic.Not (A.apply (Domain.basis j) i = Linear.zero));
+\definition nonzeroRowExists: \forall (A: Maps.Map) -> Injective A -> \exists (i: Fin.Fin n \where NonzeroRow A i) :=
+  \fun (A: Maps.Map)(injective: Injective A) => either!{{(Classical.excludedMiddle (\exists (i: Fin.Fin n \where NonzeroRow A i)))}
+    {\exists (i: Fin.Fin n \where NonzeroRow A i)}
+    {\fun (present: _) => present}
+    {\block {
+      \fun (none: _) \then
+      \let vanishes: A.apply (Domain.basis (Fin.zero k)) = Ambient.space.zero :=
+        \axiom:funext(A.apply (Domain.basis (Fin.zero k)), Ambient.space.zero,
+          \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (A.apply (Domain.basis (Fin.zero k)) i = Linear.zero))}
+            {A.apply (Domain.basis (Fin.zero k)) i = Linear.zero}
+            {\fun (equal: _) => equal}
+            {\fun (different: _) => Logic.falseElim _ (none
+              (Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where NonzeroRow A i }] i
+                (Logic.existsIntro[Fin.Fin (N.Nat^::succ k),
+                  { j: Fin.Fin (N.Nat^::succ k) \where Logic.Not (A.apply (Domain.basis j) i = Linear.zero) }] (Fin.zero k) different)))}
+          }) \then
+      \let equal: Domain.basis (Fin.zero k) = Domain.space.zero := injective _ _
+        (trans!{{Ambient.Vector}} _ _ _ vanishes (sym!{{Ambient.Vector}} _ _ A.preservesZero)) \then
+      \return Logic.falseElim _ (field.nontrivial (sym!{K} _ _
+        (trans!{K} _ _ _ (sym!{K} _ _ (Delta.self (Fin.zero k)))
+          (congr!{{Domain.Vector} K} (\fun (v: Domain.Vector) => v (Fin.zero k)) _ _ equal))))
+    }}
+  };
+\definition maximalRowExists: \forall (A: Maps.Map) -> Injective A -> \exists \root.FiniteMaximum[].Maximum[n, NonzeroRow A] :=
+  \fun (A: Maps.Map)(injective: Injective A) => \root.FiniteMaximum[].exists n (NonzeroRow A) (nonzeroRowExists A injective);
+\module Above(A: Maps.Map, maximum: \root.FiniteMaximum[].Maximum[n, NonzeroRow A]);
+\module At(A: Maps.Map, pivot: Fin.Fin n, column: Fin.Fin (N.Nat^::succ k),
+  nonzero: Logic.Not (A.apply (Domain.basis column) pivot = Linear.zero));

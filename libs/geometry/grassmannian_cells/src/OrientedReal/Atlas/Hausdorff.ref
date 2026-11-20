@@ -1,0 +1,19 @@
+\import std.Logic[].Classical[] \as Classical;
+\import topological_constructions.Separation[].Pullback[A := Carrier, B := Base.Carrier, source := topology,
+  target := Base.topology, f := projection, continuous := projectionContinuous] \as Pullback;
+\module Same(c: Patch, e, f: Carrier, first: Space.Member (Domain c) e, second: Space.Member (Domain c) f,
+  sameBase: e.base = f.base, different: Logic.Not (e = f));
+\definition law: Space.IsT2 topology := \block {
+  \fun (e, f: Carrier)(different: _) \then
+  \return either!{{(Classical.excludedMiddle (e.base = f.base))}
+    {\exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton f, e, U])}
+    {\block {
+      \fun (sameBase: _) \then
+      \takefrom c: \Cast[Patch] ({ c: Patch \where BaseSpace.Member c.domain e.base }) \by covers e.base \then
+      \let first: Space.Member (Domain c) e := \bysub(Patch, { c: Patch \where BaseSpace.Member c.domain e.base }, c) \then
+      \let second: Space.Member (Domain c) f := \idelim e.base = f.base \with x: Base.Carrier => BaseSpace.Member c.domain x \by { base: first, equality: sameBase } \then
+      \return Same[c := c, e := e, f := f, first := first, second := second, sameBase := sameBase, different := different].separate
+    }}
+    {Pullback.separate Base.hausdorff e f}
+  }
+};

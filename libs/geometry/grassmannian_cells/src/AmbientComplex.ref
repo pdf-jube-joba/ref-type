@@ -1,0 +1,60 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import complex.Complex[] \as Numbers;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Over[K := Numbers.Complex, field := Numbers.Algebra[].field, scalar := H.Complex[].scalar, topological := H.Complex[].topological] \as Hermitian;
+\import linear_algebra.Hermitian[].Over[K := Numbers.Complex, field := Numbers.Algebra[].field, scalar := H.Complex[].scalar] \as Geometry;
+\import Geometry.Finite[n := n] \as Vectors;
+\import Geometry.Finite[n := m] \as Extra;
+\import Vectors.Blocks[m := m] \as Blocks;
+\import Geometry.Finite[n := Blocks.dimension] \as Total;
+\import Hermitian.At[n := n].Blocks[m := m] \as ProjectionBlocks;
+\import grassmannians.Complex[n := n, k := k].Model[] \as Source;
+\import grassmannians.Complex[n := Blocks.dimension, k := Nat.add N.Nat^::zero k].Model[] \as OldTarget;
+\import grassmannians.Complex[n := Blocks.dimension, k := k].Model[] \as Target;
+\import Source.Stabilization[m := m] \as Original;
+\import \root.RankTransportComplex[n := Blocks.dimension, a := Nat.add N.Nat^::zero k, b := k, same := NatLaws.addZeroLeft k] \as Rank;
+\definition map[p: Source.Carrier]: Target.Carrier := Rank.map (Original.ambient p);
+\definition continuous: topology.Continuity[A := Source.Carrier, B := Target.Carrier].Continuous Source.topology Target.topology map :=
+  topology.Composition[A := Source.Carrier, B := OldTarget.Carrier, C := Target.Carrier].composeContinuous
+    Source.topology OldTarget.topology Target.topology Original.ambient Rank.map Original.ambientContinuous Rank.continuous;
+\import Hermitian.At[n := Blocks.dimension] \as TotalMaps;
+\definition mapPreserved: \forall (p: Source.Carrier) -> (map p).map = (Original.ambient p).map :=
+  \fun (p: Source.Carrier) =>
+    \block {
+      \let F: N.Nat^ -> \Set := \fun (r: N.Nat^) => grassmannians.Complex[n := Blocks.dimension, k := r].Model[].Carrier \then
+      \return trans!{{TotalMaps.Map}} _ _ _
+        (sym!{{TotalMaps.Map}} _ _ (Equality.Transport[A := N.Nat^].natural F (\fun (_: N.Nat^) => TotalMaps.Map)
+          (\fun (r: N.Nat^)(x: F r) => x.map) (Nat.add N.Nat^::zero k) k (NatLaws.addZeroLeft k) (Original.ambient p)))
+        (Equality.Transport[A := N.Nat^].Constant[C := TotalMaps.Map].law (Nat.add N.Nat^::zero k) k (Original.ambient p).map (NatLaws.addZeroLeft k))
+    };
+\definition restriction: \forall (p: Source.Carrier)(v: Vectors.Vector) ->
+  Blocks.left ((map p).map.apply (Blocks.inclusion.apply v)) = p.map.apply v :=
+  \fun (p: Source.Carrier)(v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (congr!{{TotalMaps.Map} {Vectors.Vector}} (\fun (P: TotalMaps.Map) => Blocks.left (P.apply (Blocks.inclusion.apply v))) _ _ (mapPreserved p))
+    (trans!{{Vectors.Vector}} _ _ _
+      (ProjectionBlocks.left (Source.projection p).map (grassmannians.BasepointsComplex[m := m].zero).map (Blocks.inclusion.apply v))
+      (congr!{{Vectors.Vector} {Vectors.Vector}} p.map.apply _ _ (Blocks.leftJoin v Extra.space.zero)));
+\definition injective: \forall (p, q: Source.Carrier) -> map p = map q -> p = q :=
+  \fun (p, q: Source.Carrier)(same: _) => Source.ext p q
+    (linear_algebra.Commutative[K := Numbers.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Complex Numbers.Algebra[].field].Linear[
+      V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space].ext p.map q.map
+      (\axiom:funext(p.map.apply, q.map.apply, \fun (v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+        (sym!{{Vectors.Vector}} _ _ (restriction p v))
+        (trans!{{Vectors.Vector}} _ _ _
+          (congr!{{Target.Carrier} {Vectors.Vector}} (\fun (x: Target.Carrier) => Blocks.left (x.map.apply (Blocks.inclusion.apply v))) _ _ same)
+          (restriction q v)))));
+
+\import \root.ClosedEmbedding[A := Source.Carrier, B := Target.Carrier, source := Source.topology, target := Target.topology,
+  f := map, compact := Source.compact, hausdorff := Target.hausdorff, continuous := continuous, injective := injective] \as Embedding;
+\definition image: \Pow Target.Carrier := Embedding.image;
+\definition closed: topology.Topology[Carrier := Target.Carrier].IsClosedIn Target.topology image := Embedding.closed;
+\definition imageHomeomorphism: topology.Homeomorphism[A := Source.Carrier, B := Embedding.Carrier].Homeomorphism[Source.topology, Embedding.topology] := Embedding.homeomorphism;
+\module Entries;
+\module Cells(symbol: \root.Symbols[n := n, k := k].Symbol);
+\module CW;

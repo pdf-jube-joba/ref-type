@@ -1,0 +1,39 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition excluded: \Pow Model.Disk := DiskSpace.Complement U;
+\definition image: \Pow A := Images.Image f excluded;
+\definition neighborhood: \Pow A := Space.Complement image;
+\definition isOpen: Space.IsOpenIn space neighborhood := Space.Compactness[].compactClosed space hausdorff image
+  (topology.Compactness[A := Model.Disk, B := A].continuousImage Model.diskTopology space f continuous excluded
+    (DiskSpace.Compactness[].closedCompact Model.diskTopology Model.Compactness[].compact excluded
+      (DiskSpace.Finite[].openComplementClosed Model.diskTopology U open)));
+\definition forward: \forall (x: A) -> \In[A] (CW.InteriorPart cell U) x ->
+  \In[A] (Space.Intersection (CW.InteriorImage cell) neighborhood) x := \block {
+  \fun (x: A)(member: _) \then
+  \takefrom p: CW.InteriorPartWitness[cell, U, x] \by member \then
+  \return Logic.And[_, _]::#
+    (Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior q, f q = x] }] p.point (Logic.And[_, _]::# p.interior p.image))
+    (\block {
+      \fun (inImage: _) \then
+      \takefrom q: \Cast[Model.Disk] ({ q: Model.Disk \where Logic.And[Logic.Not (\In[Model.Disk] U q), f q = x] }) \by inImage \then
+      \let qLaws: Logic.And[Logic.Not (\In[Model.Disk] U q), f q = x] := \bysub(Model.Disk, { q: Model.Disk \where Logic.And[Logic.Not (\In[Model.Disk] U q), f q = x] }, q) \then
+      \let same: f p.point = f q := trans!{A} _ _ _ p.image (sym!{A} _ _ qLaws.right) \then
+      \return qLaws.left (\idelim p.point = q \with r: Model.Disk => \In[Model.Disk] U r \by {
+        base: p.member, equality: injective p.point q p.interior (clean p.point q p.interior same) same
+      })
+    })
+};
+\definition backward: \forall (x: A) -> \In[A] (Space.Intersection (CW.InteriorImage cell) neighborhood) x ->
+  \In[A] (CW.InteriorPart cell U) x := \block {
+  \fun (x: A)(member: Logic.And[\In[A] (CW.InteriorImage cell) x, \In[A] neighborhood x]) \then
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] }) \by member.left \then
+  \let laws: Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] := \bysub(Model.Disk,
+    { p: Model.Disk \where Logic.And[\In[Model.Coordinate] Model.Interior p, f p = x] }, p) \then
+  \let inU: \In[Model.Disk] U p := either!{{(Classical.excludedMiddle (\In[Model.Disk] U p))} {\In[Model.Disk] U p}
+    {\fun (inside: _) => inside}
+    {\fun (outside: _) => Logic.falseElim _ (member.right (imageMember excluded p x outside laws.right))}
+  } \then
+  \return \exact(CW.InteriorPartWitness[cell, U, x] { point := p, member := inU, interior := laws.left, image := laws.right }, CW.InteriorPartWitness[cell, U, x])
+};
+\definition same: CW.InteriorPart cell U = Space.Intersection (CW.InteriorImage cell) neighborhood :=
+  \axiom:setext(CW.InteriorPart cell U, Space.Intersection (CW.InteriorImage cell) neighborhood, forward, backward);

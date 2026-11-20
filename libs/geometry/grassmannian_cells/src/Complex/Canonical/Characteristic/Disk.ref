@@ -1,0 +1,30 @@
+\import topological_algebra.Coordinates[K := Numbers.Complex, I := Fin.Fin (Symbols.dimension symbol)] \as ComplexSpace;
+\import Fin.Sum[m := Symbols.dimension symbol, n := Symbols.dimension symbol] \as RealIndices;
+\import Rotations.Parameters[] \as Parameters;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
+\import \root.ComplexCoordinates[n := Symbols.dimension symbol] \as Reals;
+\import \root.CoordinateIndex[K := Numbers.Complex, I := Fin.Fin (Symbols.dimension symbol), J := Symbols.Free symbol,
+  scalar := H.Complex[].topological.space, index := index] \as Reindex;
+\definition chart: topology.Homeomorphism[A := Standard.Coordinate, B := Parameters.Coordinates].Homeomorphism[Standard.topology, Parameters.source] :=
+  topology.Homeomorphism[A := Standard.Coordinate, B := ComplexSpace.Carrier].Composition[C := Parameters.Coordinates].compose
+    Standard.topology (ComplexSpace.topology H.Complex[].topological.space) Parameters.source Reals.homeomorphism Reindex.homeomorphism;
+\definition chartZero: chart.forward Standard.Contraction[].zero = Parameters.zero :=
+  \axiom:funext(chart.forward Standard.Contraction[].zero, Parameters.zero,
+    \fun (s: Symbols.Free symbol) => \refl(Numbers.Def[].zero));
+\definition scaleComplex: \forall (a, u, v: R.Real) -> Numbers.Def[].mul (Numbers.Def[].ofReal a) (Numbers.make u v) = Numbers.make (R.mul a u) (R.mul a v) :=
+  \fun (a, u, v: R.Real) => Numbers.Prop[].makeCong _ _ _ _
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (R.mul a u)) _ _ (RealLaws.fieldMulZeroLeft v)) (RealLaws.subZeroRight (R.mul a u)))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.mul a v)) _ _ (RealLaws.fieldMulZeroLeft u)) (RealLaws.addZeroRight (R.mul a v)));
+\definition chartScale: \forall (a: R.Real)(x: Standard.Coordinate) ->
+  chart.forward (Standard.Contraction[].scale a x) = Parameters.scale a (chart.forward x) :=
+  \fun (a: R.Real)(x: Standard.Coordinate) => \axiom:funext(chart.forward (Standard.Contraction[].scale a x), Parameters.scale a (chart.forward x),
+    \fun (s: Symbols.Free symbol) => sym!{{Numbers.Complex}} _ _ (scaleComplex a
+      (x (RealIndices.left (index.backward s))) (x (RealIndices.right (index.backward s)))));
+
+\import Parameters.Disk[d := Symbols.complexDimension symbol, chart := chart, chartZero := chartZero, chartScale := chartScale] \as Round;
+\definition value: DiskData := DiskData {
+  homeomorphism := Round.homeomorphism,
+  forwardBoundary := Round.Boundary[].forward, backwardBoundary := Round.Boundary[].backward,
+  interiorForward := Round.Boundary[].interiorForward, interiorBackward := Round.Boundary[].interiorBackward,
+};

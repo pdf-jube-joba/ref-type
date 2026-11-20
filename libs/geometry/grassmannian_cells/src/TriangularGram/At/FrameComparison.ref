@@ -1,0 +1,36 @@
+\import Linear.Coordinates[I := Fin.Fin k].Kronecker[] \as Delta;
+\definition injective: \forall (v, w: Domain.Vector) -> f.apply v = f.apply w -> v = w :=
+  \fun (v, w: Domain.Vector)(same: _) => \axiom:funext(v, w, \fun (i: Fin.Fin k) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (Domain.dotBasis i v) }
+    "=" _ "by" { sym!{K} _ _ (fIsometry (Domain.basis i) v) }
+    "=" _ "by" { congr!{{Ambient.Vector} K} (Ambient.dot (column f i)) _ _ same }
+    "=" _ "by" { fIsometry (Domain.basis i) w }
+    "=" _ "by" { Domain.dotBasis i w }
+  });
+\definition Preimage[j: Fin.Fin k]: \Set := \Cast[Domain.Vector] ({ v: Domain.Vector \where f.apply v = column g j });
+\definition unique: \forall (j: Fin.Fin k)(v, w: Preimage j) -> v = w :=
+  \fun (j: Fin.Fin k)(v, w: Preimage j) => injective v w (trans!{{Ambient.Vector}} _ _ _
+    (\bysub(Domain.Vector, Preimage j, v)) (sym!{{Ambient.Vector}} _ _ (\bysub(Domain.Vector, Preimage j, w))));
+\definition coefficient[j: Fin.Fin k]: Preimage j := \choice Preimage j \by {
+  existence: contained (Domain.basis j), uniqueness: unique j
+};
+\definition image[j: Fin.Fin k]: f.apply (coefficient j) = column g j := \bysub(Domain.Vector, Preimage j, coefficient j);
+\import Support[symbol := symbol, A := f, triangular := fTriangular] \as Support;
+\definition above: \forall (j, i: Fin.Fin k) -> Natural.Lt j i -> coefficient j i = Linear.zero :=
+  \fun (j, i: Fin.Fin k)(later: _) => Support.vanishes (coefficient j) (symbol.pivot j)
+    (\fun (r: Fin.Fin n)(upper: _) => trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v r) _ _ (image j)) (gTriangular.above j r upper))
+    i (Symbols.increasing symbol j i later);
+\definition normBasis[A: Gram.Map][isometry: \forall (v, w: Domain.Vector) -> Ambient.dot (A.apply v) (A.apply w) = Domain.dot v w]
+  [j: Fin.Fin k]: Inner.squared (column A j) = R.one :=
+  trans!{R.Real} _ _ _ (congr!{K R.Real} scalar.realPart _ _
+    (trans!{K} _ _ _ (isometry (Domain.basis j) (Domain.basis j))
+      (trans!{K} _ _ _ (Domain.dotBasis j (Domain.basis j)) (Delta.self j))))
+    (trans!{R.Real} _ _ _ (congr!{K R.Real} scalar.realPart _ _ (sym!{K} _ _ scalar.embedOne)) (scalar.realEmbed R.one));
+\module At(j: Fin.Fin k, previous: \forall (i: Fin.Fin k) -> Natural.Lt i j -> column f i = column g i);
+\definition equalBasis: \forall (j: Fin.Fin k) -> column f j = column g j :=
+  \fun (j: Fin.Fin k) => N.Induction[].strong
+    (\fun (r: N.Nat^) => \forall (bound: Natural.Lt r k) ->
+      column f (\into[N.Nat^](r, Fin.Fin k) \by { bound }) = column g (\into[N.Nat^](r, Fin.Fin k) \by { bound }))
+    (\fun (r: N.Nat^)(previous: _)(bound: _) => At[j := \into[N.Nat^](r, Fin.Fin k) \by { bound },
+      previous := \fun (i: Fin.Fin k)(less: _) => previous i less (Fin.bound k i)].equal)
+    j (Fin.bound k j);

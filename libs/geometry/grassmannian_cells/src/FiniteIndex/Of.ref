@@ -1,0 +1,15 @@
+\definition size: N.Nat^ := Lists.length A xs;
+\definition Index[a: A]: \Set := \Cast[Fin.Fin size] ({ i: Fin.Fin size \where Tuples.tuple xs i = a });
+\definition existence[a: A]: \exists Index a := tupleOnto xs a (exhaustive a);
+\definition unique: \forall (a: A)(i, j: Index a) -> i = j :=
+  \fun (a: A)(i, j: Index a) => tupleInjective xs distinct i j
+    (trans!{A} _ _ _ (\bysub(Fin.Fin size, Index a, i)) (sym!{A} _ _ (\bysub(Fin.Fin size, Index a, j))));
+\definition index[a: A]: Index a := \choice Index a \by { existence: existence a, uniqueness: unique a };
+\definition value: std.Data[].Bijection[A := Fin.Fin size, B := A].Bijection :=
+  std.Data[].Bijection[A := Fin.Fin size, B := A].Bijection {
+    forward := Tuples.tuple xs, backward := \fun (a: A) => index a,
+    leftInverse := \fun (i: Fin.Fin size) => tupleInjective xs distinct (index (Tuples.tuple xs i)) i
+      (\bysub(Fin.Fin size, Index (Tuples.tuple xs i), index (Tuples.tuple xs i))),
+    rightInverse := \fun (a: A) => \bysub(Fin.Fin size, Index a, index a),
+  };
+\definition data: Data := Data { size := size, value := value };

@@ -1,0 +1,50 @@
+\import std.Data[].Nat[] \as N;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\import \root.FiniteIndex[A := Symbols.Free symbol] \as Index;
+\definition Coordinates[d: N.Nat^]: \Set := Fin.Fin d -> Numbers.Complex;
+\definition topology[d: N.Nat^]: topology.Topology[Carrier := Coordinates d].Topology :=
+  topological_algebra.Coordinates[K := Numbers.Complex, I := Fin.Fin d].topology H.Complex[].topological.space;
+\structure Data: \Set := {
+  dimension: N.Nat^,
+  dimensionFormula: dimension = Symbols.dimension symbol,
+  homeomorphism: topology.Homeomorphism[A := Coordinates dimension, B := Cell].Homeomorphism[topology dimension, cellTopology],
+};
+\module Indexed(index: Index.Data);
+\definition exists: \exists Data := \block {
+  \takefrom index: Index.Data \by Symbols.FreeCount[symbol := symbol].indexExists \then
+  \return Indexed[index := index].exists
+};
+
+\definition schubertExists: \exists topology.Homeomorphism[A := Coordinates (Symbols.dimension symbol), B := Cell].Homeomorphism[
+  topology (Symbols.dimension symbol), cellTopology] := \block {
+  \takefrom data: Data \by exists \then
+  \return \idelim data.dimension = Symbols.dimension symbol \with d: N.Nat^ =>
+    \exists topology.Homeomorphism[A := Coordinates d, B := Cell].Homeomorphism[topology d, cellTopology] \by {
+      base: \exact(data.homeomorphism, topology.Homeomorphism[A := Coordinates data.dimension, B := Cell].Homeomorphism[topology data.dimension, cellTopology]),
+      equality: data.dimensionFormula
+    }
+};
+\import algebraic_topology.Euclidean[] \as EuclideanSpace;
+\structure RealData: \Set := {
+  complexDimension: N.Nat^,
+  dimensionFormula: complexDimension = Symbols.dimension symbol,
+  homeomorphism: topology.Homeomorphism[A := EuclideanSpace.coordinateCarrier (N.Basic[].Def[].add complexDimension complexDimension), B := Cell].Homeomorphism[
+    EuclideanSpace.Dimension[n := N.Basic[].Def[].add complexDimension complexDimension].topology, cellTopology],
+};
+\module Realification(data: Data);
+\definition realExists: \exists RealData := \block {
+  \takefrom data: Data \by exists \then
+  \return \exact(Realification[data := data].value, RealData)
+};
+
+\definition realSchubertExists: \exists topology.Homeomorphism[A := EuclideanSpace.coordinateCarrier (Symbols.complexDimension symbol), B := Cell].Homeomorphism[
+  EuclideanSpace.Dimension[n := Symbols.complexDimension symbol].topology, cellTopology] := \block {
+  \takefrom data: RealData \by realExists \then
+  \return \idelim data.complexDimension = Symbols.dimension symbol \with d: N.Nat^ =>
+    \exists topology.Homeomorphism[A := EuclideanSpace.coordinateCarrier (N.Basic[].Def[].add d d), B := Cell].Homeomorphism[
+      EuclideanSpace.Dimension[n := N.Basic[].Def[].add d d].topology, cellTopology] \by {
+        base: \exact(data.homeomorphism, topology.Homeomorphism[A := EuclideanSpace.coordinateCarrier (N.Basic[].Def[].add data.complexDimension data.complexDimension), B := Cell].Homeomorphism[
+          EuclideanSpace.Dimension[n := N.Basic[].Def[].add data.complexDimension data.complexDimension].topology, cellTopology]),
+        equality: data.dimensionFormula
+      }
+};

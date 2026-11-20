@@ -1,0 +1,123 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Symbols[n := n, k := k].Widen[m := m] \as SymbolsMap;
+\import \root.Echelon[K := Numbers.Real, field := Numbers.Algebra[].field, n := n, k := k, symbol := symbol] \as Coordinates;
+\import Coordinates.Widen[m := m] \as Inclusion;
+\import \root.Echelon[K := Numbers.Real, field := Numbers.Algebra[].field, n := Blocks.dimension, k := k, symbol := SymbolsMap.map symbol] \as TotalCoordinates;
+\import \root.Real[n := n, k := k, symbol := symbol].Canonical[] \as Cell;
+\import \root.Real[n := Blocks.dimension, k := k, symbol := SymbolsMap.map symbol].Canonical[] \as TotalCell;
+\definition includedFixed: \forall (p: Source.Carrier)(v: Vectors.Vector) -> p.map.apply v = v ->
+  (map p).map.apply (Blocks.inclusion.apply v) = Blocks.inclusion.apply v :=
+  \fun (p: Source.Carrier)(v: Vectors.Vector)(fixed: _) => trans!{{Total.Vector}} _ _ _
+    (Entries[].formula p (Blocks.inclusion.apply v))
+    (congr!{{Vectors.Vector} {Total.Vector}} Blocks.inclusion.apply _ _
+      (trans!{{Vectors.Vector}} _ _ _ (congr!{{Vectors.Vector} {Vectors.Vector}} p.map.apply _ _ (Blocks.leftJoin v Extra.space.zero)) fixed));
+\definition represents: \forall (A: Coordinates.Carrier) -> TotalCell.Represents (Inclusion.map A) (map (Cell.map A)) :=
+  \fun (A: Coordinates.Carrier)(v: Total.Vector) => Logic.PropEquiv[_, _] {
+    ltr := \block {
+      \fun (fixed: _) \then
+      \let formula: Blocks.inclusion.apply ((Cell.map A).map.apply (Blocks.left v)) = v :=
+        trans!{{Total.Vector}} _ _ _ (sym!{{Total.Vector}} _ _ (Entries[].formula (Cell.map A) v)) fixed \then
+      \let leftFixed: (Cell.map A).map.apply (Blocks.left v) = Blocks.left v :=
+        trans!{{Vectors.Vector}} _ _ _ (sym!{{Vectors.Vector}} _ _ (Blocks.leftJoin ((Cell.map A).map.apply (Blocks.left v)) Extra.space.zero))
+          (congr!{{Total.Vector} {Vectors.Vector}} Blocks.left _ _ formula) \then
+      \takefrom w: \Cast[Coordinates.CoordinateVector] ({ w: Coordinates.CoordinateVector \where
+        (Coordinates.linear A).apply w = Blocks.left v }) \by (Cell.represents A (Blocks.left v)).ltr leftFixed \then
+      \let same: (Coordinates.linear A).apply w = Blocks.left v := \bysub(Coordinates.CoordinateVector,
+        { w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = Blocks.left v }, w) \then
+      \return Logic.existsIntro[Coordinates.CoordinateVector, { w: Coordinates.CoordinateVector \where
+        (TotalCoordinates.linear (Inclusion.map A)).apply w = v }] w
+        (trans!{{Total.Vector}} _ _ _ (Inclusion.action A w)
+          (trans!{{Total.Vector}} _ _ _ (congr!{{Vectors.Vector} {Total.Vector}} Blocks.inclusion.apply _ _
+            (trans!{{Vectors.Vector}} _ _ _ same (sym!{{Vectors.Vector}} _ _ leftFixed))) formula))
+    },
+    rtl := \block {
+      \fun (member: _) \then
+      \takefrom w: \Cast[Coordinates.CoordinateVector] ({ w: Coordinates.CoordinateVector \where
+        (TotalCoordinates.linear (Inclusion.map A)).apply w = v }) \by member \then
+      \let same: Blocks.inclusion.apply ((Coordinates.linear A).apply w) = v :=
+        trans!{{Total.Vector}} _ _ _ (sym!{{Total.Vector}} _ _ (Inclusion.action A w))
+          (\bysub(Coordinates.CoordinateVector, { w: Coordinates.CoordinateVector \where
+            (TotalCoordinates.linear (Inclusion.map A)).apply w = v }, w)) \then
+      \return \idelim Blocks.inclusion.apply ((Coordinates.linear A).apply w) = v \with u: Total.Vector =>
+        (map (Cell.map A)).map.apply u = u \by {
+          base: includedFixed (Cell.map A) ((Coordinates.linear A).apply w)
+            ((Cell.represents A ((Coordinates.linear A).apply w)).rtl
+              (Logic.existsIntro[Coordinates.CoordinateVector, { x: Coordinates.CoordinateVector \where
+                (Coordinates.linear A).apply x = (Coordinates.linear A).apply w }] w (\refl((Coordinates.linear A).apply w)))),
+          equality: same
+        }
+    },
+  };
+\definition agrees: \forall (A: Coordinates.Carrier) -> map (Cell.map A) = TotalCell.map (Inclusion.map A) :=
+  \fun (A: Coordinates.Carrier) => TotalCell.unique (Inclusion.map A)
+    (\into[Target.Carrier](map (Cell.map A), TotalCell.Point (Inclusion.map A)) \by { represents A })
+    (TotalCell.point (Inclusion.map A));
+\definition preserves: \forall (p: Source.Carrier) -> \In[Source.Carrier] Cell.cell p ->
+  \In[Target.Carrier] TotalCell.cell (map p) := \block {
+  \fun (p: Source.Carrier)(member: _) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where Cell.map A = p }) \by member \then
+  \return Logic.existsIntro[TotalCoordinates.Carrier, { B: TotalCoordinates.Carrier \where TotalCell.map B = map p }]
+    (Inclusion.map A) (trans!{{Target.Carrier}} _ _ _ (sym!{{Target.Carrier}} _ _ (agrees A))
+      (congr!{{Source.Carrier} {Target.Carrier}} map _ _ (\bysub(Coordinates.Carrier,
+        { A: Coordinates.Carrier \where Cell.map A = p }, A))))
+};
+\definition onto: \forall (q: TotalCell.Cell) -> \exists (p: Cell.Cell \where map p = q) := \block {
+  \fun (q: TotalCell.Cell) \then
+  \takefrom B: \Cast[TotalCoordinates.Carrier] ({ B: TotalCoordinates.Carrier \where TotalCell.map B = q })
+    \by \bysub(Target.Carrier, TotalCell.cell, q) \then
+  \return Logic.existsIntro[Cell.Cell, { p: Cell.Cell \where map p = q }] (Cell.into (Inclusion.restrict B))
+    (trans!{{Target.Carrier}} _ _ _ (agrees (Inclusion.restrict B))
+      (trans!{{Target.Carrier}} _ _ _
+        (congr!{{TotalCoordinates.Carrier} {Target.Carrier}} TotalCell.map _ _ (Inclusion.rightInverse B))
+        (\bysub(TotalCoordinates.Carrier, { B: TotalCoordinates.Carrier \where TotalCell.map B = q }, B))))
+};
+\definition cellMap[p: Cell.Cell]: TotalCell.Cell := \into[Target.Carrier](map p, TotalCell.cell) \by {
+  preserves p (\bysub(Source.Carrier, Cell.cell, p))
+};
+\definition cellContinuous: topology.Continuity[A := Cell.Cell, B := TotalCell.Cell].Continuous Cell.cellTopology TotalCell.cellTopology cellMap :=
+  topology.Continuity[A := Cell.Cell, B := Target.Carrier].Corestriction[S := TotalCell.cell].corestrictContinuous
+    Cell.cellTopology Target.topology cellMap
+    (topology.Composition[A := Cell.Cell, B := Source.Carrier, C := Target.Carrier].composeContinuous
+      Cell.cellTopology Source.topology Target.topology (\fun (p: Cell.Cell) => p) map
+      (topology.Continuity[A := Cell.Cell, B := Source.Carrier].Corestriction[S := Cell.cell].inclusionContinuous Source.topology)
+      continuous);
+\definition intoImage[q: TotalCell.Cell]: Embedding.Carrier :=
+  \into[Target.Carrier](q, image) \by { \block {
+    \takefrom p: \Cast[Cell.Cell] ({ p: Cell.Cell \where map p = q }) \by onto q \then
+    \return \idelim map p = q \with x: Target.Carrier => \In[Target.Carrier] image x \by {
+      base: \bysub(Target.Carrier, image, Embedding.into p),
+      equality: \bysub(Cell.Cell, { p: Cell.Cell \where map p = q }, p)
+    }
+  } };
+\definition lower[q: TotalCell.Cell]: Source.Carrier := imageHomeomorphism.backward (intoImage q);
+\definition lowerImage: \forall (q: TotalCell.Cell) -> map (lower q) = q :=
+  \fun (q: TotalCell.Cell) => imageHomeomorphism.rightInverse (intoImage q);
+\definition lowerMember: \forall (q: TotalCell.Cell) -> \In[Source.Carrier] Cell.cell (lower q) := \block {
+  \fun (q: TotalCell.Cell) \then
+  \takefrom p: \Cast[Cell.Cell] ({ p: Cell.Cell \where map p = q }) \by onto q \then
+  \let same: p = lower q := injective p (lower q)
+    (trans!{{Target.Carrier}} _ _ _ (\bysub(Cell.Cell, { p: Cell.Cell \where map p = q }, p))
+      (sym!{{Target.Carrier}} _ _ (lowerImage q))) \then
+  \return \idelim p = lower q \with x: Source.Carrier => \In[Source.Carrier] Cell.cell x \by {
+    base: \bysub(Source.Carrier, Cell.cell, p), equality: same
+  }
+};
+\definition inverse[q: TotalCell.Cell]: Cell.Cell := \into[Source.Carrier](lower q, Cell.cell) \by { lowerMember q };
+\definition intoImageContinuous: topology.Continuity[A := TotalCell.Cell, B := Embedding.Carrier].Continuous TotalCell.cellTopology Embedding.topology intoImage :=
+  topology.Continuity[A := TotalCell.Cell, B := Target.Carrier].Corestriction[S := image].corestrictContinuous
+    TotalCell.cellTopology Target.topology intoImage
+    (topology.Continuity[A := TotalCell.Cell, B := Target.Carrier].Corestriction[S := TotalCell.cell].inclusionContinuous Target.topology);
+\definition inverseContinuous: topology.Continuity[A := TotalCell.Cell, B := Cell.Cell].Continuous TotalCell.cellTopology Cell.cellTopology inverse :=
+  topology.Continuity[A := TotalCell.Cell, B := Source.Carrier].Corestriction[S := Cell.cell].corestrictContinuous
+    TotalCell.cellTopology Source.topology inverse
+    (topology.Composition[A := TotalCell.Cell, B := Embedding.Carrier, C := Source.Carrier].composeContinuous
+      TotalCell.cellTopology Embedding.topology Source.topology intoImage imageHomeomorphism.backward
+      intoImageContinuous imageHomeomorphism.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Cell.Cell, B := TotalCell.Cell].Homeomorphism[Cell.cellTopology, TotalCell.cellTopology] :=
+  topology.Homeomorphism[A := Cell.Cell, B := TotalCell.Cell].Homeomorphism[Cell.cellTopology, TotalCell.cellTopology] {
+    forward := cellMap, backward := inverse,
+    leftInverse := \fun (p: Cell.Cell) => injective (inverse (cellMap p)) p (lowerImage (cellMap p)),
+    rightInverse := lowerImage,
+    forwardContinuous := cellContinuous, backwardContinuous := inverseContinuous,
+  };

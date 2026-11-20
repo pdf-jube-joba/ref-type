@@ -1,0 +1,50 @@
+\import Gram.With[previous := previous.factor] \as Frame;
+\definition first: Higher.column Frame.value (Fin.zero k) = Gram.unit := eq_reason_in!{{Ambient.Vector} _
+  "=" _ "by" { congr!{{Higher.Vector} {Ambient.Vector}} Frame.value.apply _ _ firstBasis }
+  "=" _ "by" { congr!{{Ambient.Vector} {Ambient.Vector} {Ambient.Vector}} Ambient.space.add _ _ _ _
+    (trans!{{Ambient.Vector}} _ _ _ (congr!{K {Ambient.Vector}} (\fun (a: K) => Ambient.space.smul a Gram.unit) _ _ Split.firstHead) (Ambient.space.scalarOne Gram.unit))
+    (trans!{{Ambient.Vector}} _ _ _ (congr!{{Lower.Vector} {Ambient.Vector}} previous.factor.frame.apply _ _ Split.firstTail) previous.factor.frame.preservesZero) }
+  "=" _ "by" { VectorLaws.zeroRight Gram.unit }
+};
+\definition tail: \forall (j: Fin.Fin k) -> Higher.column Frame.value (Fin.succ k j) = Lower.column previous.factor.frame j :=
+  \fun (j: Fin.Fin k) => eq_reason_in!{{Ambient.Vector} _
+    "=" _ "by" { congr!{{Higher.Vector} {Ambient.Vector}} Frame.value.apply _ _ (successorBasis j) }
+    "=" _ "by" { congr!{{Ambient.Vector} {Ambient.Vector} {Ambient.Vector}} Ambient.space.add _ _ _ _
+      (trans!{{Ambient.Vector}} _ _ _ (congr!{K {Ambient.Vector}} (\fun (a: K) => Ambient.space.smul a Gram.unit) _ _ (Split.joinHead Linear.zero (Lower.basis j))) (VectorLaws.zeroScale Gram.unit))
+      (congr!{{Lower.Vector} {Ambient.Vector}} previous.factor.frame.apply _ _ (Split.joinTail Linear.zero (Lower.basis j))) }
+    "=" _ "by" { VectorLaws.zeroLeft (Lower.column previous.factor.frame j) }
+  };
+\definition factorPositive: Order.Lt R.zero Normalize.factor := R.Estimates[].Product[].invPositive Normalize.length
+  (Order.Order[].ltOfLeNotEq R.zero Normalize.length (R.SquareRoot[].nonnegative (Inner.squared Gram.column))
+    (\fun (zero: _) => Normalize.lengthNonzero (sym!{R.Real} _ _ zero)));
+\definition headDiagonal: \exists Higher.Diagonal[symbol, Frame.value, Fin.zero k] := \block {
+  \takefrom diagonal: Higher.Diagonal[symbol, A, Fin.zero k] \by laws.diagonal (Fin.zero k) \then
+  \return \exact(Higher.Diagonal[symbol, Frame.value, Fin.zero k] {
+    value := R.mul Normalize.factor diagonal.value,
+    positive := R.Estimates[].Product[].mulPositive Normalize.factor diagonal.value factorPositive diagonal.positive,
+    agrees := eq_reason_in!{K _
+      "=" _ "by" { congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v (symbol.pivot (Fin.zero k))) _ _ first }
+      "=" _ "by" { congr!{K K} (Linear.mul (Geometry.embed Normalize.factor)) _ _
+        (trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v (symbol.pivot (Fin.zero k))) _ _ firstColumn) diagonal.agrees) }
+      "=" _ "by" { sym!{K} _ _ (scalar.embedMul Normalize.factor diagonal.value) }
+    },
+  }, Higher.Diagonal[symbol, Frame.value, Fin.zero k])
+};
+\definition triangular: Higher.Laws[symbol, Frame.value] := Higher.Laws[symbol, Frame.value] {
+  above := Fin.cases k (\fun (j: Fin.Fin (N.Nat^::succ k)) => \forall (r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> Higher.column Frame.value j r = Linear.zero)
+    (\fun (r: Fin.Fin n)(above: _) => trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v r) _ _ first) (unitAbove r above))
+    (\fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+      (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v r) _ _ (tail j)) (previous.triangular.above j r above)),
+  diagonal := Fin.cases k (\fun (j: Fin.Fin (N.Nat^::succ k)) => \exists Higher.Diagonal[symbol, Frame.value, j]) headDiagonal
+    (\block {
+      \fun (j: Fin.Fin k) \then
+      \takefrom diagonal: Lower.Diagonal[tailSymbol, previous.factor.frame, j] \by previous.triangular.diagonal j \then
+      \return \exact(Higher.Diagonal[symbol, Frame.value, Fin.succ k j] {
+        value := diagonal.value, positive := diagonal.positive,
+        agrees := trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v (tailSymbol.pivot j)) _ _ (tail j)) diagonal.agrees,
+      }, Higher.Diagonal[symbol, Frame.value, Fin.succ k j])
+    }),
+};
+\definition value: Higher.Factorization[symbol, A] := Higher.Factorization[symbol, A] {
+  factor := Frame.factorization, triangular := triangular,
+};

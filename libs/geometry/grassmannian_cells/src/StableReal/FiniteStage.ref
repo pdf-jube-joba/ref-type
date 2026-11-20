@@ -1,0 +1,62 @@
+\import grassmannians.Real[n := n, k := k].Model[] \as Model;
+\import \root.PaddedMatrix[K := Numbers.Real, zero := Numbers.zero, n := n] \as Padding;
+\import Padding.Topological[scalar := H.Real[].topological.space] \as PaddingTopology;
+\import topological_algebra.Matrix[K := Numbers.Real, I := Fin.Fin n, J := Fin.Fin n] \as FiniteMatrices;
+\import topology.Topology[Carrier := Stage n] \as StageSpace;
+\definition fiber[x: Stage n]: \Set := \Cast[Finite n] ({ p: Finite n \where padding n p = x });
+\definition unique: \forall (x: Stage n)(p, q: fiber x) -> p = q :=
+  \fun (x: Stage n)(p, q: fiber x) => Model.entriesInjective p q (Padding.injective (Model.entries p) (Model.entries q)
+    (trans!{Matrix} _ _ _ (\bysub(Finite n, fiber x, p)) (sym!{Matrix} _ _ (\bysub(Finite n, fiber x, q)))));
+\definition inverse[x: Stage n]: fiber x := \choice fiber x \by {
+  existence: \bysub(Carrier, stages n, x), uniqueness: unique x
+};
+\definition agrees[x: Stage n]: padding n (inverse x) = x := \bysub(Finite n, fiber x, inverse x);
+\definition leftInverse: \forall (p: Finite n) -> inverse (intoStage n p) = p :=
+  \fun (p: Finite n) => unique (intoStage n p) (inverse (intoStage n p))
+    (\into[Finite n](p, fiber (intoStage n p)) \by { \refl(padding n p) });
+\definition rightInverse: \forall (x: Stage n) -> intoStage n (inverse x) = x := agrees;
+\definition paddingContinuous: topology.Continuity[A := Finite n, B := Matrix].Continuous (finiteTopology n) matrixTopology (padding n) :=
+  topology.Composition[A := Finite n, B := Padding.Matrix, C := Matrix].composeContinuous
+    (finiteTopology n) PaddingTopology.source matrixTopology Model.entries Padding.extend Model.entriesContinuous PaddingTopology.continuous;
+\definition intoContinuous: topology.Continuity[A := Finite n, B := Stage n].Continuous (finiteTopology n) (spaces n) (intoStage n) :=
+  topology.Continuity[A := Finite n, B := Carrier].Corestriction[S := stages n].corestrictContinuous
+    (finiteTopology n) ambient (intoStage n)
+    (topology.Continuity[A := Finite n, B := Matrix].Corestriction[S := Points].corestrictContinuous
+      (finiteTopology n) matrixTopology (embed n) paddingContinuous);
+\definition inclusionContinuous: topology.Continuity[A := Stage n, B := Matrix].Continuous (spaces n) matrixTopology (\fun (x: Stage n) => x) :=
+  topology.Composition[A := Stage n, B := Carrier, C := Matrix].composeContinuous (spaces n) ambient matrixTopology
+    (\fun (x: Stage n) => x) (\fun (x: Carrier) => x)
+    (topology.Continuity[A := Stage n, B := Carrier].Corestriction[S := stages n].inclusionContinuous ambient)
+    (topology.Continuity[A := Carrier, B := Matrix].Corestriction[S := Points].inclusionContinuous matrixTopology);
+\definition inverseEntries: \forall (x: Stage n) -> Model.entries (inverse x) = Padding.restrict x :=
+  \fun (x: Stage n) => trans!{{Padding.Matrix}} _ _ _ (sym!{{Padding.Matrix}} _ _ (Padding.roundTrip (Model.entries (inverse x))))
+    (congr!{Matrix {Padding.Matrix}} Padding.restrict _ _ (agrees x));
+\definition inverseContinuous: topology.Continuity[A := Stage n, B := Finite n].Continuous (spaces n) (finiteTopology n) inverse :=
+  topological_constructions.Induced[A := Finite n, B := Padding.Matrix].Universal[Z := Stage n].continuous
+    (spaces n) PaddingTopology.source Model.entries inverse
+    (\idelim (\fun (x: Stage n) => Padding.restrict x) = (\fun (x: Stage n) => Model.entries (inverse x))
+      \with f: (Stage n -> Padding.Matrix) => topology.Continuity[A := Stage n, B := Padding.Matrix].Continuous (spaces n) PaddingTopology.source f \by {
+        base: topology.Composition[A := Stage n, B := Matrix, C := Padding.Matrix].composeContinuous
+          (spaces n) matrixTopology PaddingTopology.source (\fun (x: Stage n) => x) Padding.restrict inclusionContinuous PaddingTopology.restrictContinuous,
+        equality: \axiom:funext((\fun (x: Stage n) => Padding.restrict x), (\fun (x: Stage n) => Model.entries (inverse x)),
+          \fun (x: Stage n) => sym!{{Padding.Matrix}} _ _ (inverseEntries x))
+      });
+\definition homeomorphism: topology.Homeomorphism[A := Finite n, B := Stage n].Homeomorphism[finiteTopology n, spaces n] :=
+  topology.Homeomorphism[A := Finite n, B := Stage n].Homeomorphism[finiteTopology n, spaces n] {
+    forward := intoStage n, backward := inverse, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := intoContinuous, backwardContinuous := inverseContinuous,
+  };
+\definition inverseInjective: \forall (x, y: Stage n) -> inverse x = inverse y -> x = y :=
+  \fun (x, y: Stage n)(same: _) => trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (agrees x))
+    (trans!{Matrix} _ _ _ (congr!{{Finite n} Matrix} (padding n) _ _ same) (agrees y));
+\import topology.Topology[Carrier := Finite n] \as ModelSpace;
+\definition separated: StageSpace.IsT1 (spaces n) := \fun (x: Stage n) =>
+  \idelim topology.Continuity[A := Stage n, B := Finite n].Preimage inverse (ModelSpace.Complement (ModelSpace.Singleton (inverse x))) =
+    StageSpace.Complement (StageSpace.Singleton x) \with U: \Pow (Stage n) => StageSpace.IsOpenIn (spaces n) U \by {
+      base: inverseContinuous (ModelSpace.Complement (ModelSpace.Singleton (inverse x)))
+        (ModelSpace.Compactness[].hausdorffT1 (finiteTopology n) Model.hausdorff (inverse x)),
+      equality: \axiom:setext(topology.Continuity[A := Stage n, B := Finite n].Preimage inverse (ModelSpace.Complement (ModelSpace.Singleton (inverse x))),
+        StageSpace.Complement (StageSpace.Singleton x),
+        \fun (y: Stage n)(outside: _)(same: y = x) => outside (congr!{{Stage n} {Finite n}} inverse _ _ same),
+        \fun (y: Stage n)(outside: _)(same: inverse y = inverse x) => outside (inverseInjective y x same))
+    };

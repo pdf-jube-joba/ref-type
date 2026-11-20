@@ -1,0 +1,21 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].List[] \as Lists;
+\import algebraic_topology.CW[A := A] \as CW;
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import topology.Topology[Carrier := A] \as Space;
+\structure Presentation: \Set := {
+  cells: CW.Cells,
+  hausdorff: Space.IsT2 space,
+  cellLaws: \forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.CellLaws[space, cell],
+  covers: \forall (x: A) -> \exists CW.CoverWitness[cells, x],
+  disjoint: \forall (cell, other: CW.CellData) -> CW.CellMember cells cell -> CW.CellMember cells other ->
+    \forall (x: A) -> \In[A] (CW.InteriorImage cell) x -> \In[A] (CW.InteriorImage other) x -> cell = other,
+  boundary: \forall (cell: CW.CellData) -> CW.CellMember cells cell -> \forall (p: Euclidean.Disk cell.dimension) ->
+    \In[Euclidean.coordinateCarrier cell.dimension] (Euclidean.boundaryAt cell.dimension) p -> \exists CW.BoundaryWitness[cells, cell, cell.characteristic p],
+};
+\module With(data: Presentation);
+\definition build[data: Presentation]: CW.FiniteComplex[space] := With[data := data].complex;

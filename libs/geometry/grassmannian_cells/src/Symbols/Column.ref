@@ -1,0 +1,66 @@
+\import N.Order[].Prop[] \as NaturalOrder;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition earlier[i: Fin.Fin j]: Fin.Fin k := \into[N.Nat^](i, Fin.Fin k) \by {
+  NaturalOrder.ltTrans i j k (Fin.bound j i) (Fin.bound k j)
+};
+\definition pivot[i: Fin.Fin j]: Fin.Fin (symbol.pivot j) :=
+  \into[N.Nat^](symbol.pivot (earlier i), Fin.Fin (symbol.pivot j)) \by {
+    increasing symbol (earlier i) j (Fin.bound j i)
+  };
+\definition pivotInjective: \forall (i, l: Fin.Fin j) -> pivot i = pivot l -> i = l :=
+  \fun (i, l: Fin.Fin j)(same: _) => injective symbol (earlier i) (earlier l) same;
+\import \root.FiniteComplement[n := symbol.pivot j, k := j, f := pivot, injective := pivotInjective] \as Complement;
+\structure RowLaws[row: Fin.Fin n]: \Prop := {
+  below: Order.Lt row (symbol.pivot j),
+  nonpivot: \forall (i: Fin.Fin k) -> Logic.Not (row = symbol.pivot i),
+};
+\definition Row: \Set := \Cast[Fin.Fin n] ({ row: Fin.Fin n \where RowLaws[row] });
+\definition rowLaws[row: Row]: RowLaws[row] := \bysub(Fin.Fin n, Row, row);
+\definition lower[row: Row]: Complement.Complement :=
+  \into[Fin.Fin (symbol.pivot j)](\into[N.Nat^](row, Fin.Fin (symbol.pivot j)) \by { (rowLaws row).below },
+    Complement.Complement) \by {
+    \fun (i: Fin.Fin j)(same: _) => (rowLaws row).nonpivot (earlier i) (sym!{{N.Nat^}} _ _ same)
+  };
+\definition upper[row: Complement.Complement]: Row := \into[Fin.Fin n](
+  \into[N.Nat^](row, Fin.Fin n) \by { NaturalOrder.ltTrans row (symbol.pivot j) n (Fin.bound (symbol.pivot j) row) (Fin.bound n (symbol.pivot j)) }, Row) \by {
+  RowLaws[\into[N.Nat^](row, Fin.Fin n) \by {
+    NaturalOrder.ltTrans row (symbol.pivot j) n (Fin.bound (symbol.pivot j) row) (Fin.bound n (symbol.pivot j))
+  }] {
+    below := Fin.bound (symbol.pivot j) row,
+    nonpivot := \block {
+      \fun (i: Fin.Fin k)(same: row = symbol.pivot i) \then
+      \let smaller: Order.Lt i j := Comparison[s := symbol, t := symbol].reflectsOrder i j
+        (\idelim row = symbol.pivot i \with r: N.Nat^ => Order.Lt r (symbol.pivot j) \by {
+          base: Fin.bound (symbol.pivot j) row, equality: same
+        }) \then
+      \return Complement.absent row (\into[N.Nat^](i, Fin.Fin j) \by { smaller }) (sym!{{N.Nat^}} _ _ same)
+    },
+  }
+};
+\definition lowerUpper: \forall (row: Complement.Complement) -> lower (upper row) = row :=
+  \fun (row: Complement.Complement) => \refl(row);
+\definition upperLower: \forall (row: Row) -> upper (lower row) = row :=
+  \fun (row: Row) => \refl(row);
+\definition Bijection: \Set := std.Data[].Bijection[A := Fin.Fin (width symbol j), B := Row].Bijection;
+\definition indexExists: \exists Bijection := \block {
+  \takefrom b: Complement.Bijection \by Complement.exists \then
+  \return \exact(std.Data[].Bijection[A := Fin.Fin (width symbol j), B := Row].Bijection {
+    forward := \fun (i: Fin.Fin (width symbol j)) => upper (b.forward i),
+    backward := \fun (row: Row) => b.backward (lower row),
+    leftInverse := \fun (i: Fin.Fin (width symbol j)) => trans!{{Fin.Fin (width symbol j)}} _ _ _
+      (congr!{{Complement.Complement} {Fin.Fin (width symbol j)}} b.backward _ _ (lowerUpper (b.forward i))) (b.leftInverse i),
+    rightInverse := \fun (row: Row) => trans!{{Fin.Fin n}} _ _ _
+      (congr!{{Complement.Complement} Row} upper _ _ (b.rightInverse (lower row))) (upperLower row),
+  }, Bijection)
+};
+\definition slot[row: Row]: Free symbol := \into[Slot](Slot::# row j, Free symbol) \by {
+  FreeLaws[symbol, Slot::# row j] { below := (rowLaws row).below, nonpivot := (rowLaws row).nonpivot }
+};
+\definition read[slot: Free symbol][column: slot.column = j]: Row := \into[Fin.Fin n](slot.row, Row) \by {
+  RowLaws[slot.row] {
+    below := \idelim slot.column = j \with c: Fin.Fin k => Order.Lt slot.row (symbol.pivot c) \by {
+      base: (\bysub(Slot, Free symbol, slot)).below, equality: column
+    },
+    nonpivot := (\bysub(Slot, Free symbol, slot)).nonpivot,
+  }
+};

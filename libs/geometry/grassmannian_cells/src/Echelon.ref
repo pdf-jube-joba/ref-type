@@ -1,0 +1,68 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[].Basic[].Prop[] \as Order;
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import linear_algebra.Commutative[K := K, scalarRing := Fields.fieldAsCommutativeRing K field] \as Linear;
+\import Linear.Coordinates[I := Fin.Fin k] \as Domain;
+\import Linear.Coordinates[I := Fin.Fin n] \as Ambient;
+\import Linear.FiniteCoordinates[n := k] \as Basis;
+\import Linear.Matrix[I := Fin.Fin n, J := Fin.Fin k] \as Matrices;
+\import Linear.Sums[I := Fin.Fin k] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\structure Laws[A: Matrices.Matrix]: \Prop := {
+  pivot: \forall (i, j: Fin.Fin k) -> A (symbol.pivot i) j = Basis.vectors i j,
+  above: \forall (i: Fin.Fin n)(j: Fin.Fin k) -> Order.Lt (symbol.pivot j) i -> A i j = Linear.zero,
+};
+\definition Carrier: \Set := \Cast[Matrices.Matrix] ({ A: Matrices.Matrix \where Laws[A] });
+\definition laws[A: Carrier]: Laws[A] := \bysub(Matrices.Matrix, Carrier, A);
+\import Linear.Linear[V := Domain.Vector, W := Ambient.Vector, source := Domain.space, target := Ambient.space] \as Forward;
+\definition CoordinateVector: \Set := Domain.Vector;
+\definition AmbientVector: \Set := Ambient.Vector;
+\definition basis: Fin.Fin k -> CoordinateVector := Basis.vectors;
+\definition linear[A: Carrier]: Forward.Map := Matrices.asLinear (Fin.elements k) A;
+\definition coordinates[v: Ambient.Vector]: Domain.Vector := \fun (i: Fin.Fin k) => v (symbol.pivot i);
+\definition leftInverse: \forall (A: Carrier)(v: Domain.Vector) -> coordinates ((linear A).apply v) = v :=
+  \fun (A: Carrier)(v: Domain.Vector) => \axiom:funext(coordinates ((linear A).apply v), v,
+    \fun (i: Fin.Fin k) => trans!{K} _ _ _
+      (SumLaws.congruent (Fin.elements k) (\fun (j: Fin.Fin k) => Linear.mul (A (symbol.pivot i) j) (v j))
+        (\fun (j: Fin.Fin k) => Linear.mul (v j) (Basis.vectors i j))
+        (\fun (j: Fin.Fin k) => trans!{K} _ _ _
+          (congr!{K K} (\fun (a: K) => Linear.mul a (v j)) _ _ ((laws A).pivot i j))
+          (Linear.mulComm (Basis.vectors i j) (v j))))
+      (Basis.dualReconstruction v i));
+\definition injective: \forall (A: Carrier)(v, w: Domain.Vector) -> (linear A).apply v = (linear A).apply w -> v = w :=
+  \fun (A: Carrier)(v, w: Domain.Vector)(same: _) => trans!{{Domain.Vector}} _ _ _
+    (sym!{{Domain.Vector}} _ _ (leftInverse A v))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{{Ambient.Vector} {Domain.Vector}} coordinates _ _ same) (leftInverse A w));
+\definition onBasis: \forall (A: Carrier)(j: Fin.Fin k)(i: Fin.Fin n) -> (linear A).apply (Basis.vectors j) i = A i j :=
+  \fun (A: Carrier)(j: Fin.Fin k)(i: Fin.Fin n) => Basis.dualReconstruction (A i) j;
+\definition Image[A: Carrier]: \Pow Ambient.Vector :=
+  { v: Ambient.Vector \where \exists ( w: Domain.Vector \where (linear A).apply w = v ) };
+\definition containedUnique: \forall (A, B: Carrier) ->
+  (\forall (v: Domain.Vector) -> \In[Ambient.Vector] (Image B) ((linear A).apply v)) -> A = B := \block {
+  \fun (A, B: Carrier)(contained: _) \then
+  \let actions: \forall (v: Domain.Vector) -> (linear A).apply v = (linear B).apply v := \block {
+    \fun (v: Domain.Vector) \then
+    \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where (linear B).apply w = (linear A).apply v }) \by contained v \then
+    \let same: (linear B).apply w = (linear A).apply v := \bysub(Domain.Vector,
+      { w: Domain.Vector \where (linear B).apply w = (linear A).apply v }, w) \then
+    \let equal: w = v := trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (leftInverse B w))
+      (trans!{{Domain.Vector}} _ _ _ (congr!{{Ambient.Vector} {Domain.Vector}} coordinates _ _ same) (leftInverse A v)) \then
+    \return trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ same)
+      (congr!{{Domain.Vector} {Ambient.Vector}} (linear B).apply _ _ equal)
+  } \then
+  \return \axiom:funext(A, B, \fun (i: Fin.Fin n) => \axiom:funext(A i, B i,
+    \fun (j: Fin.Fin k) => trans!{K} _ _ _ (sym!{K} _ _ (onBasis A j i))
+      (trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v i) _ _ (actions (Basis.vectors j))) (onBasis B j i))))
+};
+\definition freeCoordinates[A: Carrier]: Symbols.Free symbol -> K :=
+  \fun (slot: Symbols.Free symbol) => A slot.row slot.column;
+\module Topological(scalar: topology.Topology[Carrier := K].Topology);
+\module FreeCoordinates;
+\module Comparison(other: Symbols.Symbol);
+\module Widen(m: std.Data[].Nat[].Nat^);

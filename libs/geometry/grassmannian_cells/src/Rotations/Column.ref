@@ -1,0 +1,104 @@
+\import Reflection.Hemisphere[e := axis j, eUnit := axisUnit j] \as Hemisphere;
+\import Hemisphere.Disk[] \as Disk;
+\definition parameter[A: Carrier]: Disk.Disk := \into[E.Vector](A j, Disk.Disk) \by {
+  Disk.DiskLaws[A j] {
+    orthogonal := trans!{K} _ _ _ (E.dotBasis (symbol.pivot j) (A j)) (pivotZero A j j),
+    bounded := (laws A).bounded j,
+  }
+};
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\definition parameterContinuous: topology.Continuity[A := Carrier, B := Disk.Disk].Continuous topology Disk.topology parameter :=
+  topology.Continuity[A := Carrier, B := E.Vector].Corestriction[S := { u: E.Vector \where Disk.DiskLaws[u] }].corestrictContinuous
+    topology Hemisphere.vectorTopology parameter
+    (Coordinates.Universal[A := Carrier].continuous topology topological.space (\fun (A: Carrier) => A j) (entryContinuous j));
+\definition rotation[A: Carrier]: Unitary.Carrier := Disk.rotation (parameter A);
+\definition continuous: topology.Continuity[A := Carrier, B := Unitary.Carrier].Continuous topology Unitary.topology rotation :=
+  topology.Composition[A := Carrier, B := Disk.Disk, C := Unitary.Carrier].composeContinuous topology Disk.topology Unitary.topology
+    parameter Disk.rotation parameterContinuous Disk.rotationContinuous;
+\definition regular: Unitary.Families[X := Carrier].Regular topology rotation :=
+  Unitary.Families[X := Carrier].regular topology rotation continuous;
+\definition radius[A: Carrier]: R.Real := Disk.radius (parameter A);
+\definition radiusPositive: \forall (A: Carrier) -> Order.Lt (Inner.squared (A j)) R.one -> Order.Lt R.zero (radius A) :=
+  \fun (A: Carrier)(inside: _) => Order.Order[].ltOfLeNotEq R.zero (radius A) (Disk.radiusNonnegative (parameter A))
+    (\fun (zero: R.zero = radius A) => Order.Order[].ltNotEq R.zero (R.sub R.one (Inner.squared (A j)))
+      (R.SquareRoot[].subPositive R.one (Inner.squared (A j)) inside)
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Disk.radiusSquared (parameter A)))
+        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (sym!{R.Real} _ _ zero) (sym!{R.Real} _ _ zero))
+          (Order.Arithmetic[].Prop[].fieldMulZeroLeft R.zero)))));
+\definition sendsAxis: \forall (A: Carrier) -> (rotation A).forward.apply (axis j) =
+  E.space.add (A j) (E.space.smul (Geometry.embed (radius A)) (axis j)) :=
+  \fun (A: Carrier) => Disk.sendsAxis (parameter A);
+\definition axisOrthogonal: \forall (i: Fin.Fin k) -> Logic.Not (i = j) -> E.dot (axis j) (axis i) = Linear.zero :=
+  \fun (i: Fin.Fin k)(different: _) => trans!{K} _ _ _ (E.dotBasis (symbol.pivot j) (axis i))
+    (Delta.different (symbol.pivot i) (symbol.pivot j)
+      (\fun (same: _) => different (Symbols.injective symbol i j same)));
+\definition fixesOtherAxis: \forall (A: Carrier)(i: Fin.Fin k) -> Logic.Not (i = j) -> (rotation A).forward.apply (axis i) = axis i :=
+  \fun (A: Carrier)(i: Fin.Fin k)(different: _) => Hemisphere.fixesOrthogonal (Disk.lift (parameter A)) (axis i)
+    (axisOrthogonal i different)
+    (trans!{K} _ _ _ (Inner.addLeft (A j) (E.space.smul (Geometry.embed (radius A)) (axis j)) (axis i))
+      (trans!{K} _ _ _ (congr!{K K K} Linear.add _ _ _ _
+        (trans!{K} _ _ _ (E.symmetric (A j) (axis i))
+          (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _
+            (trans!{K} _ _ _ (E.dotBasis (symbol.pivot i) (A j)) (pivotZero A i j))) Geometry.conjugateZero))
+        (trans!{K} _ _ _ (Inner.scaleLeft (Geometry.embed (radius A)) (axis j) (axis i))
+          (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Geometry.conj (Geometry.embed (radius A)))) _ _ (axisOrthogonal i different))
+            (Linear.mulZeroRight (Geometry.conj (Geometry.embed (radius A))))))) (Linear.addZeroLeft Linear.zero)));
+\definition boundaryAxis: \forall (A: Carrier) -> Inner.squared (A j) = R.one -> (rotation A).forward.apply (axis j) = A j :=
+  \fun (A: Carrier)(boundary: _) => trans!{{E.Vector}} _ _ _ (Disk.sendsAxis (parameter A)) (Disk.boundaryVector (parameter A) boundary);
+\import N.Basic[].Prop[] \as Natural;
+\import N.Order[].Prop[] \as NaturalOrder;
+\definition aboveZero: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> A j r = Linear.zero :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _) => (laws A).support j r
+    (\fun (free: Free r j) => NaturalOrder.ltAsym r (symbol.pivot j) free.below above);
+\definition axisAbove: \forall (r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> axis j r = Linear.zero :=
+  \fun (r: Fin.Fin n)(above: _) => Delta.different (symbol.pivot j) r (Natural.ltNe (symbol.pivot j) r above);
+\definition vectorAbove: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  Disk.vector (parameter A) r = Linear.zero :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (congr!{K K K} Linear.add _ _ _ _ (aboveZero A r above)
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Geometry.embed (radius A))) _ _ (axisAbove r above))
+        (Linear.mulZeroRight (Geometry.embed (radius A))))) (Linear.addZeroLeft Linear.zero);
+\definition fixesBasisAbove: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  (rotation A).forward.apply (E.basis r) = E.basis r :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _) => Hemisphere.fixesOrthogonal (Disk.lift (parameter A)) (E.basis r)
+    (trans!{K} _ _ _ (E.symmetric (axis j) (E.basis r))
+      (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _ (trans!{K} _ _ _ (E.dotBasis r (axis j)) (axisAbove r above))) Geometry.conjugateZero))
+    (trans!{K} _ _ _ (E.symmetric (Disk.vector (parameter A)) (E.basis r))
+      (trans!{K} _ _ _ (congr!{K K} Geometry.conj _ _
+        (trans!{K} _ _ _ (E.dotBasis r (Disk.vector (parameter A))) (vectorAbove A r above))) Geometry.conjugateZero));
+\definition inverseFixesBasisAbove: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  (rotation A).backward.apply (E.basis r) = E.basis r :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} (rotation A).backward.apply _ _ (sym!{{E.Vector}} _ _ (fixesBasisAbove A r above)))
+    ((rotation A).leftInverse (E.basis r));
+\definition preservesAbove: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  \forall (v: E.Vector) -> (rotation A).forward.apply v r = v r :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _)(v: E.Vector) => eq_reason_in!{K _
+    "=" _ "by" { sym!{K} _ _ (E.dotBasis r ((rotation A).forward.apply v)) }
+    "=" _ "by" { sym!{K} _ _ (Unitary.adjoint (Unitary.inverse (rotation A)) (E.basis r) v) }
+    "=" _ "by" { congr!{{E.Vector} K} (\fun (x: E.Vector) => E.dot x v) _ _ (inverseFixesBasisAbove A r above) }
+    "=" _ "by" { E.dotBasis r v }
+  };
+\definition inversePreservesAbove: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  \forall (v: E.Vector) -> (rotation A).backward.apply v r = v r :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _)(v: E.Vector) => trans!{K} _ _ _
+    (sym!{K} _ _ (preservesAbove A r above ((rotation A).backward.apply v)))
+    (congr!{{E.Vector} K} (\fun (w: E.Vector) => w r) _ _ ((rotation A).rightInverse v));
+\definition ownCoordinate: \forall (A: Carrier) -> (rotation A).forward.apply (axis j) (symbol.pivot j) = Geometry.embed (radius A) :=
+  \fun (A: Carrier) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{E.Vector} K} (\fun (v: E.Vector) => v (symbol.pivot j)) _ _ (sendsAxis A) }
+    "=" _ "by" { congr!{K K K} Linear.add _ _ _ _ (pivotZero A j j)
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Geometry.embed (radius A))) _ _ (Delta.self (symbol.pivot j)))
+        (Linear.mulOneRight (Geometry.embed (radius A)))) }
+    "=" _ "by" { Linear.addZeroLeft (Geometry.embed (radius A)) }
+  };
+\definition axisAboveImage: \forall (A: Carrier)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  (rotation A).forward.apply (axis j) r = Linear.zero :=
+  \fun (A: Carrier)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (congr!{{E.Vector} K} (\fun (v: E.Vector) => v r) _ _ (Disk.sendsAxis (parameter A))) (vectorAbove A r above);
+\definition boundaryRadius: \forall (A: Carrier) -> Inner.squared (A j) = R.one -> radius A = R.zero :=
+  \fun (A: Carrier)(boundary: _) => Disk.onBoundary (parameter A) boundary;
+
+\definition radiusNonnegative: \forall (A: Carrier) -> Order.Le R.zero (radius A) := \fun (A: Carrier) => Disk.radiusNonnegative (parameter A);
+\definition congruent: \forall (A, B: Carrier) -> A j = B j -> rotation A = rotation B :=
+  \fun (A, B: Carrier)(same: _) => congr!{{Disk.Disk} {Unitary.Carrier}} Disk.rotation _ _ same;

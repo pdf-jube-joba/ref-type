@@ -1,0 +1,65 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Arithmetic;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\structure Data: \Set := { pivot: Fin.Fin k -> Fin.Fin n };
+\definition Increasing[d: Data]: \Prop := \forall (i, j: Fin.Fin k) ->
+  Order.Lt i j -> Order.Lt (d.pivot i) (d.pivot j);
+\definition Symbol: \Set := \Cast[Data] ({ d: Data \where Increasing d });
+\definition increasing[s: Symbol]: Increasing s := \bysub(Data, Symbol, s);
+\definition Below[s, t: Symbol]: \Prop := \forall (i: Fin.Fin k) -> Order.Le (s.pivot i) (t.pivot i);
+\definition reflexive: \forall (s: Symbol) -> Below s s :=
+  \fun (s: Symbol)(i: Fin.Fin k) => Order.leRefl (s.pivot i);
+\definition transitive: \forall (s, t, u: Symbol) -> Below s t -> Below t u -> Below s u :=
+  \fun (s, t, u: Symbol)(st: Below s t)(tu: Below t u)(i: Fin.Fin k) =>
+    Order.leTrans (s.pivot i) (t.pivot i) (u.pivot i) (st i) (tu i);
+\definition eta: \forall (d: Data) -> Data { pivot := d.pivot } = d :=
+  \induction (d: Data) \return Data { pivot := d.pivot } = d \with {
+    | # : \fun (p: Fin.Fin k -> Fin.Fin n) => \refl(Data { pivot := p })
+  };
+\definition ext: \forall (s, t: Symbol) -> (\forall (i: Fin.Fin k) -> s.pivot i = t.pivot i) -> s = t :=
+  \fun (s, t: Symbol)(same: _) => trans!{Data} _ _ _ (sym!{Data} _ _ (eta s))
+    (trans!{Data} _ _ _ (congr!{{Fin.Fin k -> Fin.Fin n} Data} Data::# _ _
+      (\axiom:funext(s.pivot, t.pivot, same))) (eta t));
+\definition antisymmetric: \forall (s, t: Symbol) -> Below s t -> Below t s -> s = t :=
+  \fun (s, t: Symbol)(st: Below s t)(ts: Below t s) => ext s t
+    (\fun (i: Fin.Fin k) => Order.leAntisym (s.pivot i) (t.pivot i) (st i) (ts i));
+\definition injective: \forall (s: Symbol)(i, j: Fin.Fin k) -> s.pivot i = s.pivot j -> i = j :=
+  \fun (s: Symbol)(i, j: Fin.Fin k)(same: _) =>
+    \match N.Order[].Prop[].trichotomy i j \in std.Logic[].Order[].Trichotomy
+      \return (\fun (_: N.Order[].Prop[].Trichotomy i j) => i = j) \with {
+      | less ij: Logic.falseElim (i = j) (Order.ltNe (s.pivot i) (s.pivot j) (increasing s i j ij) same)
+      | equal ij: ij
+      | greater ji: Logic.falseElim (i = j) (Order.ltNe (s.pivot j) (s.pivot i) (increasing s j i ji) (sym!{{Fin.Fin n}} _ _ same))
+    };
+\structure Slot: \Set := { row: Fin.Fin n, column: Fin.Fin k };
+\structure FreeLaws[s: Symbol, slot: Slot]: \Prop := {
+  below: Order.Lt slot.row (s.pivot slot.column),
+  nonpivot: \forall (i: Fin.Fin k) -> Logic.Not (slot.row = s.pivot i),
+};
+\definition Free[s: Symbol]: \Set := \Cast[Slot] ({ slot: Slot \where FreeLaws[s, slot] });
+\definition width[s: Symbol][i: Fin.Fin k]: N.Nat^ := Arithmetic.sub (s.pivot i) i;
+\import std.Data[].List[] \as Lists;
+\definition dimension[s: Symbol]: N.Nat^ := Lists.foldr (Fin.Fin k) N.Nat^
+  (\fun (i: Fin.Fin k)(rest: N.Nat^) => Arithmetic.add (width s i) rest) N.Nat^::zero (Fin.elements k);
+\definition realDimension[s: Symbol]: N.Nat^ := dimension s;
+\definition complexDimension[s: Symbol]: N.Nat^ := Arithmetic.add (dimension s) (dimension s);
+\definition stabilize[s: Symbol]: \root.Symbols[n := N.Nat^::succ n, k := k].Symbol :=
+  \into[\root.Symbols[n := N.Nat^::succ n, k := k].Data](
+    \root.Symbols[n := N.Nat^::succ n, k := k].Data { pivot := \fun (i: Fin.Fin k) => Fin.widen n (s.pivot i) },
+    \root.Symbols[n := N.Nat^::succ n, k := k].Symbol) \by { increasing s };
+\definition stabilizationDimension: \forall (s: Symbol) ->
+  \root.Symbols[n := N.Nat^::succ n, k := k].dimension (stabilize s) = dimension s :=
+  \fun (s: Symbol) => \refl(dimension s);
+\module Comparison(s, t: Symbol);
+\module Enumeration;
+\module Widen(m: N.Nat^);
+\module FreeEnumeration(symbol: Symbol);
+\module FreeCount(symbol: Symbol);
+\module Column(symbol: Symbol, j: Fin.Fin k);
+\module Dimensions(s, t: Symbol);

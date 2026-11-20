@@ -1,0 +1,29 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition Matrix: \Set := Fin.Fin n -> Fin.Fin n -> K;
+\definition InfiniteMatrix: \Set := N.Nat^ -> N.Nat^ -> K;
+\definition Inside[i, j: N.Nat^]: \Prop := Logic.And[Order.Lt i n, Order.Lt j n];
+\definition index[i: N.Nat^][inside: Order.Lt i n]: Fin.Fin n := \into[N.Nat^](i, Fin.Fin n) \by { inside };
+\module Entry(A: Matrix, i, j: N.Nat^);
+\definition extend[A: Matrix][i, j: N.Nat^]: K := Entry[A := A, i := i, j := j].value;
+\definition restrict[A: InfiniteMatrix][i, j: Fin.Fin n]: K := A i j;
+\definition onFinite: \forall (A: Matrix)(i, j: Fin.Fin n) -> extend A i j = A i j :=
+  \fun (A: Matrix)(i, j: Fin.Fin n) => Entry[A := A, i := i, j := j].laws.inside (Fin.bound n i) (Fin.bound n j);
+\definition outside: \forall (A: Matrix)(i, j: N.Nat^) -> Logic.Not (Inside i j) -> extend A i j = zero :=
+  \fun (A: Matrix)(i, j: N.Nat^) => Entry[A := A, i := i, j := j].laws.outside;
+\definition roundTrip: \forall (A: Matrix) -> restrict (extend A) = A :=
+  \fun (A: Matrix) => \axiom:funext(restrict (extend A), A, \fun (i: Fin.Fin n) =>
+    \axiom:funext(restrict (extend A) i, A i, onFinite A i));
+\definition injective: \forall (A, B: Matrix) -> extend A = extend B -> A = B :=
+  \fun (A, B: Matrix)(same: _) => trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (roundTrip A))
+    (trans!{Matrix} _ _ _ (congr!{InfiniteMatrix Matrix} restrict _ _ same) (roundTrip B));
+\module Topological(scalar: topology.Topology[Carrier := K].Topology);
+\module Widen(m: N.Nat^);

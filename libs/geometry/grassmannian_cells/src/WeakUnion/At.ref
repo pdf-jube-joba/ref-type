@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := Stage n] \as Source;
+\import topology.Maps[A := Stage n, B := X] \as Maps;
+\definition emptyOpen: Source.IsOpenIn (spaces n) (Trace n Space.Empty) :=
+  Maps.openTransport (spaces n) Source.Empty (Trace n Space.Empty)
+    (sym!{\Pow (Stage n)} _ _ (Maps.preimageEmptyEq (inclusion n))) (Source.topologyLaws (spaces n)).emptyOpen;
+\definition wholeOpen: Source.IsOpenIn (spaces n) (Trace n Space.Whole) :=
+  Maps.openTransport (spaces n) Source.Whole (Trace n Space.Whole)
+    (sym!{\Pow (Stage n)} _ _ (Maps.preimageWholeEq (inclusion n))) (Source.topologyLaws (spaces n)).wholeOpen;
+\definition unionOpen: \forall (family: \Pow (\Pow X)) ->
+  (\forall (U: \Pow X) -> Space.FamilyMember family U -> Source.IsOpenIn (spaces n) (Trace n U)) ->
+  Source.IsOpenIn (spaces n) (Trace n (Space.Union family)) :=
+  \fun (family: _)(open: _) => Maps.openTransport (spaces n)
+    (Source.Union (Maps.PullbackFamily (inclusion n) family)) (Trace n (Space.Union family))
+    (sym!{\Pow (Stage n)} _ _ (Maps.preimageUnionEq (inclusion n) family))
+    ((Source.topologyLaws (spaces n)).unionOpen (Maps.PullbackFamily (inclusion n) family)
+      (\fun (U: _)(member: _) => Maps.pullbackElim (inclusion n) family U (Source.IsOpenIn (spaces n) U)
+        (\fun (V: _)(inFamily: _)(same: _) => Maps.openTransport (spaces n) (Trace n V) U
+          (sym!{\Pow (Stage n)} _ _ same) (open V inFamily)) member));
+\definition intersectionOpen: \forall (U, V: \Pow X) ->
+  Source.IsOpenIn (spaces n) (Trace n U) -> Source.IsOpenIn (spaces n) (Trace n V) ->
+  Source.IsOpenIn (spaces n) (Trace n (Space.Intersection U V)) :=
+  \fun (U, V: _)(uo: _)(vo: _) => Maps.openTransport (spaces n)
+    (Source.Intersection (Trace n U) (Trace n V)) (Trace n (Space.Intersection U V))
+    (sym!{\Pow (Stage n)} _ _ (Maps.preimageIntersectionEq (inclusion n) U V))
+    ((Source.topologyLaws (spaces n)).intersectionOpen (Trace n U) (Trace n V) uo vo);

@@ -1,0 +1,50 @@
+\import Geometry.Finite[n := k] \as Domain;
+\import Inner.Gram[k := k] \as Gram;
+\import \root.Symbols[n := n, k := k] \as Symbols;
+\definition column[A: Gram.Map][j: Fin.Fin k]: Ambient.Vector := A.apply (Domain.basis j);
+\structure Diagonal[symbol: Symbols.Symbol, A: Gram.Map, j: Fin.Fin k]: \Set := {
+  value: R.Real,
+  positive: Order.Lt R.zero value,
+  agrees: column A j (symbol.pivot j) = Geometry.embed value,
+};
+\structure Laws[symbol: Symbols.Symbol, A: Gram.Map]: \Prop := {
+  above: \forall (j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> column A j r = Linear.zero,
+  diagonal: \forall (j: Fin.Fin k) -> \exists Diagonal[symbol, A, j],
+};
+\structure WeakDiagonal[symbol: Symbols.Symbol, A: Gram.Map, j: Fin.Fin k]: \Set := {
+  value: R.Real,
+  nonnegative: Order.Le R.zero value,
+  agrees: column A j (symbol.pivot j) = Geometry.embed value,
+};
+\structure WeakLaws[symbol: Symbols.Symbol, A: Gram.Map]: \Prop := {
+  above: \forall (j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> column A j r = Linear.zero,
+  diagonal: \forall (j: Fin.Fin k) -> \exists WeakDiagonal[symbol, A, j],
+};
+\structure Factorization[symbol: Symbols.Symbol, A: Gram.Map]: \Set := {
+  factor: Gram.Factorization[A],
+  triangular: Laws[symbol, factor.frame],
+};
+\module Support(symbol: Symbols.Symbol, A: Gram.Map, triangular: Laws[symbol, A]);
+\module FrameComparison(symbol: Symbols.Symbol, f, g: Gram.Map,
+  fIsometry: \forall (v, w: Domain.Vector) -> Ambient.dot (f.apply v) (f.apply w) = Domain.dot v w,
+  gIsometry: \forall (v, w: Domain.Vector) -> Ambient.dot (g.apply v) (g.apply w) = Domain.dot v w,
+  fTriangular: Laws[symbol, f], gTriangular: WeakLaws[symbol, g],
+  contained: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where f.apply w = g.apply v));
+\module Columns(A: Gram.Map, orthonormal: \forall (i, j: Fin.Fin k) -> Ambient.dot (column A i) (column A j) = Domain.dot (Domain.basis i) (Domain.basis j));
+\module EchelonComparison(symbol: Symbols.Symbol, A: Gram.Map, triangular: Laws[symbol, A], other: Symbols.Symbol,
+  B: \root.Echelon[K := K, field := field, n := n, k := k, symbol := other].Carrier,
+  contained: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where
+    (\root.Echelon[K := K, field := field, n := n, k := k, symbol := other].linear B).apply w = A.apply v));
+\module FlagComparison(symbol: Symbols.Symbol, A: Gram.Map, injective: Gram.Injective A,
+  above: \forall (j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r -> column A j r = Linear.zero,
+  other: Symbols.Symbol, B: \root.Echelon[K := K, field := field, n := n, k := k, symbol := other].Carrier,
+  contained: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where
+    (\root.Echelon[K := K, field := field, n := n, k := k, symbol := other].linear B).apply w = A.apply v));
+
+\definition Vector: \Set := Domain.Vector;
+\definition domainSpace: Linear.VectorSpace Vector := Domain.space;
+\definition basis: Fin.Fin k -> Vector := Domain.basis;
+\definition Symbol: \Set := Symbols.Symbol;
+\definition increasing: \forall (s: Symbol)(i, j: Fin.Fin k) -> Natural.Lt i j -> Natural.Lt (s.pivot i) (s.pivot j) := Symbols.increasing;
+\definition Map: \Set := Gram.Map;
+\definition Injective[A: Map]: \Prop := Gram.Injective A;

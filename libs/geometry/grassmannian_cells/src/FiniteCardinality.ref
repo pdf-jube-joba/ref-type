@@ -1,0 +1,23 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].Bool[] \as Bool;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition bound: \forall (n, m: N.Nat^)(f: Fin.Fin n -> Fin.Fin m) ->
+  (\forall (i, j: Fin.Fin n) -> f i = f j -> i = j) -> Order.Le n m :=
+  \fun (n, m: N.Nat^)(f: Fin.Fin n -> Fin.Fin m)(injective: _) =>
+    (\induction (comparison: Bool.Bool^) \return Nat.ltb m n = comparison -> Order.Le n m \with {
+      | true: \fun (large: _) => Logic.falseElim _ (Fin.Pigeonhole[].noInjection m n large f injective)
+      | false: \fun (small: _) => Order.leOfLtbFalse m n small
+    }) (Nat.ltb m n) (\refl(Nat.ltb m n));
+\definition equal: \forall (n, m: N.Nat^)(b: std.Data[].Bijection[A := Fin.Fin n, B := Fin.Fin m].Bijection) -> n = m :=
+  \fun (n, m: N.Nat^)(b: std.Data[].Bijection[A := Fin.Fin n, B := Fin.Fin m].Bijection) => Order.leAntisym n m
+    (bound n m b.forward (\fun (i, j: Fin.Fin n)(same: _) => trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (b.leftInverse i))
+      (trans!{{Fin.Fin n}} _ _ _ (congr!{{Fin.Fin m} {Fin.Fin n}} b.backward _ _ same) (b.leftInverse j))))
+    (bound m n b.backward (\fun (i, j: Fin.Fin m)(same: _) => trans!{{Fin.Fin m}} _ _ _ (sym!{{Fin.Fin m}} _ _ (b.rightInverse i))
+      (trans!{{Fin.Fin m}} _ _ _ (congr!{{Fin.Fin n} {Fin.Fin m}} b.forward _ _ same) (b.rightInverse j))));

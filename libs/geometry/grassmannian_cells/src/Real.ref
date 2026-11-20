@@ -1,0 +1,39 @@
+\import real.Analysis[] \as Numbers;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Over[K := Numbers.Real, field := Numbers.Algebra[].field, scalar := H.Real[].scalar, topological := H.Real[].topological] \as Hermitian;
+\import Hermitian.At[n := n] \as Ambient;
+\import linear_algebra.Hermitian[].Over[K := Numbers.Real, field := Numbers.Algebra[].field, scalar := H.Real[].scalar] \as Geometry;
+\import Geometry.Finite[n := n] \as Euclidean;
+\import Geometry.Inner[V := Euclidean.Vector, space := Euclidean.space].Of[h := Euclidean.form] \as InnerLaws;
+\import \root.Echelon[K := Numbers.Real, field := Numbers.Algebra[].field, n := n, k := k, symbol := symbol] \as Coordinates;
+\import Coordinates.Topological[scalar := H.Real[].topological.space] \as CoordinateSpace;
+\import grassmannians.Real[n := n, k := k].Model[] \as Grassmannian;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].FinSet[] \as Fin;
+\import Ambient.Forms[h := Euclidean.form].Families[X := Coordinates.Carrier] \as Orthonormalization;
+\import Ambient.Families[X := Coordinates.Carrier].Matrix[m := k] \as Matrices;
+\import Hermitian.Functions[X := Coordinates.Carrier] \as Functions;
+\definition regular: Matrices.Regular CoordinateSpace.topology Coordinates.linear :=
+  Matrices.regularOfComponents CoordinateSpace.topology Coordinates.linear
+    (\fun (j: Fin.Fin k)(i: Fin.Fin n) => Functions.transport CoordinateSpace.topology
+      (\fun (A: Coordinates.Carrier) => A i j) (\fun (A: Coordinates.Carrier) => (Coordinates.linear A).apply (Coordinates.basis j) i)
+      (\fun (A: Coordinates.Carrier) => sym!{Numbers.Real} _ _ (Coordinates.onBasis A j i)) (CoordinateSpace.entryContinuous i j));
+\definition factorsExist: \exists Orthonormalization.Rank[k := k].Factors[Coordinates.linear, CoordinateSpace.topology] :=
+  Orthonormalization.exists k CoordinateSpace.topology Coordinates.linear regular Coordinates.injective Euclidean.positive;
+\structure Parametrization: \Set := {
+  map: Coordinates.Carrier -> Grassmannian.Carrier,
+  continuous: topology.Continuity[A := Coordinates.Carrier, B := Grassmannian.Carrier].Continuous CoordinateSpace.topology Grassmannian.topology map,
+  injective: \forall (A, B: Coordinates.Carrier) -> map A = map B -> A = B,
+  image: \forall (A: Coordinates.Carrier)(v: Ambient.Vector) -> Logic.PropEquiv[
+    (map A).map.apply v = v, \In[Ambient.Vector] (Coordinates.Image A) v],
+};
+\module With(factors: Orthonormalization.Rank[k := k].Factors[Coordinates.linear, CoordinateSpace.topology]);
+\definition parametrizationExists: \exists Parametrization := \block {
+  \takefrom factors: Orthonormalization.Rank[k := k].Factors[Coordinates.linear, CoordinateSpace.topology] \by factorsExist \then
+  \return \exact(With[factors := factors].parametrization, Parametrization)
+};
+\module Canonical;

@@ -1,0 +1,75 @@
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := K] \as Tuples;
+\import Symbols.Widen[m := m] \as SymbolsMap;
+\import \root.Echelon[K := K, field := field, n := Indices.total, k := k, symbol := SymbolsMap.map symbol] \as Target;
+\import Linear.CoordinateSum[n := n, m := m] \as Blocks;
+\import Linear.Coordinates[I := Fin.Fin m] \as Extra;
+\import Linear.Coordinates[I := Fin.Fin Indices.total] \as Total;
+\definition cases: \forall (P: Fin.Fin Indices.total -> \Prop) ->
+  (\forall (i: Fin.Fin n) -> P (Indices.left i)) -> (\forall (i: Fin.Fin m) -> P (Indices.right i)) ->
+  \forall (i: Fin.Fin Indices.total) -> P i :=
+  \fun (P: Fin.Fin Indices.total -> \Prop)(left: _)(right: _)(i: Fin.Fin Indices.total) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Indices.total => P j \by {
+      base: (\induction (s: Indices.Index) \return P (Indices.inflate s) \with { | inl: left | inr: right }) (Indices.split i),
+      equality: Indices.inflateSplit i
+    };
+\definition entries[A: Carrier][i: Fin.Fin Indices.total][j: Fin.Fin k]: K :=
+  Tuples.join (\fun (r: Fin.Fin n) => A r j) (\fun (_: Fin.Fin m) => Linear.zero) i;
+\definition leftEntry: \forall (A: Carrier)(i: Fin.Fin n)(j: Fin.Fin k) -> entries A (Indices.left i) j = A i j :=
+  \fun (A: Carrier)(i: Fin.Fin n)(j: Fin.Fin k) => Tuples.atLeft (\fun (r: Fin.Fin n) => A r j) (\fun (_: Fin.Fin m) => Linear.zero) i;
+\definition rightEntry: \forall (A: Carrier)(i: Fin.Fin m)(j: Fin.Fin k) -> entries A (Indices.right i) j = Linear.zero :=
+  \fun (A: Carrier)(i: Fin.Fin m)(j: Fin.Fin k) => Tuples.atRight (\fun (r: Fin.Fin n) => A r j) (\fun (_: Fin.Fin m) => Linear.zero) i;
+\definition map[A: Carrier]: Target.Carrier := \into[Fin.Fin Indices.total -> Fin.Fin k -> K](entries A, Target.Carrier) \by {
+  Target.Laws[entries A] {
+    pivot := \fun (i, j: Fin.Fin k) => trans!{K} _ _ _ (leftEntry A (symbol.pivot i) j) ((laws A).pivot i j),
+    above := cases (\fun (i: Fin.Fin Indices.total) => \forall (j: Fin.Fin k) ->
+      Order.Lt ((SymbolsMap.map symbol).pivot j) i -> entries A i j = Linear.zero)
+      (\fun (i: Fin.Fin n)(j: Fin.Fin k)(above: _) => trans!{K} _ _ _ (leftEntry A i j) ((laws A).above i j above))
+      (\fun (i: Fin.Fin m)(j: Fin.Fin k)(above: _) => rightEntry A i j),
+  }
+};
+\definition leftAction: \forall (A: Carrier)(v: Domain.Vector) ->
+  Blocks.left ((Target.linear (map A)).apply v) = (linear A).apply v :=
+  \fun (A: Carrier)(v: Domain.Vector) => \axiom:funext(Blocks.left ((Target.linear (map A)).apply v), (linear A).apply v,
+    \fun (i: Fin.Fin n) => SumLaws.congruent (Fin.elements k)
+      (\fun (j: Fin.Fin k) => Linear.mul (entries A (Indices.left i) j) (v j))
+      (\fun (j: Fin.Fin k) => Linear.mul (A i j) (v j))
+      (\fun (j: Fin.Fin k) => congr!{K K} (\fun (a: K) => Linear.mul a (v j)) _ _ (leftEntry A i j)));
+\definition rightAction: \forall (A: Carrier)(v: Domain.Vector) ->
+  Blocks.right ((Target.linear (map A)).apply v) = Extra.space.zero :=
+  \fun (A: Carrier)(v: Domain.Vector) => \axiom:funext(Blocks.right ((Target.linear (map A)).apply v), Extra.space.zero,
+    \fun (i: Fin.Fin m) => trans!{K} _ _ _
+      (SumLaws.congruent (Fin.elements k)
+        (\fun (j: Fin.Fin k) => Linear.mul (entries A (Indices.right i) j) (v j))
+        (\fun (_: Fin.Fin k) => Linear.zero)
+        (\fun (j: Fin.Fin k) => trans!{K} _ _ _
+          (congr!{K K} (\fun (a: K) => Linear.mul a (v j)) _ _ (rightEntry A i j)) (Linear.mulZeroLeft (v j))))
+      (SumLaws.zeroSum (Fin.elements k)));
+\definition action: \forall (A: Carrier)(v: Domain.Vector) ->
+  (Target.linear (map A)).apply v = Blocks.join ((linear A).apply v) Extra.space.zero :=
+  \fun (A: Carrier)(v: Domain.Vector) => trans!{{Total.Vector}} _ _ _
+    (sym!{{Total.Vector}} _ _ (Blocks.recover ((Target.linear (map A)).apply v)))
+    (congr!{{Ambient.Vector} {Extra.Vector} {Total.Vector}} Blocks.join _ _ _ _ (leftAction A v) (rightAction A v));
+\definition restrict[A: Target.Carrier]: Carrier :=
+  \into[Fin.Fin n -> Fin.Fin k -> K](\fun (i: Fin.Fin n)(j: Fin.Fin k) => A (Indices.left i) j, Carrier) \by {
+    Laws[\fun (i: Fin.Fin n)(j: Fin.Fin k) => A (Indices.left i) j] {
+      pivot := (Target.laws A).pivot,
+      above := \fun (i: Fin.Fin n)(j: Fin.Fin k)(above: _) => (Target.laws A).above (Indices.left i) j above,
+    }
+  };
+\definition leftInverse: \forall (A: Carrier) -> restrict (map A) = A :=
+  \fun (A: Carrier) => \axiom:funext(restrict (map A), A, \fun (i: Fin.Fin n) =>
+    \axiom:funext(restrict (map A) i, A i, leftEntry A i));
+\definition outsideZero: \forall (A: Target.Carrier)(i: Fin.Fin m)(j: Fin.Fin k) -> A (Indices.right i) j = Linear.zero :=
+  \fun (A: Target.Carrier)(i: Fin.Fin m)(j: Fin.Fin k) => (Target.laws A).above (Indices.right i) j
+    (Order.ltLeTrans (symbol.pivot j) n (Indices.right i) (Fin.bound n (symbol.pivot j)) (Indices.rightAbove i));
+\definition rightInverse: \forall (A: Target.Carrier) -> map (restrict A) = A :=
+  \fun (A: Target.Carrier) => \axiom:funext(map (restrict A), A,
+    cases (\fun (i: Fin.Fin Indices.total) => map (restrict A) i = A i)
+      (\fun (i: Fin.Fin n) => \axiom:funext(map (restrict A) (Indices.left i), A (Indices.left i), leftEntry (restrict A) i))
+      (\fun (i: Fin.Fin m) => \axiom:funext(map (restrict A) (Indices.right i), A (Indices.right i),
+        \fun (j: Fin.Fin k) => trans!{K} _ _ _ (rightEntry (restrict A) i j) (sym!{K} _ _ (outsideZero A i j)))));
+\definition freeCoordinatesPreserved: \forall (A: Carrier)(slot: Symbols.Free symbol) ->
+  Target.freeCoordinates (map A) (SymbolsMap.free symbol slot) = freeCoordinates A slot :=
+  \fun (A: Carrier)(slot: Symbols.Free symbol) => leftEntry A slot.row slot.column;
+\module Topological(scalar: topology.Topology[Carrier := K].Topology);

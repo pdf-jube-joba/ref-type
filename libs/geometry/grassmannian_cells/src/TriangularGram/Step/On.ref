@@ -1,0 +1,45 @@
+\import Inner.Gram[k := k].Step[].On[A := A, injective := injective, positive := Ambient.positive] \as Gram;
+\import Inner.Normalize[v := Gram.column, positive := Inner.positiveNorm Ambient.positive Gram.column Gram.columnNonzero] \as Normalize;
+\definition tailSymbol: LowerSymbols.Symbol := \into[LowerSymbols.Data](LowerSymbols.Data {
+  pivot := \fun (j: Fin.Fin k) => symbol.pivot (Fin.succ k j),
+}, LowerSymbols.Symbol) \by {
+  \fun (i, j: Fin.Fin k)(less: _) => Higher.increasing symbol (Fin.succ k i) (Fin.succ k j) (Natural.ltSuccSucc i j less)
+};
+\definition firstColumn: Gram.column = Higher.column A (Fin.zero k) := congr!{{Higher.Vector} {Ambient.Vector}} A.apply _ _ (sym!{{Higher.Vector}} _ _ firstBasis);
+\definition unitAbove: \forall (r: Fin.Fin n) -> Natural.Lt (symbol.pivot (Fin.zero k)) r -> Gram.unit r = Linear.zero :=
+  \fun (r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (congr!{K K} (Linear.mul (Geometry.embed Normalize.factor)) _ _
+      (trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v r) _ _ firstColumn) (laws.above (Fin.zero k) r above)))
+    (Linear.mulZeroRight (Geometry.embed Normalize.factor));
+\definition tailColumn: \forall (j: Fin.Fin k) -> Gram.tailMap.apply (Lower.basis j) = Higher.column A (Fin.succ k j) :=
+  \fun (j: Fin.Fin k) => congr!{{Higher.Vector} {Ambient.Vector}} A.apply _ _ (sym!{{Higher.Vector}} _ _ (successorBasis j));
+\definition headBelow: \forall (j: Fin.Fin k) -> Natural.Lt (symbol.pivot (Fin.zero k)) (tailSymbol.pivot j) :=
+  \fun (j: Fin.Fin k) => Higher.increasing symbol (Fin.zero k) (Fin.succ k j) (N.Order[].Prop[].zeroLtSucc j);
+\definition residualEntry: \forall (j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Le (tailSymbol.pivot j) r ->
+  Lower.column Gram.residual j r = Higher.column A (Fin.succ k j) r :=
+  \fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => eq_reason_in!{K _
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Linear.add (Gram.tailMap.apply (Lower.basis j) r) (Linear.neg (Linear.mul (Ambient.dot Gram.unit (Gram.tailMap.apply (Lower.basis j))) a))) _ _
+      (unitAbove r (Natural.ltLeTrans _ _ _ (headBelow j) above)) }
+    "=" _ "by" { congr!{K K} (\fun (a: K) => Linear.add (Gram.tailMap.apply (Lower.basis j) r) (Linear.neg a)) _ _ (Linear.mulZeroRight _) }
+    "=" _ "by" { congr!{K K} (Linear.add (Gram.tailMap.apply (Lower.basis j) r)) _ _ negativeZero }
+    "=" _ "by" { Linear.addZeroRight (Gram.tailMap.apply (Lower.basis j) r) }
+    "=" _ "by" { congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v r) _ _ (tailColumn j) }
+  };
+\definition residualLaws: Lower.Laws[tailSymbol, Gram.residual] := Lower.Laws[tailSymbol, Gram.residual] {
+  above := \fun (j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (residualEntry j r (\root.NaturalBounds[].leOfLt _ _ above)) (laws.above (Fin.succ k j) r above),
+  diagonal := \block {
+    \fun (j: Fin.Fin k) \then
+    \takefrom diagonal: Higher.Diagonal[symbol, A, Fin.succ k j] \by laws.diagonal (Fin.succ k j) \then
+    \return \exact(Lower.Diagonal[tailSymbol, Gram.residual, j] {
+      value := diagonal.value, positive := diagonal.positive,
+      agrees := trans!{K} _ _ _ (residualEntry j (tailSymbol.pivot j) (Natural.leRefl (tailSymbol.pivot j))) diagonal.agrees,
+    }, Lower.Diagonal[tailSymbol, Gram.residual, j])
+  },
+};
+\module With(previous: Lower.Factorization[tailSymbol, Gram.residual]);
+\definition exists: Existence k -> \exists Higher.Factorization[symbol, A] := \block {
+  \fun (previous: Existence k) \then
+  \takefrom factor: Lower.Factorization[tailSymbol, Gram.residual] \by previous tailSymbol Gram.residual Gram.residualInjective residualLaws \then
+  \return \exact(With[previous := factor].value, Higher.Factorization[symbol, A])
+};

@@ -1,0 +1,34 @@
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Transport[A := std.Data[].Nat[].Nat^] \as Transport;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import grassmannians.Complex[n := n, k := a].Model[] \as Source;
+\import grassmannians.Complex[n := n, k := b].Model[] \as Target;
+\import complex.Complex[] \as Numbers;
+\import hermitian_frames.Hermitian[] \as H;
+\import std.Data[].FinSet[] \as Fin;
+\import topological_algebra.Matrix[K := Numbers.Complex, I := Fin.Fin n, J := Fin.Fin n] \as Matrices;
+\definition map: Source.Carrier -> Target.Carrier :=
+  Transport.cast (\fun (r: std.Data[].Nat[].Nat^) => grassmannians.Complex[n := n, k := r].Model[].Carrier) a b same;
+\definition entries: \forall (p: Source.Carrier) -> Target.entries (map p) = Source.entries p :=
+  \fun (p: Source.Carrier) => trans!{{Matrices.Carrier}} _ _ _
+    (sym!{{Matrices.Carrier}} _ _ (Transport.natural
+      (\fun (r: std.Data[].Nat[].Nat^) => grassmannians.Complex[n := n, k := r].Model[].Carrier)
+      (\fun (_: std.Data[].Nat[].Nat^) => Matrices.Carrier)
+      (\fun (r: std.Data[].Nat[].Nat^) => grassmannians.Complex[n := n, k := r].Model[].entries) a b same p))
+    (Transport.Constant[C := Matrices.Carrier].law a b (Source.entries p) same);
+\definition continuous: topology.Continuity[A := Source.Carrier, B := Target.Carrier].Continuous Source.topology Target.topology map :=
+  topological_constructions.Induced[A := Target.Carrier, B := Matrices.Carrier].Universal[Z := Source.Carrier].continuous
+    Source.topology (Matrices.topology H.Complex[].topological.space) Target.entries map
+    (\idelim Source.entries = (\fun (p: Source.Carrier) => Target.entries (map p))
+      \with f: (Source.Carrier -> Matrices.Carrier) => topology.Continuity[A := Source.Carrier, B := Matrices.Carrier].Continuous
+        Source.topology (Matrices.topology H.Complex[].topological.space) f \by {
+      base: Source.entriesContinuous,
+      equality: \axiom:funext(Source.entries, (\fun (p: Source.Carrier) => Target.entries (map p)),
+        \fun (p: Source.Carrier) => sym!{{Matrices.Carrier}} _ _ (entries p))
+    });
+\definition injective: \forall (p, q: Source.Carrier) -> map p = map q -> p = q :=
+  \fun (p, q: Source.Carrier)(equal: _) => Source.entriesInjective p q
+    (trans!{{Matrices.Carrier}} _ _ _ (sym!{{Matrices.Carrier}} _ _ (entries p))
+      (trans!{{Matrices.Carrier}} _ _ _ (congr!{{Target.Carrier} {Matrices.Carrier}} Target.entries _ _ equal) (entries q)));

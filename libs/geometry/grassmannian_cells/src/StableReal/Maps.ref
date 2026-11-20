@@ -1,0 +1,22 @@
+\import topology.Topology[Carrier := Y] \as Source;
+\import topology.Continuity[A := Y, B := Carrier] \as Continuous;
+\import Weak.Compact[ascending := ascending, exhaustive := exhaustive, separated := separated].Maps[Y := Y, source := source].Embedded[induced := stageTopology] \as Bounded;
+\structure Factorization[f: Y -> Carrier]: \Set := {
+  stage: N.Nat^,
+  map: Y -> Finite stage,
+  continuous: topology.Continuity[A := Y, B := Finite stage].Continuous source (finiteTopology stage) map,
+  agrees: \forall (y: Y) -> embed stage (map y) = f y,
+};
+\definition exists: \forall (f: Y -> Carrier) -> Continuous.Continuous source topology f -> Source.IsCompact source -> \exists Factorization[f] := \block {
+  \fun (f: Y -> Carrier)(continuous: _)(compact: _) \then
+  \takefrom factor: Bounded.Factorization[f] \by Bounded.exists f continuous compact \then
+  \return \exact(Factorization[f] {
+    stage := factor.stage,
+    map := \fun (y: Y) => FiniteStage[n := factor.stage].inverse (factor.map y),
+    continuous := topology.Composition[A := Y, B := Stage factor.stage, C := Finite factor.stage].composeContinuous
+      source (spaces factor.stage) (finiteTopology factor.stage) factor.map FiniteStage[n := factor.stage].inverse
+      factor.continuous FiniteStage[n := factor.stage].inverseContinuous,
+    agrees := \fun (y: Y) => trans!{Carrier} _ _ _
+      (FiniteStage[n := factor.stage].agrees (factor.map y)) (factor.agrees y),
+  }, Factorization[f])
+};

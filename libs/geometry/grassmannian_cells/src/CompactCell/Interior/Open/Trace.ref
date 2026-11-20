@@ -1,0 +1,29 @@
+\import \parent.\parent.\parent.Open[U := O, open := diskOpen] \as Image;
+\definition toPart: \forall (x: Target.CarrierSet) -> \In[Target.CarrierSet] (Reverse.Preimage backward U) x -> \In[A] (CW.InteriorPart cell O) x :=
+  \fun (x: Target.CarrierSet)(member: _) => \exact(CW.InteriorPartWitness[cell, O, x] {
+    point := backward x,
+    member := \idelim U = Domain.Trace O \with W: \Pow Domain.CarrierSet => \In[Domain.CarrierSet] W (backward x) \by { base: member, equality: same },
+    interior := \bysub(Model.Disk, subset, backward x), image := rightInverse x,
+  }, CW.InteriorPartWitness[cell, O, x]);
+\definition fromPart: \forall (x: Target.CarrierSet) -> \In[A] (CW.InteriorPart cell O) x -> \In[Target.CarrierSet] (Reverse.Preimage backward U) x := \block {
+  \fun (x: Target.CarrierSet)(member: _) \then
+  \takefrom p: CW.InteriorPartWitness[cell, O, x] \by member \then
+  \let equal: p.point = backward x := injective p.point (backward x) p.interior (\bysub(Model.Disk, subset, backward x))
+    (trans!{A} _ _ _ p.image (sym!{A} _ _ (rightInverse x))) \then
+  \return \idelim Domain.Trace O = U \with W: \Pow Domain.CarrierSet => \In[Domain.CarrierSet] W (backward x) \by {
+    base: \idelim p.point = backward x \with q: Model.Disk => \In[Model.Disk] O q \by { base: p.member, equality: equal },
+    equality: sym!{\Pow Domain.CarrierSet} _ _ same
+  }
+};
+\definition preimage: Reverse.Preimage backward U = Target.Trace Image.neighborhood :=
+  \axiom:setext(Reverse.Preimage backward U, Target.Trace Image.neighborhood,
+    \fun (x: Target.CarrierSet)(member: _) => (\idelim CW.InteriorPart cell O = Space.Intersection (CW.InteriorImage cell) Image.neighborhood
+      \with W: \Pow A => \In[A] W x \by { base: toPart x member, equality: Image.same }).right,
+    \fun (x: Target.CarrierSet)(member: _) => fromPart x
+      (\idelim Space.Intersection (CW.InteriorImage cell) Image.neighborhood = CW.InteriorPart cell O \with W: \Pow A => \In[A] W x \by {
+        base: Logic.And[_, _]::# (\bysub(A, CW.InteriorImage cell, x)) member, equality: sym!{\Pow A} _ _ Image.same
+      }));
+\definition continuous: topology.Topology[Carrier := Target.CarrierSet].IsOpenIn target (Reverse.Preimage backward U) :=
+  \idelim Target.Trace Image.neighborhood = Reverse.Preimage backward U \with W: \Pow Target.CarrierSet => topology.Topology[Carrier := Target.CarrierSet].IsOpenIn target W \by {
+    base: Target.traceOpen space Image.neighborhood Image.isOpen, equality: sym!{\Pow Target.CarrierSet} _ _ preimage
+  };

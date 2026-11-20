@@ -1,0 +1,30 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Basic;
+\import N.Order[].Prop[] \as Order;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := I] \as Members;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import \root.NaturalBounds[] \as Bounds;
+\definition sum[indices: Lists.List[I]][f: I -> N.Nat^]: N.Nat^ := Lists.foldr I N.Nat^ (\fun (i: I)(rest: N.Nat^) => Nat.add (f i) rest) N.Nat^::zero indices;
+\definition monotone: \forall (indices: Lists.List[I])(f, g: I -> N.Nat^) -> (\forall (i: I) -> Basic.Le (f i) (g i)) -> Basic.Le (sum indices f) (sum indices g) :=
+  \induction (indices: Lists.List[I]) \return \forall (f, g: I -> N.Nat^) -> (\forall (i: I) -> Basic.Le (f i) (g i)) -> Basic.Le (sum indices f) (sum indices g) \with {
+    | nil: \fun (f, g: _)(bounds: _) => Basic.leRefl N.Nat^::zero
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _)(f, g: _)(bounds: _) => Bounds.add _ _ _ _ (bounds head) (previous f g bounds)
+  };
+\definition strict: \forall (indices: Lists.List[I])(f, g: I -> N.Nat^) -> (\forall (i: I) -> Basic.Le (f i) (g i)) ->
+  \forall (i: I) -> Members.Occurs i indices -> Basic.Lt (f i) (g i) -> Basic.Lt (sum indices f) (sum indices g) :=
+  \induction (indices: Lists.List[I]) \return \forall (f, g: I -> N.Nat^) -> (\forall (i: I) -> Basic.Le (f i) (g i)) ->
+    \forall (i: I) -> Members.Occurs i indices -> Basic.Lt (f i) (g i) -> Basic.Lt (sum indices f) (sum indices g) \with {
+    | nil: \fun (f, g: _)(bounds: _)(i: I)(empty: Logic.False)(less: _) => Logic.falseElim _ empty
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _)(f, g: _)(bounds: _)(i: I)(member: _)(less: _) =>
+      either!{member {Basic.Lt (sum (Lists.List[I]::cons head tail) f) (sum (Lists.List[I]::cons head tail) g)}
+        {\fun (same: i = head) => Basic.ltLeTrans _ _ _
+          (Order.ltAddRight (f head) (g head) (sum tail f)
+            (\idelim i = head \with j: I => Basic.Lt (f j) (g j) \by { base: less, equality: same }))
+          (Bounds.addLeft (g head) (sum tail f) (sum tail g) (monotone tail f g bounds))}
+        {\fun (old: _) => Basic.leLtTrans _ _ _ (Bounds.addRight (f head) (g head) (sum tail f) (bounds head))
+          (Order.ltAddLeft (g head) (sum tail f) (sum tail g) (previous f g bounds i old less))}
+      }
+  };

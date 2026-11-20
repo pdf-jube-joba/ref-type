@@ -1,0 +1,61 @@
+\import Reflection.Hemisphere[e := axis head, eUnit := axisUnit head] \as HeadHemisphere;
+\import Reflection.Hemisphere[e := axis head, eUnit := axisUnit head].Disk[] \as HeadDisk;
+\import Column[j := head] \as Head;
+\definition headMember: Fin.Occurs k head (Lists.List[Fin.Fin k]::cons head tail) := Logic.Or[_, _]::left (\refl(head));
+\definition heightFormula: HeadHemisphere.height (F head) = height.value :=
+  trans!{R.Real} _ _ _ (congr!{K R.Real} scalar.realPart _ _
+    (trans!{K} _ _ _ (E.dotBasis (symbol.pivot head) (F head)) height.agrees)) (scalar.realEmbed height.value);
+\definition hemisphere: HeadHemisphere.Carrier := \into[E.Vector](F head, HeadHemisphere.Carrier) \by {
+  HeadHemisphere.HemisphereLaws[F head] {
+    unit := trans!{K} _ _ _ (adapted.orthonormal head head headMember headMember) (Delta.self head),
+    real := trans!{K} _ _ _ (E.dotBasis (symbol.pivot head) (F head))
+      (trans!{K} _ _ _ height.agrees (congr!{R.Real K} Geometry.embed _ _ (sym!{R.Real} _ _ heightFormula))),
+    nonnegative := Order.leReplaceRight R.zero height.value (HeadHemisphere.height (F head)) (sym!{R.Real} _ _ heightFormula)
+      (Order.Order[].leOfLt R.zero height.value height.positive),
+  }
+};
+\import Reflection.Hemisphere[e := axis head, eUnit := axisUnit head].Disk[].Inverse[v := hemisphere] \as Inverse;
+\definition negativeZero: Linear.neg Linear.zero = Linear.zero := trans!{K} _ _ _
+  (sym!{K} _ _ (Linear.addZeroLeft (Linear.neg Linear.zero))) (Linear.addNegRight Linear.zero);
+\definition headPivot: \forall (i: Fin.Fin k) -> Logic.Not (i = head) -> F head (symbol.pivot i) = Linear.zero :=
+  \fun (i: Fin.Fin k)(different: _) => either!{{(Classical.excludedMiddle (Fin.Occurs k i (Lists.List[Fin.Fin k]::cons head tail)))} {F head (symbol.pivot i) = Linear.zero}
+    {\fun (member: _) => either!{member {F head (symbol.pivot i) = Linear.zero}
+      {\fun (same: _) => Logic.falseElim _ (different same)}
+      {\fun (old: _) => adapted.above head headMember (symbol.pivot i) (Symbols.increasing symbol head i (ordered.left i old))}
+    }}
+    {\fun (outside: _) => adapted.excluded head headMember i outside}
+  };
+\definition readZero[r: Fin.Fin n][first: F head r = Linear.zero][second: axis head r = Linear.zero]: Inverse.u r = Linear.zero :=
+  trans!{K} _ _ _ (congr!{K K K} Linear.add _ _ _ _ first
+    (trans!{K} _ _ _ (congr!{K K} Linear.neg _ _
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Geometry.embed Inverse.h)) _ _ second) (Linear.mulZeroRight (Geometry.embed Inverse.h)))) negativeZero))
+    (Linear.addZeroLeft Linear.zero);
+\definition readPivots: \forall (i: Fin.Fin k) -> Inverse.u (symbol.pivot i) = Linear.zero :=
+  \fun (i: Fin.Fin k) => either!{{(Classical.excludedMiddle (i = head))} {Inverse.u (symbol.pivot i) = Linear.zero}
+    {\fun (same: _) => \idelim head = i \with j: Fin.Fin k => Inverse.u (symbol.pivot j) = Linear.zero \by {
+      base: trans!{K} _ _ _ (sym!{K} _ _ (E.dotBasis (symbol.pivot head) Inverse.u)) Inverse.orthogonal,
+      equality: sym!{{Fin.Fin k}} _ _ same
+    }}
+    {\fun (different: _) => readZero (symbol.pivot i) (headPivot i different)
+      (Delta.different (symbol.pivot head) (symbol.pivot i) (\fun (same: _) => different (Symbols.injective symbol i head (sym!{{Fin.Fin n}} _ _ same))))}
+  };
+\definition readAbove: \forall (r: Fin.Fin n) -> Natural.Lt (symbol.pivot head) r -> Inverse.u r = Linear.zero :=
+  \fun (r: Fin.Fin n)(above: _) => readZero r (adapted.above head headMember r above) (Head.axisAbove r above);
+\definition readSupport: \forall (r: Fin.Fin n) -> Logic.Not (Free r head) -> Inverse.u r = Linear.zero :=
+  Parameters[].supportOf head Inverse.u readPivots readAbove;
+\import Replace[j := head, v := Inverse.u, support := readSupport, bounded := Inverse.bounded] \as Replace;
+\definition single: Carrier := Replace.value origin;
+\definition rotationHead: rotation single head = HeadDisk.rotation Inverse.disk :=
+  congr!{{HeadDisk.Disk} {Unitary.Carrier}} HeadDisk.rotation _ _ (Replace.own origin);
+\definition sendsHead: (rotation single head).forward.apply (axis head) = F head := trans!{{E.Vector}} _ _ _
+  (congr!{{Unitary.Carrier} {E.Vector}} (\fun (u: Unitary.Carrier) => u.forward.apply (axis head)) _ _ rotationHead) Inverse.rotation;
+\definition inside: Order.Lt (Inner.squared Inverse.u) R.one := Inverse.interior
+  (Order.ltReplaceRight R.zero height.value (HeadHemisphere.height hemisphere) (sym!{R.Real} _ _ heightFormula) height.positive);
+\definition tailFrame[j: Fin.Fin k]: E.Vector := (rotation single head).backward.apply (F j);
+\module Tail;
+\module With(previous: Presentation[tail, tailFrame]);
+\definition exists: Existence tail -> \exists Presentation[Lists.List[Fin.Fin k]::cons head tail, F] := \block {
+  \fun (previous: Existence tail) \then
+  \takefrom p: Presentation[tail, tailFrame] \by previous ordered.right tailFrame Tail[].adapted \then
+  \return \exact(With[previous := p].value, Presentation[Lists.List[Fin.Fin k]::cons head tail, F])
+};

@@ -1,0 +1,92 @@
+\import std.Alg[].Field[] \as Fields;
+\import linear_algebra.Commutative[K := Numbers.Real, scalarRing := Fields.fieldAsCommutativeRing Numbers.Real Numbers.Algebra[].field] \as Linear;
+\import Linear.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import Linear.Linear[V := Euclidean.Vector, W := Coordinates.CoordinateVector, source := Euclidean.space,
+  target := Geometry.Finite[n := k].space] \as Backward;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition zero: Free.Coordinates := \fun (_: \root.Symbols[n := n, k := k].Free symbol) => Linear.zero;
+\definition matrix: Coordinates.Carrier := Free.fill zero;
+\definition base: Grassmannian.Carrier := map matrix;
+\definition column: \forall (j: Fin.Fin k)(i: Fin.Fin n) -> matrix i j = Euclidean.basis (symbol.pivot j) i :=
+  \fun (j: Fin.Fin k)(i: Fin.Fin n) => either!{{(Classical.excludedMiddle (i = symbol.pivot j))} {matrix i j = Euclidean.basis (symbol.pivot j) i}
+    {\fun (same: _) => trans!{Numbers.Real} _ _ _ (Free.Entry[z := zero, i := i, j := j].laws.pivot same)
+      (sym!{Numbers.Real} _ _ (Delta.equal (symbol.pivot j) i (sym!{{Fin.Fin n}} _ _ same)))}
+    {\fun (different: _) => trans!{Numbers.Real} _ _ _
+      (either!{{(Classical.excludedMiddle (Free.Free i j))} {matrix i j = Linear.zero}
+        {\fun (free: _) => Free.Entry[z := zero, i := i, j := j].laws.free free}
+        {\fun (notFree: _) => Free.Entry[z := zero, i := i, j := j].laws.otherwise notFree different}
+      }) (sym!{Numbers.Real} _ _ (Delta.different (symbol.pivot j) i (\fun (same: _) => different (sym!{{Fin.Fin n}} _ _ same))))}
+  };
+\definition onBasis: \forall (j: Fin.Fin k) -> (Coordinates.linear matrix).apply (Coordinates.basis j) = Euclidean.basis (symbol.pivot j) :=
+  \fun (j: Fin.Fin k) => \axiom:funext((Coordinates.linear matrix).apply (Coordinates.basis j), Euclidean.basis (symbol.pivot j),
+    \fun (i: Fin.Fin n) => trans!{Numbers.Real} _ _ _ (Coordinates.onBasis matrix j i) (column j i));
+\definition fixesBasis: \forall (j: Fin.Fin k) -> base.map.apply (Euclidean.basis (symbol.pivot j)) = Euclidean.basis (symbol.pivot j) :=
+  \fun (j: Fin.Fin k) => (represents matrix (Euclidean.basis (symbol.pivot j))).rtl
+    (Logic.existsIntro[Coordinates.CoordinateVector,
+      { v: Coordinates.CoordinateVector \where (Coordinates.linear matrix).apply v = Euclidean.basis (symbol.pivot j) }]
+      (Coordinates.basis j) (onBasis j));
+\definition sampling: Backward.Map := Backward.Map {
+  apply := Coordinates.coordinates,
+  preservesAdd := \fun (v, w: Euclidean.Vector) => \refl(Geometry.Finite[n := k].space.add (Coordinates.coordinates v) (Coordinates.coordinates w)),
+  preservesScale := \fun (a: Numbers.Real)(v: Euclidean.Vector) => \refl(Geometry.Finite[n := k].space.smul a (Coordinates.coordinates v)),
+};
+\definition sampleProjection: \forall (v: Euclidean.Vector) -> sampling.apply (base.map.apply v) = sampling.apply v :=
+  \fun (v: Euclidean.Vector) => \axiom:funext(sampling.apply (base.map.apply v), sampling.apply v,
+    \fun (j: Fin.Fin k) => trans!{Numbers.Real} _ _ _ (sym!{Numbers.Real} _ _ (Euclidean.dotBasis (symbol.pivot j) (base.map.apply v)))
+      (trans!{Numbers.Real} _ _ _ (sym!{Numbers.Real} _ _ ((Grassmannian.projection base).selfAdjoint (Euclidean.basis (symbol.pivot j)) v))
+        (trans!{Numbers.Real} _ _ _ (congr!{{Euclidean.Vector} Numbers.Real} (\fun (w: Euclidean.Vector) => Euclidean.dot w v) _ _ (fixesBasis j))
+          (Euclidean.dotBasis (symbol.pivot j) v))));
+\definition reconstruction: \forall (v: Euclidean.Vector) -> (Coordinates.linear matrix).apply (sampling.apply v) = base.map.apply v := \block {
+  \fun (v: Euclidean.Vector) \then
+  \takefrom w: \Cast[Coordinates.CoordinateVector]
+    ({ w: Coordinates.CoordinateVector \where (Coordinates.linear matrix).apply w = base.map.apply v })
+    \by (represents matrix (base.map.apply v)).ltr ((Grassmannian.projection base).idempotent v) \then
+  \let same: (Coordinates.linear matrix).apply w = base.map.apply v := \bysub(Coordinates.CoordinateVector,
+    { w: Coordinates.CoordinateVector \where (Coordinates.linear matrix).apply w = base.map.apply v }, w) \then
+  \let sample: w = sampling.apply v := trans!{{Coordinates.CoordinateVector}} _ _ _
+    (sym!{{Coordinates.CoordinateVector}} _ _ (Coordinates.leftInverse matrix w))
+    (trans!{{Coordinates.CoordinateVector}} _ _ _ (congr!{{Euclidean.Vector} {Coordinates.CoordinateVector}} sampling.apply _ _ same) (sampleProjection v)) \then
+  \return trans!{{Euclidean.Vector}} _ _ _ (congr!{{Coordinates.CoordinateVector} {Euclidean.Vector}} (Coordinates.linear matrix).apply _ _ (sym!{{Coordinates.CoordinateVector}} _ _ sample)) same
+};
+\definition basis: Ambient.OnProjection[P := Grassmannian.projection base].Rank[k := k].Basis :=
+  Ambient.OnProjection[P := Grassmannian.projection base].Rank[k := k].Basis {
+    value := Coordinates.linear matrix, coordinate := sampling,
+    leftInverse := Coordinates.leftInverse matrix, reconstruction := reconstruction,
+  };
+\import Grassmannian.Graph[a := base, center := basis] \as Graph;
+\import Linear.Linear[V := Coordinates.CoordinateVector, W := Euclidean.Vector,
+  source := Geometry.Finite[n := k].space, target := Euclidean.space] \as Forward;
+\import Forward.Operations[] \as Operations;
+\import Linear.Laws[V := Coordinates.CoordinateVector, space := Geometry.Finite[n := k].space] \as DomainLaws;
+\import Linear.Laws[V := Euclidean.Vector, space := Euclidean.space] \as VectorLaws;
+\definition difference[A: Coordinates.Carrier]: Forward.Map := Operations.plus (Coordinates.linear A) (Operations.negative (Coordinates.linear matrix));
+\definition differenceFormula: \forall (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) ->
+  (difference A).apply v = Euclidean.space.add ((Coordinates.linear A).apply v) (Euclidean.space.neg ((Coordinates.linear matrix).apply v)) :=
+  \fun (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) => congr!{{Euclidean.Vector} {Euclidean.Vector}}
+    (Euclidean.space.add ((Coordinates.linear A).apply v)) _ _ (VectorLaws.minusOneScale ((Coordinates.linear matrix).apply v));
+\definition kernel: \forall (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) -> sampling.apply ((difference A).apply v) = Geometry.Finite[n := k].space.zero :=
+  \fun (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) => trans!{{Coordinates.CoordinateVector}} _ _ _
+    (congr!{{Euclidean.Vector} {Coordinates.CoordinateVector}} sampling.apply _ _ (differenceFormula A v))
+    (trans!{{Coordinates.CoordinateVector}} _ _ _ (sampling.preservesAdd ((Coordinates.linear A).apply v) (Euclidean.space.neg ((Coordinates.linear matrix).apply v)))
+      (trans!{{Coordinates.CoordinateVector}} _ _ _
+        (congr!{{Coordinates.CoordinateVector} {Coordinates.CoordinateVector} {Coordinates.CoordinateVector}} Geometry.Finite[n := k].space.add _ _ _ _
+          (Coordinates.leftInverse A v)
+          (trans!{{Coordinates.CoordinateVector}} _ _ _ (Backward.Operations[].preservesNeg sampling ((Coordinates.linear matrix).apply v))
+            (congr!{{Coordinates.CoordinateVector} {Coordinates.CoordinateVector}} Geometry.Finite[n := k].space.neg _ _ (Coordinates.leftInverse matrix v))))
+        (trans!{{Coordinates.CoordinateVector}} _ _ _ (DomainLaws.comm v (Geometry.Finite[n := k].space.neg v)) (DomainLaws.inverseLeft v))));
+\definition graph[A: Coordinates.Carrier]: Graph.GraphSpace := \into[Forward.Map](difference A, Graph.GraphSpace) \by { kernel A };
+\definition familyFormula: \forall (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) ->
+  Euclidean.space.add (basis.value.apply v) ((graph A).apply v) = (Coordinates.linear A).apply v :=
+  \fun (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) => trans!{{Euclidean.Vector}} _ _ _
+    (congr!{{Euclidean.Vector} {Euclidean.Vector}} (Euclidean.space.add (basis.value.apply v)) _ _ (differenceFormula A v))
+    (InnerLaws.addSubtract ((Coordinates.linear A).apply v) (basis.value.apply v));
+
+\import Ambient.Forms[h := Euclidean.form].Families[X := Graph.GraphSpace].Rank[k := k] \as GraphFamilies;
+\definition Factors: \Set := GraphFamilies.Factors[Graph.Reconstruction[].family, Graph.graphTopology];
+\module Chart(factors: Factors);
+\definition homeomorphismExists: \exists topology.Homeomorphism[A := Free.Coordinates, B := Cell].Homeomorphism[ParameterSpace.topology, cellTopology] := \block {
+  \takefrom factors: Factors \by Graph.Reconstruction[].factorsExist \then
+  \return \exact(Chart[factors := factors].freeHomeomorphism,
+    topology.Homeomorphism[A := Free.Coordinates, B := Cell].Homeomorphism[ParameterSpace.topology, cellTopology])
+};

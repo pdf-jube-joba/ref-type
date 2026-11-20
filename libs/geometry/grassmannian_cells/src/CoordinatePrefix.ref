@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import linear_algebra.Commutative[K := K, scalarRing := ring] \as Linear;
+\import Linear.Coordinates[I := Fin.Fin m] \as Source;
+\import Linear.Coordinates[I := Fin.Fin n] \as Target;
+\definition include[i: Fin.Fin m]: Fin.Fin n := \into[N.Nat^](i, Fin.Fin n) \by { Order.ltLeTrans i m n (Fin.bound m i) bound };
+\definition subset: \Pow (Fin.Fin n) := { i: Fin.Fin n \where Order.Lt i m };
+\import std.Set[].Extension[A := Fin.Fin n, B := K, domain := subset] \as Extension;
+\definition restrict[i: Extension.Carrier]: Fin.Fin m := \into[N.Nat^](i, Fin.Fin m) \by { \bysub(Fin.Fin n, subset, i) };
+\definition extend[v: Source.Vector][i: Fin.Fin n]: K := Extension.extend (\fun (j: Extension.Carrier) => v (restrict j)) Linear.zero i;
+\definition inside: \forall (v: Source.Vector)(i: Fin.Fin m) -> extend v (include i) = v i :=
+  \fun (v: Source.Vector)(i: Fin.Fin m) => Extension.inside (\fun (j: Extension.Carrier) => v (restrict j)) Linear.zero
+    (\into[Fin.Fin n](include i, subset) \by { Fin.bound m i });
+\definition outside: \forall (v: Source.Vector)(i: Fin.Fin n) -> Logic.Not (Order.Lt i m) -> extend v i = Linear.zero :=
+  \fun (v: Source.Vector)(i: Fin.Fin n)(absent: _) => Extension.outside (\fun (j: Extension.Carrier) => v (restrict j)) Linear.zero i absent;
+\import Linear.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := extend,
+  preservesAdd := \fun (v, w: Source.Vector) => \axiom:funext(extend (Source.space.add v w), Target.space.add (extend v) (extend w),
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Order.Lt i m))} {extend (Source.space.add v w) i = Linear.add (extend v i) (extend w i)}
+      {\fun (member: _) => \block {
+        \let j: Fin.Fin m := \into[N.Nat^](i, Fin.Fin m) \by { member } \then
+        \return trans!{K} _ _ _ (inside (Source.space.add v w) j)
+          (congr!{K K K} Linear.add _ _ _ _ (sym!{K} _ _ (inside v j)) (sym!{K} _ _ (inside w j)))
+      }}
+      {\fun (absent: _) => trans!{K} _ _ _ (outside (Source.space.add v w) i absent)
+        (sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K K} Linear.add _ _ _ _ (outside v i absent) (outside w i absent)) (Linear.addZeroLeft Linear.zero)))}
+    }),
+  preservesScale := \fun (a: K)(v: Source.Vector) => \axiom:funext(extend (Source.space.smul a v), Target.space.smul a (extend v),
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Order.Lt i m))} {extend (Source.space.smul a v) i = Linear.mul a (extend v i)}
+      {\fun (member: _) => \block {
+        \let j: Fin.Fin m := \into[N.Nat^](i, Fin.Fin m) \by { member } \then
+        \return trans!{K} _ _ _ (inside (Source.space.smul a v) j) (congr!{K K} (Linear.mul a) _ _ (sym!{K} _ _ (inside v j)))
+      }}
+      {\fun (absent: _) => trans!{K} _ _ _ (outside (Source.space.smul a v) i absent)
+        (sym!{K} _ _ (trans!{K} _ _ (congr!{K K} (Linear.mul a) _ _ (outside v i absent)) (Linear.mulZeroRight a)))}
+    }),
+};
+\definition injective: \forall (v, w: Source.Vector) -> extend v = extend w -> v = w :=
+  \fun (v, w: Source.Vector)(same: _) => \axiom:funext(v, w, \fun (i: Fin.Fin m) => trans!{K} _ _ _ (sym!{K} _ _ (inside v i))
+    (trans!{K} _ _ _ (congr!{{Target.Vector} K} (\fun (x: Target.Vector) => x (include i)) _ _ same) (inside w i)));

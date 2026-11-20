@@ -1,0 +1,17 @@
+\import \parent.At[k := k] \as LowerRank;
+\import \parent.At[k := N.Nat^::succ k] \as UpperRank;
+\import Geometry.Finite[n := k] \as Lower;
+\import Geometry.Finite[n := N.Nat^::succ k] \as Domain;
+\import Lower.Successor[] \as Split;
+\import \root.Elimination[K := K, field := field, scalar := scalar, n := n, k := k] \as Elimination;
+\module For(A: UpperRank.Map, maximum: \root.FiniteMaximum[].Maximum[n, Elimination.NonzeroRow A],
+  column: Fin.Fin (N.Nat^::succ k), nonzero: Logic.Not (A.apply (Domain.basis column) maximum.index = Linear.zero));
+\definition exists: Existence k -> Existence (N.Nat^::succ k) := \block {
+  \fun (previous: Existence k)(A: UpperRank.Map)(injective: UpperRank.Injective A) \then
+  \takefrom maximum: \root.FiniteMaximum[].Maximum[n, Elimination.NonzeroRow A] \by Elimination.maximalRowExists A injective \then
+  \takefrom column: \Cast[Fin.Fin (N.Nat^::succ k)]
+    ({ j: Fin.Fin (N.Nat^::succ k) \where Logic.Not (A.apply (Domain.basis j) maximum.index = Linear.zero) }) \by maximum.member \then
+  \return For[A := A, maximum := maximum, column := column,
+    nonzero := \bysub(Fin.Fin (N.Nat^::succ k),
+      { j: Fin.Fin (N.Nat^::succ k) \where Logic.Not (A.apply (Domain.basis j) maximum.index = Linear.zero) }, column)].exists previous injective
+};

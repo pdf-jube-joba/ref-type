@@ -1,0 +1,77 @@
+\import real.Analysis[] \as Numbers;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Order;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import hermitian_frames.Hermitian[] \as H;
+\definition Matrix: \Set := N.Nat^ -> N.Nat^ -> Numbers.Real;
+\import topological_algebra.Matrix[K := Numbers.Real, I := N.Nat^, J := N.Nat^] \as Matrices;
+\import topology.Topology[Carrier := Matrix] \as MatrixSpace;
+\definition matrixTopology: MatrixSpace.Topology := Matrices.topology H.Real[].topological.space;
+\definition Finite[n: N.Nat^]: \Set := grassmannians.Real[n := n, k := k].Model[].Carrier;
+\definition finiteTopology[n: N.Nat^]: topology.Topology[Carrier := Finite n].Topology := grassmannians.Real[n := n, k := k].Model[].topology;
+\definition padding[n: N.Nat^][p: Finite n]: Matrix :=
+  \root.PaddedMatrix[K := Numbers.Real, zero := Numbers.zero, n := n].extend (grassmannians.Real[n := n, k := k].Model[].entries p);
+\definition Points: \Pow Matrix := { x: Matrix \where \exists (n: N.Nat^ \where \exists (p: Finite n \where padding n p = x)) };
+\definition Carrier: \Set := \Cast[Matrix] Points;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition ambient: Space.Topology := MatrixSpace.Subspace[S := Points].topology matrixTopology;
+\definition stages[n: N.Nat^]: \Pow Carrier := { x: Carrier \where \exists (p: Finite n \where padding n p = x) };
+\definition Stage[n: N.Nat^]: \Set := \Cast[Carrier] (stages n);
+\definition spaces[n: N.Nat^]: topology.Topology[Carrier := Stage n].Topology := Space.Subspace[S := stages n].topology ambient;
+\import \root.WeakUnion[X := Carrier, stages := stages, spaces := spaces] \as Weak;
+\definition topology: Space.Topology := Weak.topology;
+\definition embed[n: N.Nat^][p: Finite n]: Carrier := \into[Matrix](padding n p, Points) \by {
+  Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists (q: Finite m \where padding m q = padding n p) }] n
+    (Logic.existsIntro[Finite n, { q: Finite n \where padding n q = padding n p }] p (\refl(padding n p)))
+};
+\definition intoStage[n: N.Nat^][p: Finite n]: Stage n := \into[Carrier](embed n p, stages n) \by {
+  Logic.existsIntro[Finite n, { q: Finite n \where padding n q = padding n p }] p (\refl(padding n p))
+};
+\definition exhaustive: \forall (x: Carrier) -> \exists (n: N.Nat^ \where \In[Carrier] (stages n) x) :=
+  \fun (x: Carrier) => \bysub(Matrix, Points, x);
+\module Inclusion(n, m: N.Nat^, bound: Order.Le n m);
+\definition ascending: \forall (n, m: N.Nat^) -> Order.Le n m -> Space.Subset (stages n) (stages m) := \block {
+  \fun (n, m: N.Nat^)(bound: _)(x: Carrier)(member: _) \then
+  \takefrom p: \Cast[Finite n] ({ p: Finite n \where padding n p = x }) \by member \then
+  \return Logic.existsIntro[Finite m, { q: Finite m \where padding m q = x }] (Inclusion[n := n, m := m, bound := bound].map p)
+    (trans!{Matrix} _ _ _ (Inclusion[n := n, m := m, bound := bound].agrees p)
+      (\bysub(Finite n, { p: Finite n \where padding n p = x }, p)))
+};
+\module FiniteStage(n: N.Nat^);
+\definition separated: \forall (n: N.Nat^) -> topology.Topology[Carrier := Stage n].IsT1 (spaces n) :=
+  \fun (n: N.Nat^) => FiniteStage[n := n].separated;
+\import Weak.CommonTopology[ambient := ambient, induced := (\fun (n: N.Nat^) => \refl(spaces n))] \as Subspaces;
+\definition stageTopology: \forall (n: N.Nat^) -> spaces n = Space.Subspace[S := stages n].topology topology := Subspaces.stageTopology;
+\definition embedContinuous: \forall (n: N.Nat^) -> topology.Continuity[A := Finite n, B := Carrier].Continuous (finiteTopology n) topology (embed n) :=
+  \fun (n: N.Nat^) => topology.Composition[A := Finite n, B := Stage n, C := Carrier].composeContinuous
+    (finiteTopology n) (spaces n) topology (intoStage n) (Weak.inclusion n) (FiniteStage[n := n].intoContinuous) (Weak.inclusionContinuous n);
+\module Maps(Y: \Set, source: topology.Topology[Carrier := Y].Topology);
+\module Spheres(d: N.Nat^);
+\definition FiniteOpen[U: \Pow Carrier]: \Prop := \forall (n: N.Nat^) ->
+  topology.Topology[Carrier := Finite n].IsOpenIn (finiteTopology n)
+    (topology.Continuity[A := Finite n, B := Carrier].Preimage (embed n) U);
+\definition weakTopology: \forall (U: \Pow Carrier) -> Logic.PropEquiv[Space.IsOpenIn topology U, FiniteOpen U] :=
+  \fun (U: \Pow Carrier) => Logic.PropEquiv[_, _] {
+    ltr := \fun (open: _)(n: N.Nat^) => embedContinuous n U open,
+    rtl := \fun (open: FiniteOpen U)(n: N.Nat^) =>
+      \idelim topology.Continuity[A := Stage n, B := Finite n].Preimage FiniteStage[n := n].inverse
+        (topology.Continuity[A := Finite n, B := Carrier].Preimage (embed n) U) = Weak.Trace n U
+        \with V: \Pow (Stage n) => topology.Topology[Carrier := Stage n].IsOpenIn (spaces n) V \by {
+          base: FiniteStage[n := n].inverseContinuous (topology.Continuity[A := Finite n, B := Carrier].Preimage (embed n) U) (open n),
+          equality: \axiom:setext(
+            topology.Continuity[A := Stage n, B := Finite n].Preimage FiniteStage[n := n].inverse
+              (topology.Continuity[A := Finite n, B := Carrier].Preimage (embed n) U), Weak.Trace n U,
+            \fun (x: Stage n)(member: _) => \idelim embed n (FiniteStage[n := n].inverse x) = x \with y: Carrier => \In[Carrier] U y \by {
+              base: member, equality: FiniteStage[n := n].agrees x
+            },
+            \fun (x: Stage n)(member: _) => \idelim x = embed n (FiniteStage[n := n].inverse x) \with y: Carrier => \In[Carrier] U y \by {
+              base: member, equality: sym!{Carrier} _ _ (FiniteStage[n := n].agrees x)
+            })
+        },
+  };

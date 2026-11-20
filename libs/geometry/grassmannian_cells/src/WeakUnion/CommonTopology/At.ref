@@ -1,0 +1,31 @@
+\import Space.Subspace[S := stages n] \as Subspace;
+\import topology.Topology[Carrier := Stage n] \as StageSpace;
+\definition toWeak: \forall (W: \Pow (Stage n)) -> StageSpace.IsOpenIn (spaces n) W -> StageSpace.IsOpenIn (Subspace.topology topology) W :=
+  \fun (W: \Pow (Stage n))(open: _) => Subspace.openTraceElim ambient W
+    (StageSpace.IsOpenIn (Subspace.topology topology) W)
+    (\fun (U: \Pow X)(uo: _)(same: _) => \idelim Subspace.Trace U = W
+      \with V: \Pow (Stage n) => StageSpace.IsOpenIn (Subspace.topology topology) V \by {
+        base: Subspace.traceOpen topology U (ambientOpen U uo),
+        equality: sym!{{\Pow (Stage n)}} _ _ same
+      })
+    (Subspace.openRepresentation ambient W
+      (\idelim spaces n = Subspace.topology ambient \with T: StageSpace.Topology => StageSpace.IsOpenIn T W \by {
+        base: open, equality: induced n
+      }));
+\definition fromWeak: \forall (W: \Pow (Stage n)) -> StageSpace.IsOpenIn (Subspace.topology topology) W -> StageSpace.IsOpenIn (spaces n) W :=
+  \fun (W: \Pow (Stage n))(open: _) => Subspace.openTraceElim topology W (StageSpace.IsOpenIn (spaces n) W)
+    (\fun (U: \Pow X)(uo: Open U)(same: _) => \idelim Trace n U = W
+      \with V: \Pow (Stage n) => StageSpace.IsOpenIn (spaces n) V \by {
+        base: uo n, equality: sym!{{\Pow (Stage n)}} _ _ same
+      }) (Subspace.openRepresentation topology W open);
+\definition dataEta: \forall (d: StageSpace.TopologyData) -> StageSpace.TopologyData { openSets := d.openSets } = d :=
+  \induction (d: StageSpace.TopologyData) \return StageSpace.TopologyData { openSets := d.openSets } = d \with {
+    | # : \fun (opens: \Pow (\Pow (Stage n))) => \refl(StageSpace.TopologyData { openSets := opens })
+  };
+\definition equal: spaces n = Subspace.topology topology :=
+  trans!{{StageSpace.TopologyData}} _ _ _ (sym!{{StageSpace.TopologyData}} _ _ (dataEta (spaces n)))
+    (trans!{{StageSpace.TopologyData}} _ _ _
+      (congr!{{\Pow (\Pow (Stage n))} {StageSpace.TopologyData}} StageSpace.TopologyData::# _ _
+        (\axiom:setext((StageSpace.topologyData (spaces n)).openSets,
+          (StageSpace.topologyData (Subspace.topology topology)).openSets, toWeak, fromWeak)))
+      (dataEta (Subspace.topology topology)));

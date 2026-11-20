@@ -1,0 +1,27 @@
+\definition sum[x: X]: E.Vector := E.space.add (e x) (v x);
+\definition sumContinuous: Vectors.Continuous source sum := Vectors.addition source e v eContinuous vContinuous;
+\definition positive: \forall (x: X) -> dedekind_reals.DedekindReal[].Lt real.Analysis[].zero (Inner.squared (sum x)) :=
+  \fun (x: X) => Inner.positiveNorm E.positive (sum x) (nonzero x);
+\import Ambient.Forms[h := E.form].Families[X := X].Normalize[source := source, v := sum,
+  continuous := sumContinuous, positive := positive] \as Normalized;
+\definition normal[x: X]: E.Vector := Inner.Normalize[v := sum x, positive := positive x].value;
+\definition normalUnit: \forall (x: X) -> E.dot (normal x) (normal x) = Spaces.one :=
+  \fun (x: X) => Inner.Normalize[v := sum x, positive := positive x].unitNorm;
+\definition bisector[x: X]: Ambient.Projection := Ambient.Projection {
+  map := Inner.Unit[v := normal x, norm := normalUnit x].rankOne,
+  selfAdjoint := Inner.Unit[v := normal x, norm := normalUnit x].symmetric,
+  idempotent := Inner.Unit[v := normal x, norm := normalUnit x].idempotent,
+};
+\definition axis[x: X]: Ambient.Projection := Ambient.Projection {
+  map := Inner.Unit[v := e x, norm := eUnit x].rankOne,
+  selfAdjoint := Inner.Unit[v := e x, norm := eUnit x].symmetric,
+  idempotent := Inner.Unit[v := e x, norm := eUnit x].idempotent,
+};
+\definition rotation[x: X]: Ambient.Unitary[].Carrier :=
+  \parent.\parent.Bisector[e := e x, v := v x, eUnit := eUnit x, vUnit := vUnit x,
+    symmetric := symmetric x, nonzero := nonzero x].unitary;
+\definition regular: Unitaries.Regular source rotation := Unitaries.product source (reflected bisector) (reflected axis)
+  (reflectionRegular source bisector (rankOneRegular source normal normalUnit Normalized.regular))
+  (reflectionRegular source axis (rankOneRegular source e eUnit eContinuous));
+\definition continuous: topology.Continuity[A := X, B := Ambient.Unitary[].Carrier].Continuous source Ambient.Unitary[].topology rotation :=
+  Unitaries.continuous source rotation regular;

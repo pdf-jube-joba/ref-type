@@ -1,0 +1,89 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Sum[] \as Sums;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import linear_algebra.Commutative[K := Numbers.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Real Numbers.Algebra[].field] \as Linear;
+\import Linear.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import Linear.Coordinates[I := Fin.Fin Blocks.dimension].Kronecker[] \as TotalDelta;
+\import grassmannians.BasepointsReal[m := m] \as Basepoints;
+\import grassmannians.Real[n := m, k := N.Nat^::zero].Model[] \as ZeroModel;
+\import Hermitian.At[n := m].OnProjection[P := ZeroModel.projection Basepoints.zero].Rank[k := N.Nat^::zero] \as ZeroRank;
+\import Geometry.Finite[n := N.Nat^::zero] \as Empty;
+\definition zeroAction: \forall (v: Extra.Vector) -> Basepoints.zero.map.apply v = Extra.space.zero := \block {
+  \fun (v: Extra.Vector) \then
+  \takefrom basis: ZeroRank.Basis \by ZeroModel.rank Basepoints.zero \then
+  \return trans!{{Extra.Vector}} _ _ _ (sym!{{Extra.Vector}} _ _ (basis.reconstruction v))
+    (trans!{{Extra.Vector}} _ _ _ (congr!{{Empty.Vector} {Extra.Vector}} basis.value.apply _ _
+      (Fin.Empty[A := Numbers.Real].unique (basis.coordinate.apply v) Empty.space.zero)) basis.value.preservesZero)
+};
+\definition formula: \forall (p: Source.Carrier)(v: Total.Vector) ->
+  (map p).map.apply v = Blocks.join (p.map.apply (Blocks.left v)) Extra.space.zero :=
+  \fun (p: Source.Carrier)(v: Total.Vector) => trans!{{Total.Vector}} _ _ _
+    (congr!{{TotalMaps.Map} {Total.Vector}} (\fun (f: TotalMaps.Map) => f.apply v) _ _ (mapPreserved p))
+    (congr!{{Extra.Vector} {Total.Vector}} (Blocks.join (p.map.apply (Blocks.left v))) _ _ (zeroAction (Blocks.right v)));
+\definition leftBasisLeft: \forall (j: Fin.Fin n) -> Blocks.left (Total.basis (Indices.left j)) = Vectors.basis j :=
+  \fun (j: Fin.Fin n) => \axiom:funext(Blocks.left (Total.basis (Indices.left j)), Vectors.basis j,
+    \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (j = i))}
+      {Total.basis (Indices.left j) (Indices.left i) = Vectors.basis j i}
+      {\fun (same: _) => trans!{Numbers.Real} _ _ _
+        (TotalDelta.equal (Indices.left j) (Indices.left i) same) (sym!{Numbers.Real} _ _ (Delta.equal j i same))}
+      {\fun (different: _) => trans!{Numbers.Real} _ _ _
+        (TotalDelta.different (Indices.left j) (Indices.left i) different) (sym!{Numbers.Real} _ _ (Delta.different j i different))}
+    });
+\definition leftBasisRight: \forall (j: Fin.Fin m) -> Blocks.left (Total.basis (Indices.right j)) = Vectors.space.zero :=
+  \fun (j: Fin.Fin m) => \axiom:funext(Blocks.left (Total.basis (Indices.right j)), Vectors.space.zero,
+    \fun (i: Fin.Fin n) => TotalDelta.different (Indices.right j) (Indices.left i)
+      (\fun (same: _) => Indices.different i j (sym!{{Fin.Fin Blocks.dimension}} _ _ same)));
+\definition leftEntry: \forall (p: Source.Carrier)(i: Fin.Fin n)(j: Fin.Fin Blocks.dimension) ->
+  Target.entries (map p) (Indices.left i) j = p.map.apply (Blocks.left (Total.basis j)) i :=
+  \fun (p: Source.Carrier)(i: Fin.Fin n)(j: Fin.Fin Blocks.dimension) => trans!{Numbers.Real} _ _ _
+    (congr!{{Total.Vector} Numbers.Real} (\fun (v: Total.Vector) => v (Indices.left i)) _ _ (formula p (Total.basis j)))
+    (congr!{{Vectors.Vector} Numbers.Real} (\fun (v: Vectors.Vector) => v i) _ _
+      (Blocks.leftJoin (p.map.apply (Blocks.left (Total.basis j))) Extra.space.zero));
+\definition rightEntry: \forall (p: Source.Carrier)(i: Fin.Fin m)(j: Fin.Fin Blocks.dimension) ->
+  Target.entries (map p) (Indices.right i) j = Linear.zero :=
+  \fun (p: Source.Carrier)(i: Fin.Fin m)(j: Fin.Fin Blocks.dimension) => trans!{Numbers.Real} _ _ _
+    (congr!{{Total.Vector} Numbers.Real} (\fun (v: Total.Vector) => v (Indices.right i)) _ _ (formula p (Total.basis j)))
+    (congr!{{Extra.Vector} Numbers.Real} (\fun (v: Extra.Vector) => v i) _ _
+      (Blocks.rightJoin (p.map.apply (Blocks.left (Total.basis j))) Extra.space.zero));
+\definition leftLeft: \forall (p: Source.Carrier)(i, j: Fin.Fin n) -> Target.entries (map p) (Indices.left i) (Indices.left j) = Source.entries p i j :=
+  \fun (p: Source.Carrier)(i, j: Fin.Fin n) => trans!{Numbers.Real} _ _ _ (leftEntry p i (Indices.left j))
+    (congr!{{Vectors.Vector} Numbers.Real} (\fun (v: Vectors.Vector) => p.map.apply v i) _ _ (leftBasisLeft j));
+\definition leftRight: \forall (p: Source.Carrier)(i: Fin.Fin n)(j: Fin.Fin m) -> Target.entries (map p) (Indices.left i) (Indices.right j) = Linear.zero :=
+  \fun (p: Source.Carrier)(i: Fin.Fin n)(j: Fin.Fin m) => trans!{Numbers.Real} _ _ _ (leftEntry p i (Indices.right j))
+    (trans!{Numbers.Real} _ _ _
+      (congr!{{Vectors.Vector} Numbers.Real} (\fun (v: Vectors.Vector) => p.map.apply v i) _ _ (leftBasisRight j))
+      (congr!{{Vectors.Vector} Numbers.Real} (\fun (v: Vectors.Vector) => v i) _ _ p.map.preservesZero));
+\definition cases: \forall (P: Fin.Fin Blocks.dimension -> \Prop) ->
+  (\forall (i: Fin.Fin n) -> P (Indices.left i)) -> (\forall (i: Fin.Fin m) -> P (Indices.right i)) -> \forall (i: Fin.Fin Blocks.dimension) -> P i :=
+  \fun (P: Fin.Fin Blocks.dimension -> \Prop)(left: _)(right: _)(i: Fin.Fin Blocks.dimension) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Blocks.dimension => P j \by {
+      base: (\induction (s: Indices.Index) \return P (Indices.inflate s) \with { | inl: left | inr: right }) (Indices.split i),
+      equality: Indices.inflateSplit i
+    };
+\import \root.PaddedMatrix[K := Numbers.Real, zero := Linear.zero, n := n] \as Padding;
+\import \root.PaddedMatrix[K := Numbers.Real, zero := Linear.zero, n := Blocks.dimension] \as TargetPadding;
+\definition rightOutside: \forall (i: Fin.Fin m) -> Logic.Not (NatLaws.Lt (Indices.right i) n) :=
+  \fun (i: Fin.Fin m)(inside: _) => NatLaws.ltIrrefl (Indices.right i)
+    (NatLaws.ltLeTrans (Indices.right i) n (Indices.right i) inside (Indices.rightAbove i));
+\definition paddedEntries: \forall (p: Source.Carrier)(i, j: Fin.Fin Blocks.dimension) ->
+  Target.entries (map p) i j = Padding.extend (Source.entries p) i j :=
+  \fun (p: Source.Carrier) => cases
+    (\fun (i: Fin.Fin Blocks.dimension) => \forall (j: Fin.Fin Blocks.dimension) -> Target.entries (map p) i j = Padding.extend (Source.entries p) i j)
+    (\fun (i: Fin.Fin n) => cases
+      (\fun (j: Fin.Fin Blocks.dimension) => Target.entries (map p) (Indices.left i) j = Padding.extend (Source.entries p) (Indices.left i) j)
+      (\fun (j: Fin.Fin n) => trans!{Numbers.Real} _ _ _ (leftLeft p i j) (sym!{Numbers.Real} _ _ (Padding.onFinite (Source.entries p) i j)))
+      (\fun (j: Fin.Fin m) => trans!{Numbers.Real} _ _ _ (leftRight p i j)
+        (sym!{Numbers.Real} _ _ (Padding.outside (Source.entries p) (Indices.left i) (Indices.right j)
+          (\fun (inside: Padding.Inside (Indices.left i) (Indices.right j)) => rightOutside j inside.right)))))
+    (\fun (i: Fin.Fin m)(j: Fin.Fin Blocks.dimension) => trans!{Numbers.Real} _ _ _ (rightEntry p i j)
+      (sym!{Numbers.Real} _ _ (Padding.outside (Source.entries p) (Indices.right i) j
+        (\fun (inside: Padding.Inside (Indices.right i) j) => rightOutside i inside.left))));
+\definition paddingCompatible: \forall (p: Source.Carrier) -> TargetPadding.extend (Target.entries (map p)) = Padding.extend (Source.entries p) :=
+  \fun (p: Source.Carrier) => trans!{{Padding.InfiniteMatrix}} _ _ _
+    (congr!{{TargetPadding.Matrix} {Padding.InfiniteMatrix}} TargetPadding.extend _ _
+      (\axiom:funext(Target.entries (map p), Padding.Widen[m := m].matrix (Source.entries p),
+        \fun (i: Fin.Fin Blocks.dimension) => \axiom:funext(Target.entries (map p) i, Padding.Widen[m := m].matrix (Source.entries p) i, paddedEntries p i))))
+    (Padding.Widen[m := m].agrees (Source.entries p));

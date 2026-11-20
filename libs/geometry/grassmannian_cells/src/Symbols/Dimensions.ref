@@ -1,0 +1,33 @@
+\import \root.NaturalBounds[] \as Bounds;
+\import \root.NaturalSum[I := Fin.Fin k] \as Sum;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition pivotLower: \forall (symbol: Symbol)(j: Fin.Fin k) -> Order.Le j (symbol.pivot j) :=
+  \fun (symbol: Symbol)(j: Fin.Fin k) => \root.FiniteCardinality[].bound j (symbol.pivot j)
+    Column[symbol := symbol, j := j].pivot Column[symbol := symbol, j := j].pivotInjective;
+\definition widthMonotone: Below s t -> \forall (j: Fin.Fin k) -> Order.Le (width s j) (width t j) :=
+  \fun (below: Below s t)(j: Fin.Fin k) => Bounds.subtract j (s.pivot j) (t.pivot j) (pivotLower s j) (below j);
+\definition monotone: Below s t -> Order.Le (dimension s) (dimension t) :=
+  \fun (below: Below s t) => Sum.monotone (Fin.elements k) (width s) (width t) (widthMonotone below);
+\definition differentPivot: Logic.Not (s = t) -> \exists (j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j)) :=
+  \fun (different: _) => either!{{(Classical.excludedMiddle (\exists (j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j))))}
+    {\exists (j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j))}
+    {\fun (found: _) => found}
+    {\fun (none: _) => Logic.falseElim _ (different (ext s t (\fun (j: Fin.Fin k) =>
+      either!{{(Classical.excludedMiddle (s.pivot j = t.pivot j))} {s.pivot j = t.pivot j}
+        {\fun (same: _) => same}
+        {\fun (bad: _) => Logic.falseElim _ (none (Logic.existsIntro[Fin.Fin k,
+          { j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j) }] j bad))}
+      }))) }
+  };
+\definition strict: Below s t -> Logic.Not (s = t) -> Order.Lt (dimension s) (dimension t) := \block {
+  \fun (below: Below s t)(different: _) \then
+  \takefrom j: \Cast[Fin.Fin k] ({ j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j) }) \by differentPivot different \then
+  \let pivotStrict: Order.Lt (s.pivot j) (t.pivot j) := Order.ltOfLeDifferent (s.pivot j) (t.pivot j) (below j)
+    (\bysub(Fin.Fin k, { j: Fin.Fin k \where Logic.Not (s.pivot j = t.pivot j) }, j)) \then
+  \return Sum.strict (Fin.elements k) (width s) (width t) (widthMonotone below) j (Fin.exhaustive k j)
+    (Order.subLtOfLe j (s.pivot j) (t.pivot j) (pivotLower s j) pivotStrict)
+};
+\definition complexStrict: Below s t -> Logic.Not (s = t) -> Order.Lt (complexDimension s) (complexDimension t) :=
+  \fun (below: Below s t)(different: _) => N.Order[].Prop[].ltAdd (dimension s) (dimension t) (dimension s) (dimension t)
+    (strict below different) (strict below different);

@@ -1,0 +1,34 @@
+\import Linear.FiniteCoordinates[n := k] \as Basis;
+\import Linear.FiniteCoordinates[n := n] \as AmbientBasis;
+\import Linear.Finite[V := Domain.Vector, I := Fin.Fin k, space := Domain.space].Representation[
+  W := Ambient.Vector, J := Fin.Fin n, target := Ambient.space] \as Representation;
+\import Linear.Sums[I := Fin.Fin k] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Linear.Coordinates[I := Fin.Fin k].Kronecker[] \as Delta;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition expansion: \forall (v: Domain.Vector)(r: Fin.Fin n) -> A.apply v r = Sums.sum (Fin.elements k)
+  (\fun (i: Fin.Fin k) => Linear.mul (column A i r) (v i)) :=
+  \fun (v: Domain.Vector)(r: Fin.Fin n) => congr!{{Ambient.Vector} K} (\fun (w: Ambient.Vector) => w r) _ _
+    (Representation.actionLaw Basis.basis AmbientBasis.basis A v);
+\definition monotone: \forall (i, j: Fin.Fin k) -> Natural.Le i j -> Natural.Le (symbol.pivot i) (symbol.pivot j) :=
+  \fun (i, j: Fin.Fin k)(less: _) => either!{{(N.Induction[].leCases i j less)} {Natural.Le (symbol.pivot i) (symbol.pivot j)}
+    {\fun (strict: _) => \root.NaturalBounds[].leOfLt _ _ (Symbols.increasing symbol i j strict)}
+    {\fun (same: _) => \idelim i = j \with l: Fin.Fin k => Natural.Le (symbol.pivot i) (symbol.pivot l) \by { base: Natural.leRefl (symbol.pivot i), equality: same }}
+  };
+\definition Nonzero[v: Domain.Vector][i: Fin.Fin k]: \Prop := Logic.Not (v i = Linear.zero);
+\module Highest(v: Domain.Vector, maximum: \root.FiniteMaximum[].Maximum[k, Nonzero v]);
+\definition vanishes: \forall (v: Domain.Vector)(cutoff: Fin.Fin n) ->
+  (\forall (r: Fin.Fin n) -> Natural.Lt cutoff r -> A.apply v r = Linear.zero) ->
+  \forall (j: Fin.Fin k) -> Natural.Lt cutoff (symbol.pivot j) -> v j = Linear.zero :=
+  \fun (v: Domain.Vector)(cutoff: Fin.Fin n)(supported: _)(j: Fin.Fin k)(above: _) =>
+    either!{{(Classical.excludedMiddle (v j = Linear.zero))} {v j = Linear.zero}
+      {\fun (zero: _) => zero}
+      {\block {
+        \fun (nonzero: _) \then
+        \takefrom maximum: \root.FiniteMaximum[].Maximum[k, Nonzero v] \by
+          \root.FiniteMaximum[].exists k (Nonzero v) (Logic.existsIntro[Fin.Fin k, { i: Fin.Fin k \where Nonzero v i }] j nonzero) \then
+        \return Logic.falseElim _ (Highest[v := v, maximum := maximum].nonzero
+          (supported (symbol.pivot maximum.index) (Natural.ltLeTrans cutoff (symbol.pivot j) _ above (monotone j maximum.index (maximum.bound j nonzero)))))
+      }}
+    };

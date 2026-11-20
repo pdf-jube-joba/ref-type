@@ -1,0 +1,27 @@
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Commutative[K := K, scalarRing := ring] \as Linear;
+\import Linear.Coordinates[I := Fin.Fin k] \as Source;
+\import Linear.Coordinates[I := Fin.Fin n] \as Target;
+\import Linear.FiniteCoordinates[n := k] \as Basis;
+\import Linear.FiniteCoordinates[n := n] \as TargetBasis;
+\import Linear.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Maps;
+\import Linear.Finite[V := Source.Vector, I := Fin.Fin k, space := Source.space].Representation[W := Target.Vector, J := Fin.Fin n, target := Target.space] \as Representation;
+\import Linear.Sums[I := Fin.Fin k].Prop[] \as Sums;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition expansion: \forall (f: Maps.Map)(v: Source.Vector)(r: Fin.Fin n) ->
+  f.apply v r = Linear.Sums[I := Fin.Fin k].sum (Fin.elements k) (\fun (j: Fin.Fin k) => Linear.mul (f.apply (Basis.vectors j) r) (v j)) :=
+  \fun (f: Maps.Map)(v: Source.Vector)(r: Fin.Fin n) => congr!{{Target.Vector} K} (\fun (w: Target.Vector) => w r) _ _
+    (Representation.actionLaw Basis.basis TargetBasis.basis f v);
+\definition ext: \forall (f, g: Maps.Map) -> (\forall (j: Fin.Fin k) -> f.apply (Basis.vectors j) = g.apply (Basis.vectors j)) ->
+  \forall (v: Source.Vector) -> f.apply v = g.apply v :=
+  \fun (f, g: Maps.Map)(same: _)(v: Source.Vector) => \axiom:funext(f.apply v, g.apply v,
+    \fun (r: Fin.Fin n) => trans!{K} _ _ _
+      (congr!{{Target.Vector} K} (\fun (w: Target.Vector) => w r) _ _ (Representation.actionLaw Basis.basis TargetBasis.basis f v))
+      (trans!{K} _ _ _ (Sums.congruent (Fin.elements k)
+        (\fun (j: Fin.Fin k) => Linear.mul (f.apply (Basis.vectors j) r) (v j))
+        (\fun (j: Fin.Fin k) => Linear.mul (g.apply (Basis.vectors j) r) (v j))
+        (\fun (j: Fin.Fin k) => congr!{K K} (\fun (a: K) => Linear.mul a (v j)) _ _ (congr!{{Target.Vector} K} (\fun (w: Target.Vector) => w r) _ _ (same j))))
+        (sym!{K} _ _ (congr!{{Target.Vector} K} (\fun (w: Target.Vector) => w r) _ _ (Representation.actionLaw Basis.basis TargetBasis.basis g v)))));

@@ -1,0 +1,14 @@
+\import \parent.At[A := Fin.Fin n, value := \fun (i: Fin.Fin n) => i] \as Source;
+\import \parent.At[A := Fin.Fin (N.Nat^::succ n), value := \fun (i: Fin.Fin (N.Nat^::succ n)) => i] \as Target;
+\import Source.Mapping[B := Fin.Fin (N.Nat^::succ n), other := \fun (i: Fin.Fin (N.Nat^::succ n)) => i,
+  f := Fin.succ n, monotone := \fun (i, j: Fin.Fin n)(less: _) => Order.ltSuccSucc i j less] \as Mapping;
+\definition ordered: Source.Ordered (Fin.elements n) -> Target.Ordered (Fin.elements (N.Nat^::succ n)) :=
+  \fun (previous: _) => Logic.And[_, _]::# (\block {
+    \fun (i: Fin.Fin (N.Nat^::succ n))(member: _) \then
+    \takefrom j: \Cast[Fin.Fin n] ({ j: Fin.Fin n \where Logic.And[Fin.Occurs n j (Fin.elements n), Fin.succ n j = i] })
+      \by Mapping.member (Fin.elements n) i member \then
+    \return \idelim Fin.succ n j = i \with r: Fin.Fin (N.Nat^::succ n) => Order.Lt (Fin.zero n) r \by {
+      base: \refl(Bool.Bool^::true),
+      equality: (\bysub(Fin.Fin n, { j: Fin.Fin n \where Logic.And[Fin.Occurs n j (Fin.elements n), Fin.succ n j = i] }, j)).right
+    }
+  }) (Mapping.ordered (Fin.elements n) previous);

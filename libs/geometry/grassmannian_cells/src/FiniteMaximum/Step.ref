@@ -1,0 +1,34 @@
+\definition tail[i: Fin.Fin n]: \Prop := P (Fin.succ n i);
+\definition onlyHead: Logic.Not (\exists (i: Fin.Fin n \where tail i)) ->
+  \forall (i: Fin.Fin (N.Nat^::succ n)) -> P i -> P (Fin.zero n) :=
+  \fun (none: _) => Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => P i -> P (Fin.zero n))
+    (\fun (present: _) => present)
+    (\fun (i: Fin.Fin n)(present: _) => Logic.falseElim _
+      (none (Logic.existsIntro[Fin.Fin n, { j: Fin.Fin n \where tail j }] i present)));
+\definition exists: Existence n -> (\exists (i: Fin.Fin (N.Nat^::succ n) \where P i)) -> \exists Maximum[N.Nat^::succ n, P] :=
+  \fun (previous: Existence n)(inhabited: _) => either!{{(Classical.excludedMiddle (\exists (i: Fin.Fin n \where tail i)))}
+    {\exists Maximum[N.Nat^::succ n, P]}
+    {\block {
+      \fun (tailInhabited: _) \then
+      \takefrom maximum: Maximum[n, tail] \by previous tail tailInhabited \then
+      \return \exact(Maximum[N.Nat^::succ n, P] {
+        index := Fin.succ n maximum.index,
+        member := maximum.member,
+        bound := Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => P i -> Order.Le i (Fin.succ n maximum.index))
+          (\fun (present: _) => Order.zeroLe (Fin.succ n maximum.index))
+          (\fun (i: Fin.Fin n)(present: _) => Order.leSuccSucc i maximum.index (maximum.bound i present)),
+      }, Maximum[N.Nat^::succ n, P])
+    }}
+    {\block {
+      \fun (none: _) \then
+      \takefrom i: \Cast[Fin.Fin (N.Nat^::succ n)] ({ i: Fin.Fin (N.Nat^::succ n) \where P i }) \by inhabited \then
+      \return \exact(Maximum[N.Nat^::succ n, P] {
+        index := Fin.zero n,
+        member := onlyHead none i (\bysub(Fin.Fin (N.Nat^::succ n), { i: Fin.Fin (N.Nat^::succ n) \where P i }, i)),
+        bound := Fin.cases n (\fun (j: Fin.Fin (N.Nat^::succ n)) => P j -> Order.Le j (Fin.zero n))
+          (\fun (present: _) => Order.leRefl (Fin.zero n))
+          (\fun (j: Fin.Fin n)(present: _) => Logic.falseElim _
+            (none (Logic.existsIntro[Fin.Fin n, { l: Fin.Fin n \where tail l }] j present))),
+      }, Maximum[N.Nat^::succ n, P])
+    }}
+  };

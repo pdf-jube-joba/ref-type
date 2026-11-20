@@ -1,0 +1,81 @@
+\import Fin.Permutations[n := k] \as Permutations;
+\import Linear.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as End;
+\definition reorder: End.Map := End.Map {
+  apply := \fun (v: Domain.Vector)(i: Fin.Fin k) => v (permutation.backward i),
+  preservesAdd := \fun (v, w: Domain.Vector) => \refl(Domain.space.add (\fun (i: Fin.Fin k) => v (permutation.backward i))
+    (\fun (i: Fin.Fin k) => w (permutation.backward i))),
+  preservesScale := \fun (a: K)(v: Domain.Vector) => \refl(Domain.space.smul a (\fun (i: Fin.Fin k) => v (permutation.backward i))),
+};
+\definition restore[v: Domain.Vector][i: Fin.Fin k]: K := v (permutation.forward i);
+\definition reorderRestore: \forall (v: Domain.Vector) -> reorder.apply (restore v) = v :=
+  \fun (v: Domain.Vector) => \axiom:funext(reorder.apply (restore v), v,
+    \fun (i: Fin.Fin k) => congr!{{Fin.Fin k} K} v _ _ ((Permutations.laws permutation).rightInverse i));
+\definition value: Maps.Map := Maps.Composition[U := Domain.Vector, domain := Domain.space].compose d.value reorder;
+\definition symbol: Symbols.Symbol := \into[Symbols.Data](Symbols.Data {
+  pivot := \fun (i: Fin.Fin k) => d.pivot (permutation.forward i)
+}, Symbols.Symbol) \by {
+  \bysub(Permutations.Permutation, Fin.Ordering[].Ordered k n d.pivot, permutation)
+};
+\definition sampleValue: \forall (v: Domain.Vector)(i: Fin.Fin k) -> value.apply v (symbol.pivot i) = v i :=
+  \fun (v: Domain.Vector)(i: Fin.Fin k) => trans!{K} _ _ _
+    (congr!{{Domain.Vector} K} (\fun (w: Domain.Vector) => w (permutation.forward i)) _ _ ((laws d).coordinates (reorder.apply v)))
+    (congr!{{Fin.Fin k} K} v _ _ ((Permutations.laws permutation).leftInverse i));
+\definition reorderBasis: \forall (j: Fin.Fin k) -> reorder.apply (Domain.basis j) = Domain.basis (permutation.forward j) :=
+  \fun (j: Fin.Fin k) => \axiom:funext(reorder.apply (Domain.basis j), Domain.basis (permutation.forward j),
+    \fun (i: Fin.Fin k) => either!{{(Classical.excludedMiddle (j = permutation.backward i))}
+      {Domain.basis j (permutation.backward i) = Domain.basis (permutation.forward j) i}
+      {\fun (same: _) => trans!{K} _ _ _ (Delta.equal j (permutation.backward i) same)
+        (sym!{K} _ _ (Delta.equal (permutation.forward j) i
+          (trans!{{Fin.Fin k}} _ _ _ (congr!{{Fin.Fin k} {Fin.Fin k}} permutation.forward _ _ same)
+            ((Permutations.laws permutation).rightInverse i))))}
+      {\fun (different: _) => trans!{K} _ _ _ (Delta.different j (permutation.backward i) different)
+        (sym!{K} _ _ (Delta.different (permutation.forward j) i
+          (\fun (same: _) => different (trans!{{Fin.Fin k}} _ _ _
+            (sym!{{Fin.Fin k}} _ _ ((Permutations.laws permutation).leftInverse j))
+            (congr!{{Fin.Fin k} {Fin.Fin k}} permutation.backward _ _ same)))))}
+    });
+\import \root.Echelon[K := K, field := field, n := n, k := k, symbol := symbol] \as Echelon;
+\definition entries[i: Fin.Fin n][j: Fin.Fin k]: K := value.apply (Domain.basis j) i;
+\definition matrix: Echelon.Carrier := \into[Fin.Fin n -> Fin.Fin k -> K](entries, Echelon.Carrier) \by {
+  Echelon.Laws[entries] {
+    pivot := \fun (i, j: Fin.Fin k) => trans!{K} _ _ _ (sampleValue (Domain.basis j) i) (Delta.symmetric j i),
+    above := \fun (i: Fin.Fin n)(j: Fin.Fin k)(above: _) => trans!{K} _ _ _
+      (congr!{{Domain.Vector} K} (\fun (v: Domain.Vector) => d.value.apply v i) _ _ (reorderBasis j))
+      ((laws d).above i (permutation.forward j) above),
+  }
+};
+\import Linear.FiniteCoordinates[n := k] \as Basis;
+\import Linear.Finite[V := Domain.Vector, I := Fin.Fin k, space := Domain.space].Prop[] \as Expansion;
+\import Linear.Sums[I := Fin.Fin k].Prop[] \as Sums;
+\import Linear.Linear[V := Domain.Vector, W := K, source := Domain.space, target := Linear.scalarSpace] \as Rows;
+\definition row[i: Fin.Fin n]: Rows.Map := Rows.Map {
+  apply := \fun (v: Domain.Vector) => value.apply v i,
+  preservesAdd := \fun (v, w: Domain.Vector) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x i) _ _ (value.preservesAdd v w),
+  preservesScale := \fun (a: K)(v: Domain.Vector) => congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x i) _ _ (value.preservesScale a v),
+};
+\definition linearFormula: \forall (v: Domain.Vector) -> (Echelon.linear matrix).apply v = value.apply v :=
+  \fun (v: Domain.Vector) => \axiom:funext((Echelon.linear matrix).apply v, value.apply v,
+    \fun (i: Fin.Fin n) => trans!{K} _ _ _
+      (Sums.congruent (Fin.elements k) (\fun (j: Fin.Fin k) => Linear.mul (entries i j) (v j))
+        (\fun (j: Fin.Fin k) => Linear.mul (v j) (entries i j)) (\fun (j: Fin.Fin k) => Linear.mulComm (entries i j) (v j)))
+      (sym!{K} _ _ (Expansion.functionalExpansion Basis.basis (row i) v)));
+\definition forward: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where A.apply w = (Echelon.linear matrix).apply v) := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where A.apply w = d.value.apply (reorder.apply v) })
+    \by (image A d).forward (reorder.apply v) \then
+  \return Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where A.apply w = (Echelon.linear matrix).apply v }] w
+    (trans!{{Ambient.Vector}} _ _ _
+      (\bysub(Domain.Vector, { w: Domain.Vector \where A.apply w = d.value.apply (reorder.apply v) }, w))
+      (sym!{{Ambient.Vector}} _ _ (linearFormula v)))
+};
+\definition backward: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where (Echelon.linear matrix).apply w = A.apply v) := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where d.value.apply w = A.apply v }) \by (image A d).backward v \then
+  \return Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where (Echelon.linear matrix).apply w = A.apply v }] (restore w)
+    (trans!{{Ambient.Vector}} _ _ _ (linearFormula (restore w))
+      (trans!{{Ambient.Vector}} _ _ _ (congr!{{Domain.Vector} {Ambient.Vector}} d.value.apply _ _ (reorderRestore w))
+        (\bysub(Domain.Vector, { w: Domain.Vector \where d.value.apply w = A.apply v }, w))))
+};
+\definition normalForm: NormalForm[A] := NormalForm[A] {
+  symbol := symbol, matrix := matrix, forward := forward, backward := backward,
+};

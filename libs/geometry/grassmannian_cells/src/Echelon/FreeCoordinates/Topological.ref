@@ -1,0 +1,39 @@
+\import \parent.\parent.Topological[scalar := scalar] \as EchelonSpace;
+\import topological_algebra.Coordinates[K := K, I := Symbols.Free symbol] \as Parameters;
+\import topological_algebra.Matrix[K := K, I := Fin.Fin n, J := Fin.Fin k] \as MatrixSpace;
+\import topology.Continuity[A := Coordinates, B := K] \as ScalarMaps;
+\definition topology: topology.Topology[Carrier := Coordinates].Topology := Parameters.topology scalar;
+\definition transport: \forall (f, g: Coordinates -> K) -> (\forall (z: Coordinates) -> f z = g z) ->
+  ScalarMaps.Continuous topology scalar f -> ScalarMaps.Continuous topology scalar g :=
+  \fun (f, g: Coordinates -> K)(same: _)(continuous: _) =>
+    \idelim f = g \with h: (Coordinates -> K) => ScalarMaps.Continuous topology scalar h \by {
+      base: continuous, equality: \axiom:funext(f, g, same)
+    };
+\definition entryContinuous: \forall (i: Fin.Fin n)(j: Fin.Fin k) -> ScalarMaps.Continuous topology scalar (\fun (z: Coordinates) => matrix z i j) :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin k) => either!{{(Classical.excludedMiddle (Free i j))} {ScalarMaps.Continuous topology scalar (\fun (z: Coordinates) => matrix z i j)}
+    {\fun (free: _) => transport (Parameters.evaluate (freeSlot i j free)) (\fun (z: Coordinates) => matrix z i j)
+      (\fun (z: Coordinates) => sym!{K} _ _ (Entry[z := z, i := i, j := j].laws.free free))
+      (Parameters.evaluationContinuous scalar (freeSlot i j free))}
+    {\fun (notFree: _) => either!{{(Classical.excludedMiddle (i = symbol.pivot j))} {ScalarMaps.Continuous topology scalar (\fun (z: Coordinates) => matrix z i j)}
+      {\fun (same: _) => transport (\fun (_: Coordinates) => Linear.one) (\fun (z: Coordinates) => matrix z i j)
+        (\fun (z: Coordinates) => sym!{K} _ _ (Entry[z := z, i := i, j := j].laws.pivot same))
+        (topology.Maps[A := Coordinates, B := K].constantContinuous topology scalar Linear.one)}
+      {\fun (notOwn: _) => transport (\fun (_: Coordinates) => Linear.zero) (\fun (z: Coordinates) => matrix z i j)
+        (\fun (z: Coordinates) => sym!{K} _ _ (Entry[z := z, i := i, j := j].laws.otherwise notFree notOwn))
+        (topology.Maps[A := Coordinates, B := K].constantContinuous topology scalar Linear.zero)}
+    }}
+  };
+\definition fillContinuous: topology.Continuity[A := Coordinates, B := Carrier].Continuous topology EchelonSpace.topology fill :=
+  topological_constructions.Induced[A := Carrier, B := Matrices.Matrix].Universal[Z := Coordinates].continuous
+    topology (MatrixSpace.topology scalar) (\fun (A: Carrier) => A) fill
+    (MatrixSpace.Universal[A := Coordinates].continuous topology scalar matrix entryContinuous);
+\definition readContinuous: topology.Continuity[A := Carrier, B := Coordinates].Continuous EchelonSpace.topology topology freeCoordinates :=
+  Parameters.Universal[A := Carrier].continuous EchelonSpace.topology scalar freeCoordinates EchelonSpace.freeCoordinateContinuous;
+\import topology.Homeomorphism[A := Coordinates, B := Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[topology, EchelonSpace.topology] :=
+  Homeomorphisms.Homeomorphism[topology, EchelonSpace.topology] {
+    forward := fill, backward := freeCoordinates,
+    leftInverse := \fun (z: Coordinates) => readFill z,
+    rightInverse := \fun (A: Carrier) => fillRead A,
+    forwardContinuous := fillContinuous, backwardContinuous := readContinuous,
+  };

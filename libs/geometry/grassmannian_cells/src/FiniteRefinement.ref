@@ -1,0 +1,44 @@
+\import std.Set[].FiniteSubset[A := A] \as Ambient;
+\definition Carrier: \Set := \Cast[A] S;
+\import std.Set[].FiniteSubset[A := Carrier] \as Sub;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Logic.either;
+\definition Trace[U: \Pow A]: \Pow Carrier := { x: Carrier \where \In[A] U x };
+\definition empty: Trace Ambient.Empty = Sub.Empty := \axiom:setext(Trace Ambient.Empty, Sub.Empty,
+  \fun (x: Carrier)(impossible: Logic.False) => impossible,
+  \fun (x: Carrier)(impossible: Logic.False) => impossible);
+\definition insertInside: \forall (a: Carrier)(U: \Pow A) -> Trace (Ambient.Insert a U) = Sub.Insert a (Trace U) :=
+  \fun (a: Carrier)(U: \Pow A) => \axiom:setext(Trace (Ambient.Insert a U), Sub.Insert a (Trace U),
+    \fun (x: Carrier)(member: _) => member, \fun (x: Carrier)(member: _) => member);
+\definition insertOutside: \forall (a: A)(U: \Pow A) -> Logic.Not (\In[A] S a) -> Trace (Ambient.Insert a U) = Trace U :=
+  \fun (a: A)(U: \Pow A)(outside: _) => \axiom:setext(Trace (Ambient.Insert a U), Trace U,
+    \fun (x: Carrier)(member: _) => either!{member {\In[Carrier] (Trace U) x}
+      {\fun (same: x = a) => Logic.falseElim _ (outside
+        (\idelim x = a \with y: A => \In[A] S y \by { base: \bysub(A, S, x), equality: same }))}
+      {\fun (old: _) => old}
+    }, \fun (x: Carrier)(member: _) => Logic.Or[_, _]::right member);
+\definition finiteTrace: \forall (U: \Pow A) -> Ambient.Finite U -> Sub.Finite (Trace U) :=
+  \fun (U: \Pow A)(finite: Ambient.Finite U) => finite
+    ({ V: \Pow A \where Sub.Finite (Trace V) })
+    (\idelim Sub.Empty = Trace Ambient.Empty \with V: \Pow Carrier => Sub.Finite V \by {
+      base: Sub.finiteEmpty, equality: sym!{{\Pow Carrier}} _ _ empty
+    })
+    (\fun (V: \Pow A)(previous: Sub.Finite (Trace V))(a: A) =>
+      either!{{(Classical.excludedMiddle (\In[A] S a))} {Sub.Finite (Trace (Ambient.Insert a V))}
+        {\fun (inside: _) => \idelim Sub.Insert (\into[A](a, S) \by { inside }) (Trace V) = Trace (Ambient.Insert a V)
+          \with W: \Pow Carrier => Sub.Finite W \by {
+            base: Sub.finiteInsert (\into[A](a, S) \by { inside }) (Trace V) previous,
+            equality: sym!{{\Pow Carrier}} _ _ (insertInside (\into[A](a, S) \by { inside }) V)
+          }}
+        {\fun (outside: _) => \idelim Trace V = Trace (Ambient.Insert a V) \with W: \Pow Carrier => Sub.Finite W \by {
+          base: previous, equality: sym!{{\Pow Carrier}} _ _ (insertOutside a V outside)
+        }}
+      });
+\definition Whole: \Pow Carrier := { x: Carrier \where x = x };
+\definition finite: Ambient.Finite ({ x: A \where x = x }) -> Sub.Finite Whole :=
+  finiteTrace ({ x: A \where x = x });
+\definition value[finiteAmbient: Ambient.Finite ({ x: A \where x = x })]: Sub.FiniteSubset :=
+  \into[\Pow Carrier](Whole, Sub.FiniteSubsetSet) \by { finite finiteAmbient };

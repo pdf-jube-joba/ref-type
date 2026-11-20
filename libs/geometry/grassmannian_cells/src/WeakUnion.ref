@@ -1,0 +1,31 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import topology.Topology[Carrier := X] \as Space;
+\definition Stage[n: N.Nat^]: \Set := \Cast[X] (stages n);
+\definition inclusion[n: N.Nat^][x: Stage n]: X := x;
+\definition Trace[n: N.Nat^][U: \Pow X]: \Pow (Stage n) := { x: Stage n \where \In[X] U x };
+\definition Open[U: \Pow X]: \Prop := \forall (n: N.Nat^) ->
+  topology.Topology[Carrier := Stage n].IsOpenIn (spaces n) (Trace n U);
+\definition raw: Space.TopologyData := Space.TopologyData { openSets := { U: \Pow X \where Open U } };
+\module At(n: N.Nat^);
+\definition laws: Space.TopologyLaws[raw] := Space.TopologyLaws[raw] {
+  emptyOpen := \fun (n: N.Nat^) => At[n := n].emptyOpen,
+  wholeOpen := \fun (n: N.Nat^) => At[n := n].wholeOpen,
+  unionOpen := \fun (family: \Pow (\Pow X))(open: _)(n: N.Nat^) => At[n := n].unionOpen family (\fun (U: \Pow X)(member: _) => open U member n),
+  intersectionOpen := \fun (U, V: \Pow X)(uo: Open U)(vo: Open V)(n: N.Nat^) => At[n := n].intersectionOpen U V (uo n) (vo n),
+};
+\definition topology: Space.Topology := \into[Space.TopologyData](raw, Space.Topology) \by { laws };
+\definition weakTopology: \forall (U: \Pow X) -> Logic.PropEquiv[Space.IsOpenIn topology U, Open U] :=
+  \fun (U: \Pow X) => Logic.PropEquiv[_, _] { ltr := \fun (h: _) => h, rtl := \fun (h: _) => h };
+\definition inclusionContinuous: \forall (n: N.Nat^) ->
+  topology.Continuity[A := Stage n, B := X].Continuous (spaces n) topology (inclusion n) :=
+  \fun (n: N.Nat^)(U: \Pow X)(open: Open U) => open n;
+\module Universal(Y: \Set, target: topology.Topology[Carrier := Y].Topology);
+\module CommonTopology(ambient: Space.Topology,
+  induced: \forall (n: N.Nat^) -> spaces n = Space.Subspace[S := stages n].topology ambient);
+\module Compact(
+  ascending: \forall (n, m: N.Nat^) -> std.Data[].Nat[].Basic[].Prop[].Le n m -> Space.Subset (stages n) (stages m),
+  exhaustive: \forall (x: X) -> \exists ( n: N.Nat^ \where \In[X] (stages n) x ),
+  separated: \forall (n: N.Nat^) -> topology.Topology[Carrier := Stage n].IsT1 (spaces n));

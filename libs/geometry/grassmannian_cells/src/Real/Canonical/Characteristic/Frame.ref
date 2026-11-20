@@ -1,0 +1,17 @@
+\import Rotations.FromFrame[] \as Inverse;
+\definition frame[j: Fin.Fin k]: Ambient.Vector := factor.factor.frame.apply (Coordinates.basis j);
+\definition adapted: Inverse.Adapted[Fin.elements k, frame] := Inverse.Adapted[Fin.elements k, frame] {
+  orthonormal := \fun (i, j: Fin.Fin k)(first: _)(second: _) => trans!{Numbers.Real} _ _ _
+    (factor.factor.isometry (Coordinates.basis i) (Coordinates.basis j))
+    (trans!{Numbers.Real} _ _ _ (Geometry.Finite[n := k].dotBasis i (Coordinates.basis j)) (linear_algebra.Commutative[K := Numbers.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Numbers.Real Numbers.Algebra[].field].Coordinates[I := Fin.Fin k].Kronecker[].symmetric j i)),
+  above := \fun (j: Fin.Fin k)(member: _) => factor.triangular.above j,
+  diagonal := \block {
+    \fun (j: Fin.Fin k)(member: _) \then
+    \takefrom diagonal: Triangular.At[k := k].Diagonal[symbol, factor.factor.frame, j] \by factor.triangular.diagonal j \then
+    \return \exact(Inverse.Height[frame, j] { value := diagonal.value, positive := diagonal.positive, agrees := diagonal.agrees }, Inverse.Height[frame, j])
+  },
+  excluded := \fun (j: Fin.Fin k)(member: _)(i: Fin.Fin k)(outside: _) => Logic.falseElim _ (outside (Fin.exhaustive k i)),
+};
+\definition presentationExists: \exists Inverse.Presentation[Fin.elements k, frame] :=
+  Inverse.exists (Fin.elements k) (\root.FiniteOrder[].elements k) frame adapted;
+\module Using(presentation: Inverse.Presentation[Fin.elements k, frame]);

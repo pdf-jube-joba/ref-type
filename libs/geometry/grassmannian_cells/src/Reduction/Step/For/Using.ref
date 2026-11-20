@@ -1,0 +1,75 @@
+\import Linear.Linear[V := Domain.Vector, W := Lower.Vector, source := Domain.space, target := Lower.space] \as RestMaps;
+\import Linear.Linear[V := Domain.Vector, W := Ambient.Vector, source := Domain.space, target := Ambient.space] \as ResultMaps;
+\import Linear.Linear[V := Lower.Vector, W := Ambient.Vector, source := Lower.space, target := Ambient.space] \as LowerMaps;
+\import Linear.Laws[V := Lower.Vector, space := Lower.space] \as LowerLaws;
+\import Geometry.Inner[V := Lower.Vector, space := Lower.space].Of[h := Lower.form] \as LowerInner;
+\definition q: Lower.Vector := LowerRank.sample lower Normal.direction;
+\definition correction: RestMaps.Map := RestMaps.Map {
+  apply := \fun (v: Domain.Vector) => Lower.space.smul (Split.head v) q,
+  preservesAdd := \fun (v, w: Domain.Vector) => Lower.space.scalarAdd (Split.head v) (Split.head w) q,
+  preservesScale := \fun (a: K)(v: Domain.Vector) => Lower.space.scalarAssoc a (Split.head v) q,
+};
+\definition rest: RestMaps.Map := RestMaps.Operations[].plus Split.tailMap (RestMaps.Operations[].negative correction);
+\definition restFormula: \forall (v: Domain.Vector) -> rest.apply v = LowerInner.subtract (Split.tail v) (Lower.space.smul (Split.head v) q) :=
+  \fun (v: Domain.Vector) => congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.add (Split.tail v)) _ _
+    (LowerLaws.minusOneScale (Lower.space.smul (Split.head v) q));
+\definition firstMap: ResultMaps.Map := ResultMaps.Map {
+  apply := \fun (v: Domain.Vector) => Ambient.space.smul (Split.head v) Normal.direction,
+  preservesAdd := \fun (v, w: Domain.Vector) => Ambient.space.scalarAdd (Split.head v) (Split.head w) Normal.direction,
+  preservesScale := \fun (a: K)(v: Domain.Vector) => Ambient.space.scalarAssoc a (Split.head v) Normal.direction,
+};
+\definition tailMap: ResultMaps.Map := LowerMaps.Composition[U := Domain.Vector, domain := Domain.space].compose lower.value rest;
+\definition value: ResultMaps.Map := ResultMaps.Operations[].plus firstMap tailMap;
+\definition pivots: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n := Fin.Tuples[A := Fin.Fin n].extend k maximum.index lower.pivot;
+\definition data: UpperRank.Data := UpperRank.Data { pivot := pivots, value := value };
+\definition lowerPivotZero: \forall (v: Lower.Vector) -> lower.value.apply v maximum.index = Linear.zero := \block {
+  \fun (v: Lower.Vector) \then
+  \takefrom w: \Cast[Lower.Vector] ({ w: Lower.Vector \where Normal.lower.apply w = lower.value.apply v })
+    \by (LowerRank.image Normal.lower lower).forward v \then
+  \return trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x maximum.index) _ _
+      (\bysub(Lower.Vector, { w: Lower.Vector \where Normal.lower.apply w = lower.value.apply v }, w)))) (Normal.lowerRow w)
+};
+\definition firstCoordinate: \forall (v: Domain.Vector) -> value.apply v maximum.index = Split.head v :=
+  \fun (v: Domain.Vector) => trans!{K} _ _ _
+    (congr!{K K K} Linear.add _ _ _ _
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Split.head v)) _ _ Normal.directionPivot) (Linear.mulOneRight (Split.head v)))
+      (lowerPivotZero (rest.apply v))) (Linear.addZeroRight (Split.head v));
+\definition tailCoordinates: \forall (v: Domain.Vector)(i: Fin.Fin k) -> value.apply v (lower.pivot i) = Split.tail v i :=
+  \fun (v: Domain.Vector)(i: Fin.Fin k) => trans!{K} _ _ _
+    (congr!{K K} (Linear.add (Linear.mul (Split.head v) (q i))) _ _
+      (trans!{K} _ _ _
+        (congr!{{Lower.Vector} K} (\fun (w: Lower.Vector) => w i) _ _ ((LowerRank.laws lower).coordinates (rest.apply v)))
+        (congr!{{Lower.Vector} K} (\fun (w: Lower.Vector) => w i) _ _ (restFormula v))))
+    (congr!{{Lower.Vector} K} (\fun (w: Lower.Vector) => w i) _ _
+      (LowerInner.addSubtract (Split.tail v) (Lower.space.smul (Split.head v) q)));
+\definition coordinates: \forall (v: Domain.Vector) -> UpperRank.sample data (value.apply v) = v :=
+  \fun (v: Domain.Vector) => \axiom:funext(UpperRank.sample data (value.apply v), v,
+    Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => value.apply v (pivots i) = v i)
+      (trans!{K} _ _ _ (congr!{{Fin.Fin n} K} (value.apply v) _ _
+        (Fin.Tuples[A := Fin.Fin n].atZero k maximum.index lower.pivot)) (firstCoordinate v))
+      (\fun (i: Fin.Fin k) => trans!{K} _ _ _ (congr!{{Fin.Fin n} K} (value.apply v) _ _
+        (Fin.Tuples[A := Fin.Fin n].atSuccessor k maximum.index lower.pivot i)) (tailCoordinates v i)));
+\definition lowerSupport: \forall (i: Fin.Fin n) -> Order.Lt maximum.index i -> \forall (v: Lower.Vector) -> lower.value.apply v i = Linear.zero := \block {
+  \fun (i: Fin.Fin n)(above: _)(v: Lower.Vector) \then
+  \takefrom w: \Cast[Lower.Vector] ({ w: Lower.Vector \where Normal.lower.apply w = lower.value.apply v })
+    \by (LowerRank.image Normal.lower lower).forward v \then
+  \return trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Ambient.Vector} K} (\fun (x: Ambient.Vector) => x i) _ _
+      (\bysub(Lower.Vector, { w: Lower.Vector \where Normal.lower.apply w = lower.value.apply v }, w))))
+    (Support.vanishes i above (Normal.change.forward.apply (Split.embedding.apply w)))
+};
+\definition support: \forall (i: Fin.Fin n) -> Order.Lt maximum.index i -> \forall (v: Domain.Vector) -> value.apply v i = Linear.zero :=
+  \fun (i: Fin.Fin n)(above: _)(v: Domain.Vector) => trans!{K} _ _ _
+    (congr!{K K K} Linear.add _ _ _ _
+      (trans!{K} _ _ _ (congr!{K K} (Linear.mul (Split.head v)) _ _
+        (Support.vanishes i above (Normal.change.forward.apply Split.first))) (Linear.mulZeroRight (Split.head v)))
+      (lowerSupport i above (rest.apply v))) (Linear.addZeroLeft Linear.zero);
+\module Basis;
+\definition frame: UpperRank.Carrier := \into[UpperRank.Data](data, UpperRank.Carrier) \by {
+  UpperRank.Laws[data] { coordinates := coordinates, above := Basis[].above }
+};
+\module Image;
+\definition presentation: UpperRank.Presentation A := \into[UpperRank.Carrier](frame, UpperRank.Presentation A) \by {
+  UpperRank.ImageLaws[A, frame] { forward := Image[].forward, backward := Image[].backward }
+};
