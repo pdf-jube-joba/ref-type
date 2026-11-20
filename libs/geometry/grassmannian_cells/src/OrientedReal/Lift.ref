@@ -11,7 +11,7 @@
 \definition diskLaws: topology.Homeomorphism[A := Disk.Disk, B := Rotations.Carrier].Laws[Disk.diskTopology, Rotations.topology, disk.homeomorphism] :=
   topology.Homeomorphism[A := Disk.Disk, B := Rotations.Carrier].laws Disk.diskTopology Rotations.topology disk.homeomorphism;
 \definition regular: Ambient.Families[X := Disk.Disk].Matrix[m := k].Regular Disk.diskTopology (\fun (x: Disk.Disk) => (frame x).basis.value) :=
-  \fun (v: Domain.Vector)(i: Fin.Fin n) => topology.Composition[A := Disk.Disk, B := Rotations.Carrier, C := R.Real].composeContinuous
+  \fun (v: FrameCoordinates.Vector)(i: Fin.Fin n) => topology.Composition[A := Disk.Disk, B := Rotations.Carrier, C := R.Real].composeContinuous
     Disk.diskTopology Rotations.topology H.Real[].topological.space disk.homeomorphism.forward
     (\fun (A: Rotations.Carrier) => (RotationFrame[].frame A).basis.value.apply v i) diskLaws.forwardContinuous (RotationFrame[].regular v i);
 \definition coordinates: Geometry.At[n := k].Families[X := Disk.Disk].Matrix[m := n].Regular Disk.diskTopology (\fun (x: Disk.Disk) => (frame x).basis.coordinate) :=
@@ -49,14 +49,27 @@
     image := trans!{Carrier} _ _ _ (\bysub(Signs.Carrier, { s: Signs.Carrier \where map s p = Carrier::# e.base e.orientation }, s)) (eta e),
   }, InteriorPreimage[e])
 };
+\definition orientationAt[p: Disk.Disk][e: Carrier][equalBase: e.base = Standard.map p]: Orientation (Standard.map p) :=
+  \idelim e.base = Standard.map p \with x: Base.Carrier => Orientation x \by { base: e.orientation, equality: equalBase };
+\definition orientationEvaluated: \forall (p: Disk.Disk)(s: Signs.Carrier)
+  (equalBase: (map s p).base = Standard.map p) -> (orientationAt p (map s p) equalBase).value (frame p) = s :=
+  \fun (p: Disk.Disk)(s: Signs.Carrier)(equalBase: (map s p).base = Standard.map p) =>
+    trans!{{Signs.Carrier}} _ _ s
+      (congr!{{Orientation (Standard.map p)} {Signs.Carrier}}
+        (\fun (a: Orientation (Standard.map p)) => a.value (frame p))
+        (orientationAt p (map s p) equalBase) (map s p).orientation
+        (\transporteq Standard.map p \with x: Base.Carrier => Orientation x \by { base: (map s p).orientation }))
+      (fromFrameAt (Standard.map p) (frame p) s);
 \definition signInjective: \forall (p: Disk.Disk)(s, t: Signs.Carrier) -> map s p = map t p -> s = t := \block {
-  \fun (p: Disk.Disk)(s, t: Signs.Carrier)(same: _) \then
-  \let evaluated: (map t p).orientation.value (frame p) = s :=
+  \fun (p: Disk.Disk)(s, t: Signs.Carrier)(same: map s p = map t p) \then
+  \let evaluated: (orientationAt p (map t p) (\refl(Standard.map p))).value (frame p) = s :=
     (\idelim map s p = map t p \with e: Carrier => \forall (equalBase: e.base = Standard.map p) ->
-      (\idelim e.base = Standard.map p \with x: Base.Carrier => Orientation x \by { base: e.orientation, equality: equalBase }).value (frame p) = s \by {
-        base: \fun (equalBase: _) => fromFrameAt (Standard.map p) (frame p) s, equality: same
+      (orientationAt p e equalBase).value (frame p) = s \by {
+        base: \fun (equalBase: (map s p).base = Standard.map p) => orientationEvaluated p s equalBase,
+        equality: same
       }) (\refl(Standard.map p)) \then
-  \return trans!{{Signs.Carrier}} _ _ _ (sym!{{Signs.Carrier}} _ _ evaluated) (fromFrameAt (Standard.map p) (frame p) t)
+  \return trans!{{Signs.Carrier}} s ((orientationAt p (map t p) (\refl(Standard.map p))).value (frame p)) t
+    (sym!{{Signs.Carrier}} _ _ evaluated) (orientationEvaluated p t (\refl(Standard.map p)))
 };
 
 \definition baseInjective: \forall (p, q: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> \In[Disk.Coordinate] Disk.Interior q -> Standard.map p = Standard.map q -> p = q := Standard.injective;
