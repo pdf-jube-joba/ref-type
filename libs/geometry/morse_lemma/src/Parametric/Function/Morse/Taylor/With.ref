@@ -1,0 +1,90 @@
+\definition domain: Open.OpenSet := normalization.domain;
+\definition includedW: Open.Included domain W := normalization.included;
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) => taylor.included x (includedW x member);
+\definition contains: \In[Point] domain.points a := normalization.contains;
+\definition origin: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\definition C[x: Open.Carrier domain]: Matrix.Matrix := normalization.change x;
+\definition matrix[x: Open.Carrier domain]: End.Map := Matrix.linear (C x);
+\definition matrixRegular: calculus.MatrixFamily[d := dimension, p := n, q := n].Regular domain matrix :=
+  \root.Normalization[d := dimension, n := n].On[U := domain].linearRegular C normalization.regular;
+\definition subsetDisplacement: Open.Included domain Displacement.domain := \fun (x: Point)(member: _) => includedDisplacement x (includedW x member);
+\import Displacement.Restrict[V := domain, subset := subsetDisplacement, containsPoint := contains] \as Shift;
+\definition shift: Gradients.Map domain Fibers.whole := Shift.restricted;
+\definition shiftZero: shift.apply origin = E.space.zero := Shift.atCenter;
+\import \root.MatrixAction[d := dimension, n := n].On[U := domain, A := matrix, regular := matrixRegular, v := shift] \as Action;
+\import calculus.LinearMap[n := n, m := n].On[U := Fibers.whole, L := normal.change.backward] \as Backward;
+\import Gradients.Composition[U := domain, V := Fibers.whole, f := Action.map].After[l := n, W := Fibers.whole, g := Backward.map] \as Composition;
+\definition coordinates: Gradients.Map domain Fibers.whole := Composition.compose;
+\definition coordinatesValue[x: Open.Carrier domain]: Vector := Gradients.apply domain Fibers.whole coordinates x;
+\definition coordinatesZero: coordinatesValue origin = E.space.zero := trans!{Vector} _ _ _
+  (congr!{Vector Vector} normal.change.backward.apply _ _ (Action.At[a := origin].valueZero shiftZero)) normal.change.backward.preservesZero;
+\import calculus.Identity[n := n] \as Identity;
+\definition linearCenter: matrix origin = Identity.linear := trans!{{End.Map}} _ _ _
+  (congr!{{Matrix.Matrix} {End.Map}} Matrix.linear _ _ normalization.center) (Representation.linearEntries Identity.linear);
+\definition shiftDerivative: Linear.Map := Gradients.Differential[U := domain, V := Fibers.whole, f := shift, a := origin].value;
+\definition actionDerivative: Gradients.Differential[U := domain, V := Fibers.whole, f := Action.map, a := origin].value = shiftDerivative :=
+  trans!{{Linear.Map}} _ _ _ (Action.At[a := origin].differential shiftZero)
+    (trans!{{Linear.Map}} _ _ _
+      (congr!{{End.Map} {Linear.Map}} (\fun (L: End.Map) => Compose.compose L shiftDerivative) _ _ linearCenter)
+      (Linear.ext (Compose.compose Identity.linear shiftDerivative) shiftDerivative
+        (\axiom:funext((Compose.compose Identity.linear shiftDerivative).apply, shiftDerivative.apply, \fun (v: Point) => \refl(shiftDerivative.apply v)))));
+\definition derivative: Gradients.Differential[U := domain, V := Fibers.whole, f := coordinates, a := origin].value = Compose.compose normal.change.backward shiftDerivative :=
+  eq_reason_in!{{Linear.Map} Gradients.Differential[U := domain, V := Fibers.whole, f := coordinates, a := origin].value
+    "=" { Compose.compose
+      FiberMaps.Differential[U := Fibers.whole, V := Fibers.whole, f := Backward.map, a := Gradients.apply domain Fibers.whole Action.map origin].value
+      Gradients.Differential[U := domain, V := Fibers.whole, f := Action.map, a := origin].value } "by" { Composition.At[a := origin].jacobian }
+    "=" { Compose.compose normal.change.backward shiftDerivative } "by" { congr!{{End.Map} {Linear.Map} {Linear.Map}} Compose.compose _ _ _ _
+      (Backward.differential (Gradients.apply domain Fibers.whole Action.map origin)) actionDerivative }
+  };
+\import Inverse.Implicit[U := domain, f := coordinates, a := origin] \as Implicit;
+\definition verticalDerivative: Implicit.verticalDifferential = normal.change.backward := End.ext _ _
+  (\axiom:funext(Implicit.verticalDifferential.apply, normal.change.backward.apply, \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{{Linear.Map} Vector} (\fun (L: Linear.Map) => L.apply (Inverse.vertical.apply v)) _ _ derivative)
+    (congr!{Vector Vector} normal.change.backward.apply _ _ (Shift.verticalLaw v))));
+\definition nonzeroBackward: Inversion.Nonzero (Representation.entries normal.change.backward) := Inversion.nonzeroOfInverse (Representation.entries normal.change.backward)
+  (\into[Matrix.Matrix](Representation.entries normal.change.forward, Matrix.Operations[].Inverse (Representation.entries normal.change.backward)) \by {
+    Representation.inverseCertificate normal.change.backward normal.change.forward
+      (Spaces.Isomorphism[V := Vector, W := Vector, source := E.space, target := E.space].laws normal.change).rightInverse
+      (Spaces.Isomorphism[V := Vector, W := Vector, source := E.space, target := E.space].laws normal.change).leftInverse
+  });
+\definition implicitRegular: Implicit.Regular := \idelim normal.change.backward = Implicit.verticalDifferential
+  \with L: End.Map => Inversion.Nonzero (Representation.entries L) \by { base: nonzeroBackward, equality: sym!{{End.Map}} _ _ verticalDerivative };
+\import Projections.Restriction[U := domain, V := W, W := branch.parameters] \as RestrictParameter;
+\definition parameter: Projections.Map domain branch.parameters := RestrictParameter.input includedW taylor.parameter;
+\definition parameterPoint[x: Open.Carrier domain]: Parameters.Carrier branch.parameters := Projections.apply domain branch.parameters parameter x;
+\definition parameterFormula: \forall (x: Open.Carrier domain) -> parameterPoint x = Split.left x :=
+  \fun (x: Open.Carrier domain) => taylor.parameterFormula (Open.inclusion domain W includedW x);
+\definition displacementParameter: \forall (x: Open.Carrier domain) ->
+  Projections.apply Displacement.domain branch.parameters Displacement.parameter (Open.inclusion domain Displacement.domain subsetDisplacement x) = parameterPoint x :=
+  \fun (x: Open.Carrier domain) => trans!{Parameter} _ _ _ (Displacement.parameterFormula (Open.inclusion domain Displacement.domain subsetDisplacement x)) (sym!{Parameter} _ _ (parameterFormula x));
+\definition delta[x: Open.Carrier domain][i: Fin.Fin n]: R.Real := R.sub (Split.right x i) (Branches.apply branch.parameters Fibers.whole branch.branch (parameterPoint x) i);
+\definition shiftFormula: \forall (x: Open.Carrier domain)(i: Fin.Fin n) -> shift.apply x i = delta x i :=
+  \fun (x: Open.Carrier domain)(i: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => v i) _ _ (Displacement.formula (Open.inclusion domain Displacement.domain subsetDisplacement x)))
+    (congr!{{Parameters.Carrier branch.parameters} {R.Real}} (\fun (t: Parameters.Carrier branch.parameters) => R.sub (Split.right x i) (Branches.apply branch.parameters Fibers.whole branch.branch t i)) _ _ (displacementParameter x));
+\definition criticalValue[x: Open.Carrier domain]: R.Real := f (Graphs.apply branch.parameters U branch.graph (parameterPoint x));
+\definition quadraticFormula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+  R.add (criticalValue x) (Inertia.standard normal.sign (coordinatesValue x) (coordinatesValue x)) := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let v: Vector := delta x \then
+  \let shiftSame: v = shift.apply x := \axiom:funext(v, (\fun (i: Fin.Fin n) => shift.apply x i),
+    \fun (i: Fin.Fin n) => sym!{{R.Real}} _ _ (shiftFormula x i)) \then
+  \return eq_reason_in!{{R.Real} _
+    "=" _ "by" { taylor.formula (Open.inclusion domain W includedW x) }
+    "=" { R.add (criticalValue x) ((MatrixForm.form (A (Open.inclusion domain W includedW x))).form v v) } "by" {
+      congr!{{R.Real} {R.Real}} (R.add (criticalValue x)) _ _ (sym!{{R.Real}} _ _ (MatrixForm.Quadratic[].formula (A (Open.inclusion domain W includedW x)) v)) }
+    "=" { R.add (criticalValue x) ((MatrixForm.form (Matrix.product (Matrix.transpose (C x)) (Matrix.product (A base) (C x)))).form v v) } "by" {
+      congr!{{Matrix.Matrix} {R.Real}} (\fun (M: Matrix.Matrix) => R.add (criticalValue x) ((MatrixForm.form M).form v v)) _ _ (normalization.formula x) }
+    "=" { R.add (criticalValue x) ((MatrixForm.form (A base)).form ((matrix x).apply v) ((matrix x).apply v)) } "by" {
+      congr!{{R.Real} {R.Real}} (R.add (criticalValue x)) _ _ (MatrixForm.Congruence[].formula (A base) (C x) v v) }
+    "=" { R.add (criticalValue x) (hessianHalfForm.form ((matrix x).apply (shift.apply x)) ((matrix x).apply (shift.apply x))) } "by" {
+      congr!{{Matrix.Matrix} Vector Vector {R.Real}} (\fun (M: Matrix.Matrix)(u, w: Vector) => R.add (criticalValue x) ((MatrixForm.form M).form u w)) _ _ _ _ _ _ centerMatrix
+        (congr!{Vector Vector} (matrix x).apply _ _ shiftSame) (congr!{Vector Vector} (matrix x).apply _ _ shiftSame) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (criticalValue x)) _ _ (Inertia.Normalized[h := hessianHalfForm, normal := normal].formula ((matrix x).apply (shift.apply x)) ((matrix x).apply (shift.apply x))) }
+  }
+};
+\module Using(local: Implicit.Solution);
+\definition exists: \exists Local := \block {
+  \takefrom local: Implicit.Solution \by Implicit.localExistence implicitRegular \then
+  \return \exact(Using[local := local].value, Local)
+};

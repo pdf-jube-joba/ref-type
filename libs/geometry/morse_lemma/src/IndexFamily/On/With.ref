@@ -1,0 +1,30 @@
+\definition domain: Open.OpenSet := local.local.domain;
+\definition included: Open.Included domain U := local.local.included;
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition center: Index.NonsingularForm := \into[Inertia.Form](Forms.form (A a), Index.NonsingularForm) \by {
+  Index.NonsingularLaws[Forms.form (A a)] {
+    symmetric := Forms.symmetric (A a) (symmetric a),
+    nondegenerate := Forms.nondegenerate (A a) nonzero,
+  }
+};
+\definition change[x: Open.Carrier domain]: Inversion.Nonsingular := \into[Matrices.Matrix](local.local.change x, Inversion.Nonsingular) \by { local.nonzero x };
+\definition equivalence[x: Open.Carrier domain]: Isomorphisms.Isomorphism := Forms.Congruence[].isomorphism (change x);
+\definition congruent: \forall (x: Open.Carrier domain) -> Index.CongruentForms (Forms.form (A (input x))) center (equivalence x) :=
+  \fun (x: Open.Carrier domain)(v, w: E.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Forms.Congruence[].formula (A a) (change x) v w) }
+    "=" _ "by" { congr!{{Matrices.Matrix} {R.Real}} (\fun (B: Matrices.Matrix) => (Forms.form B).form v w) _ _ (sym!{{Matrices.Matrix}} _ _ (local.local.formula x)) }
+  };
+\definition form[x: Open.Carrier domain]: Index.NonsingularForm := \into[Inertia.Form](Forms.form (A (input x)), Index.NonsingularForm) \by {
+  Index.NonsingularLaws[Forms.form (A (input x))] {
+    symmetric := Forms.symmetric (A (input x)) (symmetric (input x)),
+    nondegenerate := Index.FormComparison[h := Forms.form (A (input x)), g := center, C := equivalence x].nondegenerate
+      (congruent x) (\bysub(Inertia.Form, { h: Inertia.Form \where Index.NonsingularLaws[h] }, center)).nondegenerate,
+  }
+};
+\definition value: Local := Local {
+  domain := domain, included := included, contains := local.local.contains,
+  center := center, centerForm := \refl(Forms.form (A a)),
+  forms := form, formFormula := \fun (x: Open.Carrier domain) => \refl(Forms.form (A (input x))),
+  negativeConstant := \fun (x: Open.Carrier domain) => Index.negativeIndexInvariant (form x) center (equivalence x) (congruent x),
+  positiveConstant := \fun (x: Open.Carrier domain) => Index.positiveIndexInvariant (form x) center (equivalence x) (congruent x),
+};

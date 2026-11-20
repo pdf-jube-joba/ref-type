@@ -1,0 +1,32 @@
+\import Multiplication.Inverse[P := P] \as MultiplicationInverse;
+\import \parent.\parent.Left[B := P] \as InverseMultiplication;
+\definition inverse: Linear.Map := LinearOperations.scale R.half InverseMultiplication.value;
+\definition left: \forall (v: E.Vector) -> inverse.apply (derivative.apply v) = v :=
+  \fun (v: E.Vector) => \axiom:funext(inverse.apply (derivative.apply v), v, \fun (i: Fin.Fin Coordinates.dimension) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (w: E.Vector) => R.mul R.half (w i)) _ _
+      (InverseMultiplication.value.preservesAdd (Multiplication.value.apply v) (Multiplication.value.apply v)) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {R.Real}} (\fun (u, w: E.Vector) => R.mul R.half (R.add (u i) (w i))) _ _ _ _ (MultiplicationInverse.left v) (MultiplicationInverse.left v) }
+    "=" _ "by" { Spaces.mulAdd R.half (v i) (v i) }
+    "=" _ "by" { R.Estimates[].halfTwice (v i) }
+  });
+\definition right: \forall (v: E.Vector) -> derivative.apply (inverse.apply v) = v :=
+  \fun (v: E.Vector) => \axiom:funext(derivative.apply (inverse.apply v), v, \fun (i: Fin.Fin Coordinates.dimension) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {R.Real}} (\fun (u, w: E.Vector) => R.add (u i) (w i)) _ _ _ _
+      (Multiplication.value.preservesScale R.half (InverseMultiplication.value.apply v)) (Multiplication.value.preservesScale R.half (InverseMultiplication.value.apply v)) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {R.Real}} (\fun (u, w: E.Vector) => R.add (R.mul R.half (u i)) (R.mul R.half (w i))) _ _ _ _ (MultiplicationInverse.right v) (MultiplicationInverse.right v) }
+    "=" _ "by" { R.Estimates[].halfTwice (v i) }
+  });
+\import matrix_invariants.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := Coordinates.dimension] \as FlatMatrix;
+\import FlatMatrix.Representation[] \as Representation;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := Coordinates.dimension] \as Inversion;
+\definition derivativeNonsingular: Inversion.Nonzero (Representation.entries derivative) :=
+  Inversion.nonzeroOfInverse (Representation.entries derivative)
+    (\into[FlatMatrix.Matrix](Representation.entries inverse, FlatMatrix.Operations[].Inverse (Representation.entries derivative)) \by {
+      Representation.inverseCertificate derivative inverse left right
+    });
+\import inverse_implicit.Euclidean[n := Coordinates.dimension].InverseFunction[U := Flat.whole, f := map, a := Calculus.origin] \as InverseFunction;
+\definition nonsingular: InverseFunction.Nonsingular := \idelim derivative = Maps.Differential[U := Flat.whole, V := Flat.whole, f := map, a := Calculus.origin].value
+  \with L: Linear.Map => Inversion.Nonzero (Representation.entries L) \by {
+    base: derivativeNonsingular, equality: sym!{{Linear.Map}} _ _ differential
+  };
+\definition localExistence: \exists inverse_implicit.Euclidean[n := Coordinates.dimension].LocalInverse[Flat.whole, map, Calculus.origin] := InverseFunction.localExistence nonsingular;

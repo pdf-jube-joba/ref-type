@@ -1,0 +1,26 @@
+\import \parent.\parent.\parent.Polynomial[B := B] \as Polynomial;
+\import \parent.\parent.\parent.Congruence[B := B] \as Congruence;
+\definition matrix: Inversion.Nonsingular := \into[Matrices.Matrix](B, Inversion.Nonsingular) \by { nonzero };
+\definition inverse: MatrixLaws.Inverse B := Inversion.inverse matrix;
+\import Polynomial.Inverse[P := inverse] \as LocalInverse;
+\import calculus.Maps[n := d, m := Coordinates.dimension] \as FamilyMaps;
+\import Smooth.Operations[] \as Operations;
+\definition difference[x: Open.Carrier U]: Matrices.Matrix := \fun (i, j: Fin.Fin n) => R.sub (A x i j) (B i j);
+\definition differenceRegular: \forall (i, j: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => difference x i j) :=
+  \fun (i, j: Fin.Fin n) => Operations.subSmooth U (\fun (x: Open.Carrier U) => A x i j) (\fun (x: Open.Carrier U) => B i j) (regular i j) (Operations.constantSmooth U (B i j));
+\definition deltaData: FamilyMaps.Data[U, Flat.whole] := FamilyMaps.Data[U, Flat.whole] {
+  apply := \fun (x: Open.Carrier U) => \into[E.Vector](Coordinates.pack (difference x), Flat.whole.points) \by { \refl(Coordinates.pack (difference x)) },
+};
+\definition delta: FamilyMaps.Map U Flat.whole := \into[FamilyMaps.Data[U, Flat.whole]](deltaData, FamilyMaps.Map U Flat.whole) \by {
+  FamilyMaps.Laws[U, Flat.whole, deltaData] {
+    smooth := \fun (i: Fin.Fin Coordinates.dimension) => differenceRegular (Coordinates.square.row i) (Coordinates.square.column i),
+  }
+};
+\definition deltaValue[x: Open.Carrier U]: E.Vector := FamilyMaps.apply U Flat.whole delta x;
+\definition deltaCenter: deltaValue a = E.space.zero := \axiom:funext(deltaValue a, E.space.zero,
+  \fun (i: Fin.Fin Coordinates.dimension) => Order.Arithmetic[].Prop[].subSelf (B (Coordinates.square.row i) (Coordinates.square.column i)));
+\module Using(local: inverse_implicit.Euclidean[n := Coordinates.dimension].LocalInverse[Flat.whole, Polynomial.map, Calculus.origin]);
+\definition exists: \exists Local := \block {
+  \takefrom local: inverse_implicit.Euclidean[n := Coordinates.dimension].LocalInverse[Flat.whole, Polynomial.map, Calculus.origin] \by LocalInverse.localExistence \then
+  \return \exact(Using[local := local].value, Local)
+};

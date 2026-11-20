@@ -1,0 +1,69 @@
+\import \parent.Polynomial[B := B] \as Polynomial;
+\definition plusLeft: \forall (A, C, D: Matrices.Matrix) -> Matrices.product (Arrays.plus A C) D = Arrays.plus (Matrices.product A D) (Matrices.product C D) :=
+  \fun (A, C, D: Matrices.Matrix) => MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Fin.Fin n) => Spaces.addMul (A i k) (C i k) (D k j))) (SumLaws.additive (Fin.elements n) _ _));
+\definition plusRight: \forall (A, C, D: Matrices.Matrix) -> Matrices.product A (Arrays.plus C D) = Arrays.plus (Matrices.product A C) (Matrices.product A D) :=
+  \fun (A, C, D: Matrices.Matrix) => MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Fin.Fin n) => Spaces.mulAdd (A i k) (C k j) (D k j))) (SumLaws.additive (Fin.elements n) _ _));
+\definition transposeSymmetric: \forall (A: Matrices.Matrix) -> Symmetric A -> Matrices.transpose A = A :=
+  \fun (A: Matrices.Matrix)(symmetric: Symmetric A) => MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => symmetric j i);
+\definition quadraticSymmetric: Symmetric B -> \forall (H: Matrices.Matrix) -> Symmetric (Matrices.product (Matrices.transpose H) (Matrices.product B H)) := \block {
+  \fun (symmetric: Symmetric B)(H: Matrices.Matrix) \then
+  \let same: Matrices.transpose (Matrices.product (Matrices.transpose H) (Matrices.product B H)) = Matrices.product (Matrices.transpose H) (Matrices.product B H) := eq_reason_in!{{Matrices.Matrix} _
+    "=" _ "by" { MatrixLaws.transposeProduct (Matrices.transpose H) (Matrices.product B H) }
+    "=" _ "by" { congr!{{Matrices.Matrix} {Matrices.Matrix} {Matrices.Matrix}} Matrices.product _ _ _ _ (MatrixLaws.transposeProduct B H) (Matrices.transposeTwice H) }
+    "=" _ "by" { congr!{{Matrices.Matrix} {Matrices.Matrix}} (\fun (A: Matrices.Matrix) => Matrices.product (Matrices.product (Matrices.transpose H) A) H) _ _ (transposeSymmetric B symmetric) }
+    "=" _ "by" { MatrixLaws.associative (Matrices.transpose H) B H }
+  } \then
+  \return \fun (i, j: Fin.Fin n) => MatrixLaws.entry _ _ same j i
+};
+\definition cancelDouble: \forall (a, b: R.Real) -> R.add a a = R.add b b -> a = b :=
+  \fun (a, b: R.Real)(same: _) => eq_reason_in!{{R.Real} a
+    "=" _ "by" { sym!{{R.Real}} _ _ (R.Estimates[].halfTwice a) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Spaces.mulAdd R.half a a) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ same }
+    "=" _ "by" { Spaces.mulAdd R.half b b }
+    "=" b "by" { R.Estimates[].halfTwice b }
+  };
+\definition linearSymmetric: Symmetric B -> \forall (H: Matrices.Matrix) -> Symmetric (Polynomial.value H) -> Symmetric (Matrices.product B H) :=
+  \fun (symmetric: Symmetric B)(H: Matrices.Matrix)(outputSymmetric: Symmetric (Polynomial.value H))(i, j: Fin.Fin n) =>
+    cancelDouble (Matrices.product B H i j) (Matrices.product B H j i)
+      (Order.Arithmetic[].Prop[].addCancelRight _ _ (Matrices.product (Matrices.transpose H) (Matrices.product B H) i j)
+        (trans!{{R.Real}} _ _ _ (outputSymmetric i j)
+          (congr!{{R.Real} {R.Real}} (R.add (R.add (Matrices.product B H j i) (Matrices.product B H j i))) _ _ (sym!{{R.Real}} _ _ (quadraticSymmetric symmetric H i j)))));
+\definition cross: Symmetric B -> \forall (H: Matrices.Matrix) -> Symmetric (Polynomial.value H) -> Matrices.product (Matrices.transpose H) B = Matrices.product B H :=
+  \fun (symmetric: Symmetric B)(H: Matrices.Matrix)(outputSymmetric: Symmetric (Polynomial.value H)) => eq_reason_in!{{Matrices.Matrix} _
+    "=" _ "by" { congr!{{Matrices.Matrix} {Matrices.Matrix}} (Matrices.product (Matrices.transpose H)) _ _ (sym!{{Matrices.Matrix}} _ _ (transposeSymmetric B symmetric)) }
+    "=" _ "by" { sym!{{Matrices.Matrix}} _ _ (MatrixLaws.transposeProduct B H) }
+    "=" _ "by" { transposeSymmetric (Matrices.product B H) (linearSymmetric symmetric H outputSymmetric) }
+  };
+\definition change[H: Matrices.Matrix]: Matrices.Matrix := Arrays.plus Matrices.identity H;
+\definition transposeChange: \forall (H: Matrices.Matrix) -> Matrices.transpose (change H) = Arrays.plus Matrices.identity (Matrices.transpose H) :=
+  \fun (H: Matrices.Matrix) => MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.add a (H j i)) _ _
+    (MatrixLaws.entry _ _ MatrixLaws.transposeIdentity i j));
+\definition expansion: Symmetric B -> \forall (H: Matrices.Matrix) -> Symmetric (Polynomial.value H) ->
+  Matrices.product (Matrices.transpose (change H)) (Matrices.product B (change H)) = Arrays.plus B (Polynomial.value H) := \block {
+  \fun (symmetric: Symmetric B)(H: Matrices.Matrix)(outputSymmetric: Symmetric (Polynomial.value H)) \then
+  \let P: Matrices.Matrix := Matrices.product B H \then
+  \let Q: Matrices.Matrix := Matrices.product (Matrices.transpose H) P \then
+  \let c: Matrices.product (Matrices.transpose H) B = P := cross symmetric H outputSymmetric \then
+  \return eq_reason_in!{{Matrices.Matrix} _
+    "=" { Matrices.product (Arrays.plus Matrices.identity (Matrices.transpose H)) (Arrays.plus B P) } "by" {
+      congr!{{Matrices.Matrix} {Matrices.Matrix} {Matrices.Matrix}} Matrices.product _ _ _ _ (transposeChange H)
+        (trans!{{Matrices.Matrix}} _ _ _ (plusRight B Matrices.identity H)
+          (congr!{{Matrices.Matrix} {Matrices.Matrix}} (\fun (A: Matrices.Matrix) => Arrays.plus A P) _ _ (MatrixLaws.rightIdentity B))) }
+    "=" { Arrays.plus (Matrices.product (Arrays.plus Matrices.identity (Matrices.transpose H)) B) (Matrices.product (Arrays.plus Matrices.identity (Matrices.transpose H)) P) } "by" {
+      plusRight (Arrays.plus Matrices.identity (Matrices.transpose H)) B P }
+    "=" { Arrays.plus (Arrays.plus B P) (Arrays.plus P Q) } "by" {
+      congr!{{Matrices.Matrix} {Matrices.Matrix} {Matrices.Matrix}} Arrays.plus _ _ _ _
+        (trans!{{Matrices.Matrix}} _ _ _ (plusLeft Matrices.identity (Matrices.transpose H) B)
+          (congr!{{Matrices.Matrix} {Matrices.Matrix} {Matrices.Matrix}} Arrays.plus _ _ _ _ (MatrixLaws.leftIdentity B) c))
+        (trans!{{Matrices.Matrix}} _ _ _ (plusLeft Matrices.identity (Matrices.transpose H) P)
+          (congr!{{Matrices.Matrix} {Matrices.Matrix}} (\fun (A: Matrices.Matrix) => Arrays.plus A Q) _ _ (MatrixLaws.leftIdentity P))) }
+    "=" { Arrays.plus B (Arrays.plus P (Arrays.plus P Q)) } "by" {
+      MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => Order.Arithmetic[].Prop[].addAssoc (B i j) (P i j) (R.add (P i j) (Q i j))) }
+    "=" { Arrays.plus B (Polynomial.value H) } "by" {
+      MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => congr!{{R.Real} {R.Real}} (R.add (B i j)) _ _
+        (sym!{{R.Real}} _ _ (Order.Arithmetic[].Prop[].addAssoc (P i j) (P i j) (Q i j)))) }
+  }
+};

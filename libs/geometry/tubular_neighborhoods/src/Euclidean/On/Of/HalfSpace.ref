@@ -1,0 +1,69 @@
+\import compact_embeddings.HalfSpace[k := p] \as Half;
+\import boundary_manifolds.Model[n := Half.dimension] \as Model;
+\import boundary_manifolds.Neat[n := n,m := Half.dimension].Between[M := B,N := Half.manifold] \as EmbeddingsWithBoundary;
+\import boundary_manifolds.SmoothMap[n := n,m := Half.dimension].Between[M := B,N := Half.manifold] \as BoundaryMaps;
+\import calculus.Real[].Multivariable[n := Half.dimension].Open[] \as CoordinateOpen;
+\import std.Data[].FinSet[] \as Fin;
+\import Nat.Basic[].Prop[] \as Integers;
+\import dedekind_reals.DedekindReal[] \as O;
+\definition toIndex[i: Fin.Fin d]: Fin.Fin Half.dimension := \into[Nat.Nat^](i,Fin.Fin Half.dimension) \by {
+  \idelim d = Half.dimension \with a: Nat.Nat^ => Integers.Lt i a \by {
+    base: Fin.bound d i,equality: sym!{{Nat.Nat^}} _ _ dimension
+  }
+};
+\definition fromIndex[i: Fin.Fin Half.dimension]: Fin.Fin d := \into[Nat.Nat^](i,Fin.Fin d) \by {
+  \idelim Half.dimension = d \with a: Nat.Nat^ => Integers.Lt i a \by { base: Fin.bound Half.dimension i,equality: dimension }
+};
+\definition j: Fin.Fin d := fromIndex Half.normal;
+\import \parent.Neat[j := j] \as Slice;
+\definition coordinates[y: Half.manifold.Point][i: Fin.Fin d]: R.Real := Half.value y (toIndex i);
+\definition point[v: E.Vector][member: O.Le R.zero (v j)]: Half.manifold.Point := Half.point
+  (\into[CoordinateOpen.Carrier CoordinateOpen.whole](CoordinateOpen.Whole[].point (\fun (i: Fin.Fin Half.dimension) => v (fromIndex i)),Model.region Half.constraints CoordinateOpen.whole)
+    \by { Model.halfSpaceNonnegative Half.normal _ member });
+\definition coordinatesPoint[v: E.Vector][member: O.Le R.zero (v j)]: coordinates (point v member) = v :=
+  \axiom:funext((coordinates (point v member)),v,\fun (i: Fin.Fin d) => congr!{{Half.Coordinates} {R.Real}}
+    (\fun (a: Half.Coordinates) => a (toIndex i)) _ _ (Half.rightInverse _));
+\definition pointCoordinates[y: Half.manifold.Point][member: O.Le R.zero (coordinates y j)]: point (coordinates y) member = y := Half.leftInverse y;
+\structure Extension[f: EmbeddingsWithBoundary.Embedding]: \Set := {
+  base: B.Point -> M.Point, agrees: \forall (x: B.Point) -> Maps.apply e (base x) = coordinates (BoundaryMaps.apply f x),
+  covers: \forall (x: M.Point) -> O.Le R.zero (Slice.height x) -> \exists ( b: B.Point \where base b = x ),
+  transverse: Slice.Transverse,
+};
+\module Of(f: EmbeddingsWithBoundary.Embedding, extension: Extension[f]) {
+  \import Slice.Crossing[transverse := extension.transverse] \as Regular;
+  \definition exists[compact: BaseSpace.IsCompact M.space]: \exists Regular.Result := Regular.exists compact;
+  \definition base[x: B.Point]: \Cast[M.Point] Regular.baseHalf := \into[M.Point](extension.base x,Regular.baseHalf) \by {
+    O.leReplaceRight _ _ _ (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+      (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v j) _ _ (extension.agrees x)) (Half.last (BoundaryMaps.apply f x)))) (Half.nonnegative (BoundaryMaps.apply f x))
+  };
+  \module Tube(t: Regular.Result) {
+    \import Regular.HalfTube[result := t] \as Tube;
+    \definition domain: \Set := Tube.SourcePoint;
+    \definition Image: \Pow Half.manifold.Point := { y: Half.manifold.Point \where T.Member t.tube.image.points (coordinates y) };
+    \definition range: \Set := \Cast[Half.manifold.Point] Image;
+    \definition send[q: domain]: range := \block {
+      \let v: Tube.TargetPoint := Tube.forward q \then
+      \let h: O.Le R.zero (v j) := \bysub(E.Vector,Regular.Half,(v \of \Cast[E.Vector] Regular.Half)) \then
+      \return \into[Half.manifold.Point](point v h,Image) \by {
+        \idelim v = coordinates (point v h) \with a: E.Vector => T.Member t.tube.image.points a \by {
+          base: \bysub(E.Vector,t.tube.image.points,Tube.target v),equality: sym!{{E.Vector}} _ _ (coordinatesPoint v h)
+        }
+      }
+    };
+    \definition input[y: range]: Tube.TargetPoint :=
+      \into[\Cast[E.Vector] Regular.Half](\into[E.Vector](coordinates y,Regular.Half) \by {
+        O.leReplaceRight _ _ _ (sym!{{R.Real}} _ _ (Half.last y)) (Half.nonnegative y) },Tube.image) \by { \bysub(Half.manifold.Point,Image,y) };
+    \definition undo[y: range]: domain := Tube.backward (input y);
+    \definition left[q: domain]: undo (send q) = q :=
+      trans!{domain} _ _ _ (congr!{Tube.TargetPoint domain} Tube.backward _ _ (coordinatesPoint (Tube.forward q) _)) (t.tube.left (Tube.normal q));
+    \definition right[y: range]: send (undo y) = y := trans!{{Half.manifold.Point}} _ _ _
+      (congr!{{Half.Coordinates} {Half.manifold.Point}} Half.point _ _
+        (Model.equality Half.constraints CoordinateOpen.whole _ _ (\axiom:funext(_,_,\fun (i: Fin.Fin Half.dimension) =>
+          congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v (fromIndex i)) _ _ (t.tube.right (Tube.target (input y))))))) (Half.leftInverse y);
+    \definition atZero[x: B.Point]: coordinates (send (Tube.center (base x))) = coordinates (BoundaryMaps.apply f x) :=
+      trans!{{E.Vector}} _ _ _ (coordinatesPoint (Tube.forward (Tube.center (base x))) _)
+        (trans!{{E.Vector}} _ _ _ (Tube.centerFormula (base x)) (extension.agrees x));
+    \definition overBase[q: domain]: \exists ( x: B.Point \where extension.base x = (Tube.normal q).base ) :=
+      extension.covers (Tube.normal q).base (\bysub(Normal.Point,Regular.halfNormals,(q \of \Cast[Normal.Point] Regular.halfNormals)));
+  }
+}

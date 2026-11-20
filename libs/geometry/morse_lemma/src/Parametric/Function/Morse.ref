@@ -1,0 +1,46 @@
+/* Parameter-preserving Morse coordinates along the critical branch. */
+\import \root.Inertia[n := n] \as Inertia;
+\import \root.MatrixForm[n := n] \as MatrixForm;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Euclidean[n := dimension] \as Full;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as End;
+\import Spaces.Linear[V := Full.Vector, W := E.Vector, source := Full.space, target := E.space] \as Linear;
+\import End.Composition[U := Full.Vector, domain := Full.space] \as Compose;
+\import Matrix.Representation[] \as Representation;
+\import matrix_invariants.Field[K := R.Real, field := R.Algebra[].field].At[n := n] \as Inversion;
+\import calculus.Maps[n := dimension, m := p] \as Projections;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Maps[n := n, m := n] \as FiberMaps;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\definition halfHessian: Matrix.Matrix := MatrixForm.half (hessianEntries a);
+\definition hessianHalfForm: Inertia.Form := MatrixForm.form halfHessian;
+\structure Local: \Set := {
+  branch: CriticalBranch[a],
+  normal: Inertia.NormalForm[hessianHalfForm],
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  parameters: Parameters.OpenSet,
+  values: Fibers.OpenSet,
+  containsParameters: \In[Parameter] parameters.points (Split.left a),
+  containsZero: \In[Vector] values.points E.space.zero,
+  equivalence: Diffeomorphisms.Diffeomorphism domain (Split.product parameters values),
+  parameter: Projections.Map domain branch.parameters,
+  parameterFormula: \forall (x: Open.Carrier domain) -> Projections.apply domain branch.parameters parameter x = Split.left x,
+  preservesParameters: \forall (x: Open.Carrier domain) -> Split.left (Maps.apply domain (Split.product parameters values) equivalence.forward x) = Split.left x,
+  center: \forall (i: Fin.Fin n) -> Split.right (Maps.apply domain (Split.product parameters values) equivalence.forward
+    (\into[Point](a, domain.points) \by { contains })) i = R.zero,
+  formula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+    R.add (f (Graphs.apply branch.parameters U branch.graph (Projections.apply domain branch.parameters parameter x)))
+      (Inertia.standard normal.sign (Split.right (Maps.apply domain (Split.product parameters values) equivalence.forward x))
+        (Split.right (Maps.apply domain (Split.product parameters values) equivalence.forward x))),
+};
+\module Taylor(branch: CriticalBranch[a], taylor: \root.Parametric[p := p, n := n].Function[U := U, f := f].FiberHadamard[a := a, branch := branch].Result);
+\definition localExistence: Nondegenerate a -> Critical a -> \exists Local := \block {
+  \fun (nondegenerate: Nondegenerate a)(critical: Critical a) \then
+  \takefrom branch: CriticalBranch[a] \by criticalBranchExists a nondegenerate critical \then
+  \takefrom taylor: \root.Parametric[p := p, n := n].Function[U := U, f := f].FiberHadamard[a := a, branch := branch].Result \by \root.Parametric[p := p, n := n].Function[U := U, f := f].FiberHadamard[a := a, branch := branch].localExistence \then
+  \return Taylor[branch := branch, taylor := taylor].exists nondegenerate
+};
+\module Indices(local: Local);

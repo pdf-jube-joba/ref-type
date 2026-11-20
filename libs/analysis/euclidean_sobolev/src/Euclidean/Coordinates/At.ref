@@ -1,0 +1,122 @@
+\import \root.Euclidean[n := n].Order[k := k] \as H;
+\import H.Schwartz[] \as Core;
+\import H.Density[] \as Density;
+\import L2.Complete[] \as Completion;
+\import Fourier.Sequences[] \as Sequences;
+\import functional_analysis.Metric[Carrier := L2.Space] \as Metric;
+\import functional_analysis.Normed[V := L2.Space, space := CS.realSpace] \as Normed;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebraic;
+\import Algebraic.Linear[V := L2.Space, W := L2.Space, source := L2.Vector[].space, target := L2.Vector[].space] \as Linear;
+\import Algebraic.Laws[V := L2.Space, space := L2.Vector[].space] \as VectorLaws;
+\import CS.Operators[W := L2.Space, target := L2.Vector[].space, norm := Geometry.norm, targetNorm := Geometry.norm] \as Operators;
+\definition map[f: S.Function]: S.Function := transform a f;
+\definition applyCore[f: S.Function]: H.Positive := Core.value (map f);
+\definition equal[f,g: S.Function]: (\forall (x: Point) -> S.value f x = S.value g x) -> Core.value f = Core.value g :=
+  \fun (same: _) => H.injective _ _ (eq_reason_in!{L2.Space _
+    "=" _ "by" { Core.recovers f }
+    "=" _ "by" { Embedding.pointwise f g same }
+    "=" _ "by" { sym!{L2.Space} _ _ (Core.recovers g) }
+  });
+\definition inside[f: S.Function][x: Open.Carrier U]: S.value (map f) x = D.scale (a x) (S.value f (Maps.apply U V e.forward x)) :=
+  CL.ext _ _ (LocalProduct[a := a, h := Chain.function (restrict f.real)].inside x) (LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside x);
+\definition outside[f: S.Function][x: Point][absent: Logic.Not (Sets.Member U.points x)]: S.value (map f) x = D.zero :=
+  CL.ext _ _ (Local.outside _ LocalProduct[a := a, h := Chain.function (restrict f.real)].conditions x absent)
+    (Local.outside _ LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].conditions x absent);
+\definition addition[f,g: S.Function]: applyCore (S.add f g) = L2.add (applyCore f) (applyCore g) :=
+  trans!{L2.Space} _ _ _ (equal _ (S.add (map f) (map g)) (\fun (x: Point) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member U.points x))
+    (\fun (member: _) => \block {
+      \let p: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+      \return eq_reason_in!{C.Complex _
+        "=" _ "by" { inside (S.add f g) p }
+        "=" _ "by" { CL.ext _ _ (Laws.fieldMulAdd _ _ _) (Laws.fieldMulAdd _ _ _) }
+        "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (inside f p)) (sym!{C.Complex} _ _ (inside g p)) }
+      }
+    })
+    (\fun (absent: _) => eq_reason_in!{C.Complex _
+      "=" _ "by" { outside (S.add f g) x absent }
+      "=" _ "by" { sym!{C.Complex} _ _ (CL.addZeroLeft D.zero) }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (outside f x absent)) (sym!{C.Complex} _ _ (outside g x absent)) }
+    }))) (Core.additive _ _);
+\definition scalarCore[c: C.Complex][f: S.Function]: applyCore (S.scale c f) = L2.scale c (applyCore f) :=
+  trans!{L2.Space} _ _ _ (equal _ (S.scale c (map f)) (\fun (x: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member U.points x)) (\fun (member: _) => \block {
+      \let p: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+      \return eq_reason_in!{C.Complex _
+        "=" _ "by" { inside (S.scale c f) p }
+        "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (a x)) _ _ (S.jetScale c f E.Directions::nil (Maps.apply U V e.forward p)) }
+        "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleRight _ _ _) }
+        "=" _ "by" { congr!{C.Complex C.Complex} (D.mul c) _ _ (sym!{C.Complex} _ _ (inside f p)) }
+      }
+    }) (\fun (absent: _) => eq_reason_in!{C.Complex _
+      "=" _ "by" { outside (S.scale c f) x absent }
+      "=" _ "by" { sym!{C.Complex} _ _ (CL.mulZeroRight c) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (D.mul c) _ _ (sym!{C.Complex} _ _ (outside f x absent)) }
+    }) }
+    "=" _ "by" { sym!{C.Complex} _ _ (S.jetScale c (map f) E.Directions::nil x) }
+  })) (Core.scalar c _);
+\definition difference[f,g: S.Function]: Core.value (Transform.difference f g) = Normed.sub (Core.value f) (Core.value g) := eq_reason_in!{L2.Space _
+  "=" _ "by" { Core.additive f (S.scale (D.neg D.one) g) }
+  "=" _ "by" { congr!{L2.Space L2.Space} (L2.add (Core.value f)) _ _ (trans!{L2.Space} _ _ _ (Core.scalar (D.neg D.one) g) (VectorLaws.minusOneScale _)) }
+};
+\definition imageDifference[f,g: S.Function]: applyCore (Transform.difference f g) = Normed.sub (applyCore f) (applyCore g) := eq_reason_in!{L2.Space _
+  "=" _ "by" { addition f (S.scale (D.neg D.one) g) }
+  "=" _ "by" { congr!{L2.Space L2.Space} (L2.add (applyCore f)) _ _ (trans!{L2.Space} _ _ _ (scalarCore (D.neg D.one) g) (VectorLaws.minusOneScale _)) }
+};
+\definition source[s: Density.Sequence][j: N.Nat^]: H.Positive := Core.value (s j);
+\definition image[s: Density.Sequence][j: N.Nat^]: H.Positive := applyCore (s j);
+\definition Law[x,y: H.Positive]: \Prop := \forall (s: Density.Sequence) -> Metric.Converges Geometry.metric (source s) x -> Metric.Converges Geometry.metric (image s) y;
+\definition Values[x: H.Positive]: \Set := \Cast[L2.Space] ({ y: L2.Space \where Law x y });
+\module CompletionBound(b: Constants k a);
+\definition exists[x: H.Positive]: \exists Values x := \block {
+  \takefrom b: Constants k a \by bounded k a \then
+  \return CompletionBound[b := b].exists x
+};
+\definition unique[x: L2.Space][y, z: Values x]: y = z := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \return Metric.limitUnique Geometry.metric (image s) y z ((\bysub(L2.Space, { y: L2.Space \where Law x y }, y)) s limit) ((\bysub(L2.Space, { y: L2.Space \where Law x y }, z)) s limit)
+};
+\definition value[x: L2.Space]: Values x := \choice Values x \by { existence: exists x, uniqueness: unique x };
+\definition law[x: L2.Space]: Law x (value x) := \bysub(L2.Space, { y: L2.Space \where Law x y }, value x);
+\definition onSchwartz[f: S.Function]: value (Core.value f) = applyCore f := Metric.limitUnique Geometry.metric (\fun (_: N.Nat^) => applyCore f) _ _
+  (law (Core.value f) (\fun (_: N.Nat^) => f) (Metric.constantConverges Geometry.metric (Core.value f))) (Metric.constantConverges Geometry.metric (applyCore f));
+\definition additive[x, y: L2.Space]: value (L2.add x y) = L2.add (value x) (value y) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \takefrom t: \Cast[Density.Sequence] ({ t: Density.Sequence \where Metric.Converges Geometry.metric (source t) y }) \by Density.sequenceExists y \then
+  \let sx: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \let ty: Metric.Converges Geometry.metric (source t) y := \bysub(Density.Sequence, { t: Density.Sequence \where Metric.Converges Geometry.metric (source t) y }, t) \then
+  \let u: Density.Sequence := \fun (k: N.Nat^) => S.add (s k) (t k) \then
+  \let sourceLimit: Metric.Converges Geometry.metric (source u) (L2.add x y) := Sequences.pointwise (\fun (k: N.Nat^) => L2.add (Core.value (s k)) (Core.value (t k))) (source u) (L2.add x y)
+    (\fun (k: N.Nat^) => sym!{L2.Space} _ _ (Core.additive (s k) (t k))) (Sequences.add (source s) (source t) x y sx ty) \then
+  \return Metric.limitUnique Geometry.metric (image u) _ _ (law (L2.add x y) u sourceLimit)
+    (Sequences.pointwise (\fun (k: N.Nat^) => L2.add (applyCore (s k)) (applyCore (t k))) (image u) _
+      (\fun (k: N.Nat^) => sym!{L2.Space} _ _ (addition (s k) (t k))) (Sequences.add (image s) (image t) (value x) (value y) (law x s sx) (law y t ty)))
+};
+\definition scalar[c: C.Complex][x: L2.Space]: value (L2.scale c x) = L2.scale c (value x) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \let sx: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \let u: Density.Sequence := \fun (k: N.Nat^) => S.scale c (s k) \then
+  \let sourceLimit: Metric.Converges Geometry.metric (source u) (L2.scale c x) := Sequences.pointwise (\fun (k: N.Nat^) => L2.scale c (Core.value (s k))) (source u) (L2.scale c x)
+    (\fun (k: N.Nat^) => sym!{L2.Space} _ _ (Core.scalar c (s k))) (Sequences.scale c (source s) x sx) \then
+  \return Metric.limitUnique Geometry.metric (image u) _ _ (law (L2.scale c x) u sourceLimit)
+    (Sequences.pointwise (\fun (k: N.Nat^) => L2.scale c (applyCore (s k))) (image u) _
+      (\fun (k: N.Nat^) => sym!{L2.Space} _ _ (scalarCore c (s k))) (Sequences.scale c (image s) (value x) (law x s sx)))
+};
+\definition linear: Linear.Map := Linear.Map { apply := value, preservesAdd := additive, preservesScale := scalar };
+\definition estimate[b: Constants k a][x: H.Positive]: R.Le (H.norm (value x)) (Real.mul b (H.norm x)) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \let sx: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \let gap: N.Nat^ -> Real.Real := \fun (j: N.Nat^) => Real.sub (Real.mul b (H.norm (source s j))) (H.norm (image s j)) \then
+  \let positive: R.Le Real.zero (Real.sub (Real.mul b (H.norm x)) (H.norm (value x))) :=
+    functional_analysis.ScalarLimits[].lowerClosed gap _ Real.zero
+      (Real.Sequence[].Operations[].subConverges _ _ _ _
+        (Real.Sequence[].Operations[].scaleConverges b _ _ (Normed.normConverges Geometry.norm.realNorm (source s) x sx))
+        (Normed.normConverges Geometry.norm.realNorm (image s) (value x) (law x s sx)))
+      (\fun (j: N.Nat^) => Real.Distance[].subNonnegative _ _ ((\bysub(LE.Nonnegative, { b: LE.Nonnegative \where Bound k a b }, b)) (s j))) \then
+  \return Hilbert.Estimates[].subNonnegative _ _ positive
+};
+\definition operator: Operators.Map := \into[Linear.Map](linear, Operators.Map) \by { \block {
+  \takefrom b: Constants k a \by bounded k a \then
+  \return Logic.existsIntro[Real.Real, { c: Real.Real \where Operators.Bound[linear, c] }] b
+    (Operators.Bound[linear, b] { nonnegative := Scaling.nonnegative b, estimate := estimate b })
+} };

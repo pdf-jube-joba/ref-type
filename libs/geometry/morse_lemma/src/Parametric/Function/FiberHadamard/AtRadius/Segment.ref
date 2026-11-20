@@ -1,0 +1,34 @@
+\definition timeBounds: Logic.And[D.Le R.zero t, D.Le t R.one] := \bysub(Real, metric_spaces.RealLine[].ClosedInterval R.zero R.one, t);
+\definition centre: Point := Base.origin (basePoint x);
+\definition delta: Point := Base.displacement (basePoint x);
+\definition value: Point := Coordinates.addPoint centre (Coordinates.scale t delta);
+\definition coordinateBound: \forall (k: Fin.Fin dimension) -> D.Le (R.distance (value k) (a k)) bound := \block {
+  \fun (k: Fin.Fin dimension) \then
+  \let first: D.Le (R.distance (centre k) (a k)) radius := Order.leOfLt _ _ (D.leLtTrans _ _ _ (Norm.coordinateDistance centre a k) (originNear x)) \then
+  \let second: D.Le (R.distance (x k) (a k)) radius := Order.leOfLt _ _ (D.leLtTrans _ _ _ (Norm.coordinateDistance x a k) (sourceNear x)) \then
+  \let difference: D.Le (R.distance (delta k) R.zero) (R.add radius radius) := D.leReplaceLeft (R.distance (x k) (centre k)) (R.distance (delta k) R.zero) _
+    (sym!{Real} _ _ (Bounds.distanceDifference (x k) (centre k)))
+    (D.leTrans _ _ _ (Distance.distanceTriangle (x k) (a k) (centre k)) (Bounds.addLe _ _ _ _ second
+      (D.leReplaceLeft (R.distance (centre k) (a k)) (R.distance (a k) (centre k)) radius (Distance.distanceSymmetric (centre k) (a k)) first))) \then
+  \let twice: Real := R.add radius radius \then
+  \let twiceNonnegative: D.Le R.zero twice := Laws.addNonnegative radius radius (Order.leOfLt _ _ radiusPositive) (Order.leOfLt _ _ radiusPositive) \then
+  \let scaled: D.Le (R.distance (R.mul t (delta k)) R.zero) twice :=
+    D.leTrans _ _ _
+      (D.leReplaceLeft (R.distance (R.mul t (delta k)) (R.mul t R.zero)) (R.distance (R.mul t (delta k)) R.zero) _
+        (congr!{Real Real} (R.distance (R.mul t (delta k))) _ _ (Laws.fieldMulZeroRight t)) (Product.scalarDistance t (delta k) R.zero))
+      (D.leReplaceRight _ (R.mul R.one twice) twice (Laws.fieldMulOneLeft twice)
+        (D.leTrans _ _ _ (Bounds.mulMonotone (Product.abs t) (R.distance (delta k) R.zero) twice (Product.absNonnegative t) difference)
+          (D.leReplace (R.mul twice (Product.abs t)) (R.mul (Product.abs t) twice) (R.mul twice R.one) (R.mul R.one twice)
+            (Laws.fieldMulComm twice (Product.abs t)) (Laws.fieldMulComm twice R.one)
+            (Bounds.mulMonotone twice (Product.abs t) R.one twiceNonnegative
+              (D.leReplaceLeft t (Product.abs t) R.one (sym!{Real} _ _ (Product.absOfNonnegative t timeBounds.left)) timeBounds.right))))) \then
+  \return D.leTrans _ _ _
+    (D.leReplaceLeft (R.distance (R.add (centre k) (R.mul t (delta k))) (R.add (a k) R.zero)) (R.distance (value k) (a k)) _
+      (congr!{Real Real} (R.distance (value k)) _ _ (Laws.addZeroRight (a k)))
+      (Bounds.distanceAdd (centre k) (R.mul t (delta k)) (a k) R.zero))
+    (Bounds.addLe _ _ _ _ first scaled)
+};
+\definition inside: \In[Point] U.points value := ball.included value (D.leLtTrans _ bound rho
+  (Norm.finiteUpper dimension (Coordinates.subPoint value a) bound boundNonnegative
+    (\fun (k: Fin.Fin dimension) => D.leReplaceLeft (R.distance (value k) (a k)) (R.distance (R.sub (value k) (a k)) R.zero) bound
+      (sym!{Real} _ _ (Bounds.distanceDifference (value k) (a k))) (coordinateBound k))) boundSmall);

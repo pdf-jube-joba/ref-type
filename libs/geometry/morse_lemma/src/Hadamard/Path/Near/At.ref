@@ -1,0 +1,176 @@
+\import H.Along[g := f] \as First;
+\import H.Second[] \as Second;
+\import \parent.\parent.Slice[W := domain, b := center, Z := H.domain, inside := inside, h := First.function] \as FunctionCurve;
+\import \parent.\parent.Slice[W := domain, b := center, Z := H.domain, inside := inside, h := First.speedFunction] \as DerivativeCurve;
+\import \parent.\parent.Slice[W := domain, b := center, Z := H.domain, inside := inside, h := Second.function] \as HessianCurve;
+\import FunctionCurve.Curve[x := x] \as G;
+\import DerivativeCurve.Curve[x := x] \as D;
+\definition e: Average.Function := HessianCurve.Joint[].section x;
+\import \parent.\parent.Taylor[g := G.value, d := D.value, e := e] \as Taylor;
+\import Average.Algebra[] \as Integrals;
+\import Average.Weight[] \as Weight;
+\import calculus.Maps[n := dimension, m := n] \as Maps;
+\definition zeroTime: Time := \into[Real](Scalars.zero, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+  Logic.And[_, _]::# (R.leRefl Scalars.zero) Average.interval.ordered
+};
+\definition oneTime: Time := \into[Real](Scalars.one, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+  Logic.And[_, _]::# Average.interval.ordered (R.leRefl Scalars.one)
+};
+\definition clockAt: \forall (t: Time) -> point x t timeIndex = t :=
+  \fun (t: Time) => congr!{{One.Index -> Real} Real} (\fun (v: One.Index -> Real) => v One.index) _ _ (Split.rightJoin x (time t));
+\definition displacementAt: \forall (t: Time)(i: Index) -> H.displacement i (point x t) = Scalars.sub (x i) (a i) :=
+  \fun (t: Time)(i: Index) => congr!{Real Real} (\fun (s: Real) => Scalars.sub s (a i)) _ _
+    (congr!{Point Real} (\fun (v: Point) => v i) _ _ (Split.leftJoin x (time t)));
+\definition atZero: Maps.apply H.domain U H.map (point x zeroTime) = a :=
+  trans!{Point} _ _ _ (H.formula x Scalars.zero)
+    (\axiom:funext(Coordinates.addPoint a (Coordinates.scale Scalars.zero (Coordinates.subPoint x a)), a,
+      \fun (i: Index) => trans!{Real} _ _ _
+        (congr!{Real Real} (Scalars.add (a i)) _ _ (Laws.fieldMulZeroLeft (Scalars.sub (x i) (a i)))) (Laws.addZeroRight (a i))));
+\definition atOne: Maps.apply H.domain U H.map (point x oneTime) = Open.inclusion domain U included x :=
+  trans!{Point} _ _ _ (H.formula x Scalars.one)
+    (\axiom:funext(Coordinates.addPoint a (Coordinates.scale Scalars.one (Coordinates.subPoint x a)), x,
+      \fun (i: Index) => trans!{Real} _ _ _
+        (congr!{Real Real} (Scalars.add (a i)) _ _ (Laws.fieldMulOneLeft (Scalars.sub (x i) (a i)))) (Bounds.addSubCancel (x i) (a i))));
+\definition functionAtZero: G.value Scalars.zero = f a := trans!{Real} _ _ _ (G.agreement zeroTime) (congr!{{Open.Carrier U} Real} f _ _ atZero);
+\definition functionAtOne: G.value Scalars.one = f (Open.inclusion domain U included x) :=
+  trans!{Real} _ _ _ (G.agreement oneTime) (congr!{{Open.Carrier U} Real} f _ _ atOne);
+\definition derivativeAtZero: Critical -> D.value Scalars.zero = Scalars.zero :=
+  \fun (critical: Critical) => trans!{Real} _ _ _ (D.agreement zeroTime)
+    (trans!{Real} _ _ _ (Sums.congruent n _ _ (\fun (i: Index) => eq_reason_in!{Real _
+      "=" _ "by" { congr!{Real Real} (\fun (s: Real) => Scalars.mul s (H.displacement i (point x zeroTime))) _ _
+        (trans!{Real} _ _ _ (congr!{{Open.Carrier U} Real} (Partials.derivative U f i) _ _ atZero) (critical i)) }
+      "=" _ "by" { Laws.fieldMulZeroLeft (H.displacement i (point x zeroTime)) }
+    })) (Sums.zeroSum n));
+\definition first: Taylor.First := \block {
+  \fun (t: Real)(lower: _)(upper: _) \then
+  \let s: Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+  } \then
+  \return \idelim First.speed (point x s) = D.value t \with q: Real => calculus.Real[].Derivative[].Def[].HasDerivativeAt G.value t q \by {
+    base: G.derivative First.speed First.timePartial s, equality: sym!{Real} _ _ (D.agreement s)
+  }
+};
+\definition second: Taylor.Second := \block {
+  \fun (t: Real)(lower: _)(upper: _) \then
+  \let s: Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+  } \then
+  \return \idelim Second.value (point x s) = Average.extend e t \with q: Real => calculus.Real[].Derivative[].Def[].HasDerivativeAt D.value t q \by {
+    base: D.derivative Second.value Second.partial s, equality: sym!{Real} _ _ (Average.extensionLaw e s)
+  }
+};
+\definition taylor: Critical -> f (Open.inclusion domain U included x) = Scalars.add (f a) (Average.value Taylor.weighted) :=
+  \fun (critical: Critical) => eq_reason_in!{Real _
+    "=" _ "by" { sym!{Real} _ _ functionAtOne }
+    "=" _ "by" { Taylor.law G.continuous D.continuous first second }
+    "=" _ "by" { congr!{Real Real Real} Scalars.add _ _ _ _ functionAtZero
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (d: Real) => Scalars.add d (Average.value Taylor.weighted)) _ _ (derivativeAtZero critical))
+        (Laws.addZeroLeft (Average.value Taylor.weighted))) }
+  };
+\definition v[i: Index]: Real := Scalars.sub (x i) (a i);
+\definition sumRight: \forall (k: N.Nat^)(c: Real)(h: Fin.Fin k -> Real) ->
+  Sums.sum k (\fun (i: Fin.Fin k) => Scalars.mul (h i) c) = Scalars.mul (Sums.sum k h) c :=
+  \fun (k: N.Nat^)(c: Real)(h: Fin.Fin k -> Real) => eq_reason_in!{Real _
+    "=" _ "by" { Sums.congruent k _ _ (\fun (i: Fin.Fin k) => Laws.fieldMulComm (h i) c) }
+    "=" _ "by" { Sums.scalar k c h }
+    "=" _ "by" { Laws.fieldMulComm c (Sums.sum k h) }
+  };
+\definition secondFormula: \forall (t: Time) -> e t = Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+  Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))) :=
+  \fun (t: Time) => Sums.congruent n
+    (\fun (i: Index) => Second.Term[i := i].derivative (point x t))
+    (\fun (i: Index) => Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)))
+    (\fun (i: Index) => trans!{Real}
+      (Second.Term[i := i].derivative (point x t))
+      (Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (H.displacement j (point x t))) (H.displacement i (point x t))))
+      (Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)))
+      (sym!{Real} _ _ (sumRight n (H.displacement i (point x t))
+        (\fun (j: Index) => Scalars.mul (hessian i j (point x t)) (H.displacement j (point x t)))))
+      (Sums.congruent n
+        (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (H.displacement j (point x t))) (H.displacement i (point x t)))
+        (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))
+        (\fun (j: Index) => congr!{Real Real Real} Scalars.mul
+          (Scalars.mul (hessian i j (point x t)) (H.displacement j (point x t))) (Scalars.mul (hessian i j (point x t)) (v j))
+          (H.displacement i (point x t)) (v i)
+          (congr!{Real Real} (Scalars.mul (hessian i j (point x t))) (H.displacement j (point x t)) (v j) (displacementAt t j))
+          (displacementAt t i))));
+\definition coefficientAt: \forall (i, j: Index)(t: Time) -> \parent.Coefficient[i := i, j := j].section x t =
+  Scalars.mul (Weight.function t) (hessian i j (point x t)) :=
+  \fun (i, j: Index)(t: Time) => eq_reason_in!{Real _
+    "=" _ "by" { \parent.Coefficient[i := i, j := j].sampleFormula x t }
+    "=" _ "by" { congr!{Real Real} (\fun (s: Real) => Scalars.mul (Scalars.sub Scalars.one s) (hessian i j (point x t))) _ _ (clockAt t) }
+    "=" _ "by" { congr!{Real Real} (\fun (s: Real) => Scalars.mul s (hessian i j (point x t))) _ _ (sym!{Real} _ _ (Weight.formula t)) }
+  };
+\definition term[i, j: Index]: Average.Function := Integrals.scaling (Scalars.mul (v i) (v j)) (\parent.Coefficient[i := i, j := j].section x);
+\definition row[i: Index]: Average.Function := Integrals.summation n (term i);
+\definition integral: Average.Function := Integrals.summation n row;
+\definition weightedTermFormula: \forall (t: Time)(i, j: Index) ->
+  Scalars.mul (Weight.function t) (Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)) = term i j t :=
+  \fun (t: Time)(i, j: Index) => eq_reason_in!{Real
+    {Scalars.mul (Weight.function t) (Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))}
+    "=" _ "by" { congr!{Real Real} (Scalars.mul (Weight.function t)) _ _ (Laws.fieldMulAssoc (hessian i j (point x t)) (v j) (v i)) }
+    "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulAssoc (Weight.function t) (hessian i j (point x t)) (Scalars.mul (v j) (v i))) }
+    "=" _ "by" { Laws.fieldMulComm (Scalars.mul (Weight.function t) (hessian i j (point x t))) (Scalars.mul (v j) (v i)) }
+    "=" {term i j t} "by" { congr!{Real Real Real} Scalars.mul _ _ _ _ (Laws.fieldMulComm (v j) (v i)) (sym!{Real} _ _ (coefficientAt i j t)) }
+  };
+\definition weightedRowFormula: \forall (t: Time)(i: Index) ->
+  Scalars.mul (Weight.function t) (Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))) = row i t :=
+  \fun (t: Time)(i: Index) => trans!{Real}
+    (Scalars.mul (Weight.function t) (Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))
+    (Sums.sum n (\fun (j: Index) => Scalars.mul (Weight.function t) (Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))
+    (row i t)
+    (sym!{Real} _ _ (Sums.scalar n (Weight.function t) (\fun (j: Index) => Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))
+    (Sums.congruent n
+      (\fun (j: Index) => Scalars.mul (Weight.function t) (Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)))
+      (\fun (j: Index) => term i j t) (\fun (j: Index) => weightedTermFormula t i j));
+\definition weightedFormula: \forall (t: Time) -> Taylor.weighted t = integral t :=
+  \fun (t: Time) => trans!{Real} (Taylor.weighted t)
+    (Scalars.mul (Weight.function t) (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+      Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))) (integral t)
+    (congr!{Real Real} (Scalars.mul (Weight.function t)) _ _ (secondFormula t))
+    (trans!{Real}
+      (Scalars.mul (Weight.function t) (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+        Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)))))
+      (Sums.sum n (\fun (i: Index) => Scalars.mul (Weight.function t) (Sums.sum n (\fun (j: Index) =>
+        Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))) (integral t)
+      (sym!{Real} _ _ (Sums.scalar n (Weight.function t) (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+        Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i)))))
+      (Sums.congruent n
+        (\fun (i: Index) => Scalars.mul (Weight.function t) (Sums.sum n (\fun (j: Index) =>
+          Scalars.mul (Scalars.mul (hessian i j (point x t)) (v j)) (v i))))
+        (\fun (i: Index) => row i t) (weightedRowFormula t)));
+\definition termValue: \forall (i, j: Index) -> Average.value (term i j) =
+  Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j) :=
+  \fun (i, j: Index) => eq_reason_in!{Real _
+    "=" _ "by" { Integrals.scaleLaw (Scalars.mul (v i) (v j)) (\parent.Coefficient[i := i, j := j].section x) }
+    "=" _ "by" { congr!{Real Real} (Scalars.mul (Scalars.mul (v i) (v j))) _ _ (sym!{Real} _ _ (\parent.Coefficient[i := i, j := j].formula x)) }
+    "=" _ "by" { Laws.fieldMulComm (Scalars.mul (v i) (v j)) (\parent.Coefficient[i := i, j := j].value x) }
+    "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulAssoc (\parent.Coefficient[i := i, j := j].value x) (v i) (v j)) }
+  };
+\definition rowValue: \forall (i: Index) -> Average.value (row i) =
+  Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j)) :=
+  \fun (i: Index) => trans!{Real} (Average.value (row i))
+    (Sums.sum n (\fun (j: Index) => Average.value (term i j)))
+    (Sums.sum n (\fun (j: Index) => Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j)))
+    (Integrals.sumLaw n (term i))
+    (Sums.congruent n (\fun (j: Index) => Average.value (term i j))
+      (\fun (j: Index) => Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j)) (termValue i));
+\definition integralValue: Average.value Taylor.weighted =
+  Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+    Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j))) :=
+  trans!{Real} (Average.value Taylor.weighted) (Average.value integral)
+    (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+      Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j))))
+    (Average.congruent Taylor.weighted integral weightedFormula)
+    (trans!{Real} (Average.value integral) (Sums.sum n (\fun (i: Index) => Average.value (row i)))
+      (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+        Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j))))
+      (Integrals.sumLaw n row)
+      (Sums.congruent n (\fun (i: Index) => Average.value (row i))
+        (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+          Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j))) rowValue));
+\definition formula: Critical -> f (Open.inclusion domain U included x) = Scalars.add (f a)
+  (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+    Scalars.mul (Scalars.mul (\parent.Coefficient[i := i, j := j].value x) (v i)) (v j)))) :=
+  \fun (critical: Critical) => trans!{Real} _ _ _ (taylor critical)
+    (congr!{Real Real} (Scalars.add (f a)) _ _ integralValue);

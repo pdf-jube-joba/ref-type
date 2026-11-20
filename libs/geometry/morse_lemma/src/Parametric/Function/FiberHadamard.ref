@@ -1,0 +1,42 @@
+/* Taylor's quadratic decomposition with a smoothly varying critical centre. */
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import R.Distance[] \as Distance;
+\import R.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import R.FiniteSums[] \as Sums;
+\import std.Data[].List[] \as Lists;
+\import calculus.Maps[n := dimension, m := p] \as Projections;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Prop[] \as CoordinateLaws;
+\import \root.Hadamard[n := dimension, U := U, f := f, a := a].Path[] \as Paths;
+\import \root.Hadamard[n := dimension, U := U, f := f, a := a].Integral[] \as Average;
+\definition Real: \Set := R.Real;
+\definition Index: \Set := Fin.Fin n;
+\definition Delta[x: Point][t: Parameters.Carrier branch.parameters][i: Index]: Real :=
+  R.sub (Split.right x i) (Branches.apply branch.parameters Fibers.whole branch.branch t i);
+\structure Result: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  parameter: Projections.Map domain branch.parameters,
+  parameterFormula: \forall (x: Open.Carrier domain) -> Projections.apply domain branch.parameters parameter x = Split.left x,
+  coefficient: Index -> Index -> Smooth.SmoothFunction domain,
+  symmetric: \forall (i, j: Index)(x: Open.Carrier domain) -> coefficient i j x = coefficient j i x,
+  formula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+    R.add (f (Graphs.apply branch.parameters U branch.graph (Projections.apply domain branch.parameters parameter x)))
+      (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+        R.mul (R.mul (coefficient i j x) (Delta x (Projections.apply domain branch.parameters parameter x) i))
+          (Delta x (Projections.apply domain branch.parameters parameter x) j)))),
+  center: \forall (i, j: Index)(x: Open.Carrier domain) ->
+    x = Graphs.apply branch.parameters U branch.graph (Projections.apply domain branch.parameters parameter x) ->
+    coefficient i j x = R.mul R.half (hessianEntry (Open.inclusion domain U included x) i j),
+};
+\module Base;
+\module AtRadius(rho: Real, ball: Open.BallInside[U.points, a, rho]);
+\definition localExistence: \exists Result := \block {
+  \takefrom rho: \Cast[Real] ({ rho: Real \where Open.BallInside[U.points, a, rho] }) \by U.open a (\bysub(Point, U.points, a)) \then
+  \return \exact(AtRadius[rho := rho, ball := \bysub(Real, { rho: Real \where Open.BallInside[U.points, a, rho] }, rho)].result, Result)
+};

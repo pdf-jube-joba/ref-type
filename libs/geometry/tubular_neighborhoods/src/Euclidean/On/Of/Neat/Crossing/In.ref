@@ -1,0 +1,33 @@
+\definition domain: \Pow Normal.Point := S.Intersection t.domain positiveRegion;
+\definition open: S.IsOpenIn Normal.topology domain := (S.topologyLaws Normal.topology).intersectionOpen _ _ t.open positiveOpen;
+\definition section[x: M.Point]: S.Member domain (zero x) := Logic.And[_, _]::# (t.section x)
+  (O.ltReplaceRight _ _ _ (sym!{{R.Real}} _ _ (factorZero x)) R.Estimates[].Product[].onePositive);
+\import T.Subspace[S := t.image.points].Open[] \as Image;
+\definition pre: \Pow (Open.Carrier t.image) := { y: Open.Carrier t.image \where S.Member positiveRegion (t.inverse.apply y) };
+\definition target: Open.OpenSet := Open.Topology[].ofOpen (Image.image pre)
+  (Image.imageOpen Bundle.ambient.space (Open.Topology[].open t.image) pre (Extended.Inside[t := t].inverseContinuous positiveRegion positiveOpen));
+\definition inclusion: Open.Included target t.image := Image.imageIncluded pre;
+\definition input[y: Open.Carrier target]: Open.Carrier t.image := Open.inclusion target t.image inclusion y;
+\definition positive[y: Open.Carrier target]: S.Member positiveRegion (t.inverse.apply (input y)) := Image.imageElim pre y _
+  (\fun (v: Open.Carrier t.image)(h: _)(same: v = y) => \idelim v = input y \with z: Open.Carrier t.image => S.Member positiveRegion (t.inverse.apply z) \by { base: h,equality: same })
+  (\bysub(E.Vector,target.points,y));
+\definition into[q: \Cast[Normal.Point] domain]: T.Member target.points (Extended.endpoint q) := \block {
+  \let h: S.Member domain q := \bysub(Normal.Point,domain,q) \then
+  \let p: \Cast[Normal.Point] t.domain := \into[Normal.Point](q,t.domain) \by { h.left } \then
+  \let y: Open.Carrier t.image := \into[E.Vector](Extended.endpoint q,t.image.points) \by { t.into p } \then
+  \return Image.imageMember pre y (\idelim q = t.inverse.apply y \with z: Normal.Point => S.Member positiveRegion z \by {
+    base: h.right,equality: sym!{Normal.Point} _ _ (t.left p)
+  })
+};
+\import manifolds.EuclideanMap[n := d,m := d].Between[U := target,V := t.image] \as Coordinates;
+\definition inverse: Extended.InverseMap target :=
+  manifolds.Composition[n := d,m := d,l := d].Between[M := Coordinates.source,N := Coordinates.target,P := Normal.manifold].compose
+    (Coordinates.map (calculus.Identity[n := d].Between[U := target,V := t.image].map inclusion)) t.inverse;
+\definition result: Result := Result {
+  tube := Extended.Neighborhood {
+    domain := domain,open := open,section := section,image := target,inverse := inverse,into := into,
+    back := \fun (y: Open.Carrier target) => Logic.And[_, _]::# (t.back (input y)) (positive y),
+    left := \fun (q: \Cast[Normal.Point] domain) => t.left (\into[Normal.Point](q,t.domain) \by { (\bysub(Normal.Point,domain,q)).left }),
+    right := \fun (y: Open.Carrier target) => t.right (input y),
+  }, positive := \fun (q: \Cast[Normal.Point] domain) => (\bysub(Normal.Point,domain,q)).right
+};

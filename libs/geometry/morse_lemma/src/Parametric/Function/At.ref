@@ -1,0 +1,39 @@
+\import Inverse.Implicit[U := U, f := gradientMap, a := a] \as Implicit;
+\import \root.Parametric[p := p, n := n].Basis[] \as Basis;
+\definition hessian: calculus.Vector[n := n, m := n].LinearMap := Implicit.verticalDifferential;
+\definition Nondegenerate: \Prop := Implicit.Regular;
+\import matrix_invariants.Ring[K := R.Real,
+  scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import linear_algebra.Euclidean[n := dimension] \as FullSpace;
+\import linear_algebra.Commutative[K := R.Real,
+  scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field].FiniteCoordinates[n := dimension] \as FullBasis;
+\import matrix_invariants.Real[].At[n := dimension].Smooth[d := dimension] \as BasisComparison;
+\definition entries: Matrix.Matrix := Representation.entries hessian;
+\definition gradientComponent: \forall (i: Fin.Fin n) -> Gradients.coordinateFunction U Fibers.whole gradientMap i = derivative i :=
+  \fun (i: Fin.Fin n) => \axiom:funext(Gradients.coordinateFunction U Fibers.whole gradientMap i, derivative i,
+    \fun (x: Open.Carrier U) => \refl(derivative i x));
+\import Gradients.Differential[U := U, V := Fibers.whole, f := gradientMap, a := a] \as Differential;
+\import calculus.Vector[n := dimension, m := n] \as FullDifferential;
+\definition partialValue: \forall (i: Fin.Fin n)(j: Fin.Fin dimension) ->
+  Differential.value.apply (FullSpace.basis j) i = Partials.derivative U (Gradients.coordinateFunction U Fibers.whole gradientMap i) j a :=
+  \fun (i: Fin.Fin n)(j: Fin.Fin dimension) => sym!{{R.Real}} _ _
+    (Open.Analysis[].Properties[].partialUnique U (Gradients.coordinateFunction U Fibers.whole gradientMap i) j a _ _
+      (Partials.partialLaw U (Gradients.coordinateFunction U Fibers.whole gradientMap i) j a)
+      (Open.Analysis[].Differential[U := U, f := Gradients.coordinateFunction U Fibers.whole gradientMap i, a := a,
+        d := FullDifferential.row Differential.value i].Partial[i := j].law (Differential.vectorLaw i)));
+\definition entriesValue: \forall (i, j: Fin.Fin n) -> entries i j = hessianEntry a i j :=
+  \fun (i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Point {R.Real}} (\fun (v: Point) => Differential.value.apply v i) _ _ (Basis.vertical j) }
+    "=" _ "by" { congr!{Point {R.Real}} (\fun (v: Point) => Differential.value.apply v i) _ _
+      (sym!{Point} _ _ (BasisComparison.basisComparison (Indices.right j))) }
+    "=" _ "by" { partialValue i (Indices.right j) }
+    "=" _ "by" { congr!{{Smooth.SmoothFunction U} {R.Real}}
+      (\fun (g: Smooth.SmoothFunction U) => Partials.derivative U g (Indices.right j) a) _ _ (gradientComponent i) }
+  };
+\module With(critical: Critical a, local: Implicit.Solution);
+\definition criticalBranchExists: Nondegenerate -> Critical a -> \exists CriticalBranch[a] := \block {
+  \fun (nondegenerate: Nondegenerate)(critical: Critical a) \then
+  \takefrom local: Implicit.Solution \by Implicit.localExistence nondegenerate \then
+  \return \exact(With[critical := critical, local := local].branch, CriticalBranch[a])
+};

@@ -1,0 +1,92 @@
+\definition z: Open.Carrier P.domain := P.joinPoint u (FiberOpen.Whole[].point Fiber.space.zero);
+\definition x: M.Point := at u;
+\import Normal.At[x := x] \as AtBase;
+\import manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import tangent_bundles.Dimension[n := n].On[M := M].Frames[].At[c := b.chart,x := at u] \as BaseFrame;
+\import Linear.Isomorphism[V := Tangent.Vector x,W := Base.Vector,source := Tangent.space x,target := Base.space] \as BaseIso;
+\definition derivative: calculus.Vector[n := d,m := d].LinearMap := C.Differential[U := P.domain,V := Open.whole,f := coordinateMap,a := z].value;
+\definition horizontalSection: Blocks.FixedRight[U := b.chart.image,V := P.domain,c := Fiber.space.zero].Included :=
+  \fun (a: BaseOpen.Carrier b.chart.image) => \bysub(E.Vector,P.domain.points,P.joinPoint a (FiberOpen.Whole[].point Fiber.space.zero));
+\definition verticalSection: Blocks.FixedLeft[U := FiberOpen.whole,V := P.domain,c := u].Included :=
+  \fun (v: FiberOpen.Carrier FiberOpen.whole) => \bysub(E.Vector,P.domain.points,P.joinPoint u v);
+\import Blocks.FixedRight[U := b.chart.image,V := P.domain,c := Fiber.space.zero] \as H;
+\import Blocks.FixedLeft[U := FiberOpen.whole,V := P.domain,c := u] \as V;
+\import BaseMaps.Composition[U := b.chart.image,V := P.domain,f := H.map horizontalSection].After[l := d,W := Open.whole,g := coordinateMap] \as HChain;
+\import calculus.Maps[n := k,m := d] \as FiberMaps;
+\import FiberMaps.Composition[U := FiberOpen.whole,V := P.domain,f := V.map verticalSection].After[l := d,W := Open.whole,g := coordinateMap] \as VChain;
+\definition alongZero: HChain.compose = baseMap := BaseMaps.ext _ _ _ _
+  (\axiom:funext((BaseMaps.apply _ _ HChain.compose),(BaseMaps.apply _ _ baseMap),\fun (a: BaseOpen.Carrier b.chart.image) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { joined a Fiber.space.zero }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (E.space.add (Maps.apply e (at a))) _ _ (frame (at a)).preservesZero }
+    "=" _ "by" { Laws.zeroRight _ }
+  }));
+\definition horizontal[v: Base.Vector]: derivative.apply (Directions.horizontal.apply v) = (Coordinates.fullMatrix u).apply v := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{calculus.Vector[n := n,m := d].LinearMap} {E.Vector}} (\fun (L: calculus.Vector[n := n,m := d].LinearMap) => derivative.apply (L.apply v)) _ _
+    (sym!{{calculus.Vector[n := n,m := d].LinearMap}} _ _ (Directions.FixedRightDerivative[U := b.chart.image,V := P.domain,c := Fiber.space.zero,included := horizontalSection].jacobian u)) }
+  "=" _ "by" { congr!{{calculus.Vector[n := n,m := d].LinearMap} {E.Vector}} (\fun (L: calculus.Vector[n := n,m := d].LinearMap) => L.apply v) _ _ (sym!{{calculus.Vector[n := n,m := d].LinearMap}} _ _ HChain.At[a := u].jacobian) }
+  "=" _ "by" { congr!{{BaseMaps.Map b.chart.image Open.whole} {E.Vector}} (\fun (g: BaseMaps.Map b.chart.image Open.whole) => BaseMaps.Differential[U := b.chart.image,V := Open.whole,f := g,a := u].value.apply v) _ _ alongZero }
+  "=" _ "by" { congr!{{calculus.Vector[n := n,m := d].LinearMap} {E.Vector}} (\fun (L: calculus.Vector[n := n,m := d].LinearMap) => L.apply v) _ _
+    (BaseMaps.Restriction[U := b.chart.image,V := Coordinates.domain,W := Open.whole].differential Coordinates.wholeIncluded Coordinates.coordinateMap u) }
+};
+\import calculus.Vector[n := k,m := d] \as Vertical;
+\definition fiberZero: FiberOpen.Carrier FiberOpen.whole := FiberOpen.Whole[].point Fiber.space.zero;
+\definition fiberFunction: Vertical.Function FiberOpen.whole := FiberMaps.apply FiberOpen.whole Open.whole VChain.compose;
+\definition fiberDerivative: FiberMaps.Differential[U := FiberOpen.whole,V := Open.whole,f := VChain.compose,a := fiberZero].value = frame (at u) :=
+  Vertical.Differential[U := FiberOpen.whole,f := fiberFunction,a := fiberZero,d := FiberMaps.Differential[U := FiberOpen.whole,V := Open.whole,f := VChain.compose,a := fiberZero].value].uniqueness _ FiberMaps.Differential[U := FiberOpen.whole,V := Open.whole,f := VChain.compose,a := fiberZero].vectorLaw
+  (\idelim Vertical.affine FiberOpen.whole (Maps.apply e x) (frame (at u)) = fiberFunction \with g: Vertical.Function FiberOpen.whole =>
+    Vertical.HasDifferentialAt FiberOpen.whole g fiberZero (frame (at u)) \by {
+      base: Vertical.affineDifferential FiberOpen.whole _ _ fiberZero,
+      equality: \axiom:funext((Vertical.affine FiberOpen.whole _ _),fiberFunction,\fun (v: FiberOpen.Carrier FiberOpen.whole) => sym!{{E.Vector}} _ _ (joined u v))
+    });
+\definition vertical[v: Fiber.Vector]: derivative.apply (Directions.vertical.apply v) = (frame (at u)).apply v := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{Vertical.LinearMap} {E.Vector}} (\fun (L: Vertical.LinearMap) => derivative.apply (L.apply v)) _ _
+    (sym!{{Vertical.LinearMap}} _ _ (Directions.FixedLeftDerivative[U := FiberOpen.whole,V := P.domain,c := u,included := verticalSection].jacobian fiberZero)) }
+  "=" _ "by" { congr!{{Vertical.LinearMap} {E.Vector}} (\fun (L: Vertical.LinearMap) => L.apply v) _ _ (sym!{{Vertical.LinearMap}} _ _ VChain.At[a := fiberZero].jacobian) }
+  "=" _ "by" { congr!{{Vertical.LinearMap} {E.Vector}} (\fun (L: Vertical.LinearMap) => L.apply v) _ _ fiberDerivative }
+};
+\definition splitFormula[t: Base.Vector][v: Fiber.Vector]: derivative.apply (Blocks.join t v) = E.space.add ((Coordinates.fullMatrix u).apply t) ((frame (at u)).apply v) := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} derivative.apply _ _ (sym!{{E.Vector}} _ _ (Directions.decomposition (Blocks.join t v))) }
+  "=" _ "by" { derivative.preservesAdd _ _ }
+  "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} E.space.add _ _ _ _
+    (trans!{{E.Vector}} _ _ _ (horizontal _) (congr!{{Base.Vector} {E.Vector}} (Coordinates.fullMatrix u).apply _ _ (Blocks.leftJoin t v)))
+    (trans!{{E.Vector}} _ _ _ (vertical _) (congr!{{Fiber.Vector} {E.Vector}} (frame (at u)).apply _ _ (Blocks.rightJoin t v))) }
+};
+\definition normal[v: E.Vector]: Normal.Fiber x := Normal.LocalFrame[local := b].At[x := at u].isomorphism.backward.apply (Blocks.right v);
+\definition tangent[v: E.Vector]: Tangent.Vector x := BaseFrame.isomorphism.backward.apply (Blocks.left v);
+\definition jacobian[v: E.Vector]: derivative.apply v = E.space.add (AtBase.differential.apply (tangent v)) ((lift.action x).apply (normal v)) := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} derivative.apply _ _ (sym!{{E.Vector}} _ _ (Blocks.recover v)) }
+  "=" _ "by" { splitFormula (Blocks.left v) (Blocks.right v) }
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} (\fun (w: E.Vector) => E.space.add w ((lift.action x).apply (normal v))) _ _ (sym!{{E.Vector}} _ _ (Coordinates.fullComparison u (Blocks.left v))) }
+};
+\definition kernel[v: E.Vector][same: derivative.apply v = E.space.zero]: v = E.space.zero := \block {
+  \let w: Normal.Fiber x := normal v \then
+  \let a: E.Vector := AtBase.differential.apply (tangent v) \then
+  \let av: E.Vector := (lift.action x).apply w \then
+  \let total: E.space.add a av = E.space.zero := trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (jacobian v)) same \then
+  \let perp: E.dot w a = R.zero := (\bysub(E.Vector,AtBase.subspace.carrier,w)) (tangent v) \then
+  \let wz: w = E.space.zero := lift.definite x w (eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].addZeroLeft _) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add s (E.dot w av)) _ _ (sym!{{R.Real}} _ _ perp) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (E.form.addRight w a av) }
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (E.dot w) _ _ total }
+    "=" _ "by" { E.form.zeroRight w }
+  }) \then
+  \let az: a = E.space.zero := eq_reason_in!{{E.Vector} _
+    "=" _ "by" { sym!{{E.Vector}} _ _ (Laws.zeroRight a) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (E.space.add a) _ _ (sym!{{E.Vector}} _ _ (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (lift.action x).apply _ _ wz) (lift.action x).preservesZero)) }
+    "=" _ "by" total
+  } \then
+  \let tz: tangent v = (Tangent.space x).zero := AtBase.injective _ _ (trans!{{E.Vector}} _ _ _ az (sym!{{E.Vector}} _ _ AtBase.differential.preservesZero)) \then
+  \let left: Blocks.left v = Base.space.zero := trans!{{Base.Vector}} _ _ _ (sym!{{Base.Vector}} _ _ ((BaseIso.laws BaseFrame.isomorphism).rightInverse (Blocks.left v)))
+    (trans!{{Base.Vector}} _ _ _ (congr!{{Tangent.Vector x} {Base.Vector}} BaseFrame.isomorphism.forward.apply _ _ tz) BaseFrame.isomorphism.forward.preservesZero) \then
+  \let right: Blocks.right v = Fiber.space.zero := trans!{{Fiber.Vector}} _ _ _ (sym!{{Fiber.Vector}} _ _ (b.leftInverse (at u) (Blocks.right v)))
+    (trans!{{Fiber.Vector}} _ _ _ (congr!{{E.Vector} {Fiber.Vector}} (b.encode (at u)).apply _ _ wz) (b.encode (at u)).preservesZero) \then
+  \return trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (Blocks.recover v)) (trans!{{E.Vector}} _ _ _ (congr!{{Base.Vector} {Fiber.Vector} {E.Vector}} Blocks.join _ _ _ _ left right) (Blocks.recover E.space.zero))
+};
+\module Gram(factor: E.Gram[k := d].Factorization[derivative]);
+\definition localInverse: \exists Inverse.LocalInverse[P.domain,coordinateMap,z] := \block {
+  \takefrom factor: E.Gram[k := d].Factorization[derivative] \by inverse_implicit.Gram[n := d,m := d].existence derivative
+    (Linear.Linear[V := E.Vector,W := E.Vector,source := E.space,target := E.space].injectiveOfZeroKernel derivative kernel) \then
+  \return Inverse.InverseFunction[U := P.domain,f := coordinateMap,a := z].localExistence Gram[factor := factor].nonzero
+};
+\module Using(local: Inverse.LocalInverse[P.domain,coordinateMap,z]);

@@ -1,0 +1,68 @@
+\import change_of_variables.Euclidean[n := n] \as Change;
+\import Change.Localization[U := U] \as Local;
+\import Change.Compact[] \as Compact;
+\import Dist.Pullback[U := U, V := V, e := e] \as Pull;
+\import Pull.LocalJets[W := U] \as Source;
+\import Dist.On[U := U] \as On;
+\import Dist.TestOperations[] \as Tests;
+\import smooth_partitions.Euclidean[n := n] \as Support;
+\import functional_analysis.Support[A := Point] \as Supports;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import std.Logic[].Classical[] \as Classical;
+\import Maps.Composition[U := U, V := V, f := e.forward] \as Chain;
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[].Linear[U := U] \as Differential;
+\import \parent.Energy[] \as Energy;
+\definition Coefficient: \Set := Dist.TestOn U;
+\module LocalProduct(a: Coefficient, h: Functions.Function);
+\definition times[a: Coefficient][h: Functions.Function]: Coefficient := LocalProduct[a := a, h := h].value;
+\definition restrict[f: E.Function]: Smooth.SmoothFunction V :=
+  \into[Open.ScalarFunction V](Open.Restriction[].function V (E.value f), Smooth.SmoothFunction V) \by {
+    Open.Restriction[].localSmooth V Open.whole (\fun (x: Point)(member: _) => \refl(x)) _ (E.Integrability[].regular f)
+  };
+\definition component[a: Coefficient][f: E.Schwartz]: Coefficient := times a (Chain.function (restrict f));
+\definition transform[a: Coefficient][f: S.Function]: S.Function :=
+  Fourier.Density[].complex (component a f.real) (component a f.imaginary);
+\definition coefficient[a: Coefficient][i,j: E.Coordinate]: Coefficient := times a (Chain.innerPartial j i);
+\module Differentiation(a: Coefficient, f: E.Schwartz, i: E.Coordinate);
+\definition squareTest[b: Coefficient]: Coefficient := \into[Dist.Test](Tests.product b b, Coefficient) \by {
+  Sets.subsetTrans _ _ _ (Tests.productSupport b b) (Dist.testWithin U b)
+};
+\module Zero(a: Coefficient);
+\definition realSum: \forall (m: N.Nat^)(f: Fin.Fin m -> S.Function)(x: Point) -> C.re (S.value (Polynomial.sum m f) x) = Sum.sum m (\fun (j: Fin.Fin m) => C.re (S.value (f j) x)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> S.Function)(x: Point) -> C.re (S.value (Polynomial.sum m f) x) = Sum.sum m (\fun (j: Fin.Fin m) => C.re (S.value (f j) x)) \with {
+    | zero: \fun (f: _)(x: Point) => \refl(Real.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: _)(x: Point) => congr!{Real.Real Real.Real} (Real.add (C.re (S.value (f (Fin.zero m)) x))) _ _ (previous (\fun (j: Fin.Fin m) => f (Fin.succ m j)) x)
+  };
+\definition imaginarySum: \forall (m: N.Nat^)(f: Fin.Fin m -> S.Function)(x: Point) -> C.im (S.value (Polynomial.sum m f) x) = Sum.sum m (\fun (j: Fin.Fin m) => C.im (S.value (f j) x)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> S.Function)(x: Point) -> C.im (S.value (Polynomial.sum m f) x) = Sum.sum m (\fun (j: Fin.Fin m) => C.im (S.value (f j) x)) \with {
+    | zero: \fun (f: _)(x: Point) => \refl(Real.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: _)(x: Point) => congr!{Real.Real Real.Real} (Real.add (C.im (S.value (f (Fin.zero m)) x))) _ _ (previous (\fun (j: Fin.Fin m) => f (Fin.succ m j)) x)
+  };
+\definition term[a: Coefficient][f: S.Function][i,j: E.Coordinate]: S.Function := transform (coefficient a i j) (S.partial f j);
+\definition derivative[a: Coefficient][f: S.Function][i: E.Coordinate][x: Point]:
+  S.value (S.partial (transform a f) i) x = S.value (S.add (transform (On.partial a i) f) (Polynomial.sum n (term a f i))) x :=
+  CL.ext _ _ (trans!{Real.Real} _ _ _ (Differentiation[a := a, f := f.real, i := i].law x)
+    (congr!{Real.Real Real.Real} (Real.add (component (On.partial a i) f.real x)) _ _ (sym!{Real.Real} _ _ (realSum n (term a f i) x))))
+    (trans!{Real.Real} _ _ _ (Differentiation[a := a, f := f.imaginary, i := i].law x)
+    (congr!{Real.Real Real.Real} (Real.add (component (On.partial a i) f.imaginary x)) _ _ (sym!{Real.Real} _ _ (imaginarySum n (term a f i) x))));
+\definition Bound[k: N.Nat^][a: Coefficient][b: LE.Nonnegative]: \Prop :=
+  \forall (f: S.Function) -> R.Le (Energy.norm k (transform a f)) (Real.mul b (Energy.norm k f));
+\definition Constants[k: N.Nat^][a: Coefficient]: \Set := \Cast[LE.Nonnegative] ({ b: LE.Nonnegative \where Bound k a b });
+\module Step(k: N.Nat^, a: Coefficient, b: Constants k a, p: \forall (i: E.Coordinate) -> Constants k (On.partial a i),
+  c: \forall (i,j: E.Coordinate) -> Constants k (coefficient a i j));
+\definition bounded: \forall (k: N.Nat^)(a: Coefficient) -> \exists Constants k a :=
+  \induction (k: N.Nat^) \return \forall (a: Coefficient) -> \exists Constants k a \with {
+    | zero: \fun (a: Coefficient) => Zero[a := a].exists
+    | succ: \fun (k: N.Nat^)(previous: _)(a: Coefficient) => \block {
+      \takefrom b: Constants k a \by previous a \then
+      \takefrom p: \forall (i: E.Coordinate) -> Constants k (On.partial a i) \by
+        \axiom:classicalIndefiniteChoice(E.Coordinate, (\fun (i: E.Coordinate) => Constants k (On.partial a i)), (\fun (i: E.Coordinate) => previous (On.partial a i))) \then
+      \takefrom c: \forall (i,j: E.Coordinate) -> Constants k (coefficient a i j) \by
+        \axiom:classicalIndefiniteChoice(E.Coordinate, (\fun (i: E.Coordinate) => \forall (j: E.Coordinate) -> Constants k (coefficient a i j)), (\fun (i: E.Coordinate) =>
+          \axiom:classicalIndefiniteChoice(E.Coordinate, (\fun (j: E.Coordinate) => Constants k (coefficient a i j)), (\fun (j: E.Coordinate) => previous (coefficient a i j))))) \then
+      \return \exact(Step[k := k, a := a, b := b, p := p, c := c].constant, Constants (N.Nat^::succ k) a)
+    }
+  };
+\module At(k: N.Nat^, a: Coefficient);

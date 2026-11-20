@@ -1,0 +1,15 @@
+\import \parent.Order[k := k] \as H;
+\import \parent.Coordinates[U := U, V := V, e := e].At[k := k, a := cutoff] \as Forward;
+\import Diffeo.Inverse[U := U, V := V, f := e] \as Inverse;
+\import Dist.Pullback[U := U, V := V, e := e] \as Pull;
+\import \parent.Coordinates[U := V, V := U, e := Inverse.inverse].At[k := k, a := Pull.test cutoff] \as Backward;
+\import CS.Operators[W := L2.Space, target := L2.Vector[].space, norm := Geometry.norm, targetNorm := Geometry.norm] \as Operators;
+\import Operators.Adjoints[inner := Inner.inner, targetInner := Inner.inner] \as Adjoints;
+\definition positive: Operators.Map := Forward.operator;
+/* The transpose cutoff contains the inverse absolute Jacobian. */
+\definition negative: Operators.Map := Adjoints.adjoint complete complete Backward.operator;
+\definition pairing[y: H.Negative][x: H.Positive]: H.Duality[].pair (negative.apply y) x =
+  H.Duality[].pair y (Backward.operator.apply x) :=
+  sym!{C.Complex} _ _ (Adjoints.representation complete complete Backward.operator y x);
+\definition onSchwartz[f: S.Function]: positive.apply (H.Schwartz[].value f) =
+  H.Schwartz[].value (\parent.Coordinates[U := U, V := V, e := e].transform cutoff f) := Forward.onSchwartz f;

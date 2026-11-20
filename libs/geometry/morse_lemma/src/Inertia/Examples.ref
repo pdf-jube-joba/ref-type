@@ -1,0 +1,34 @@
+\import \root.Inertia[n := N.Nat^::zero] \as Zero;
+\import \root.Inertia[n := N.Nat^::succ N.Nat^::zero] \as One;
+\import \root.Inertia[n := N.Nat^::succ (N.Nat^::succ N.Nat^::zero)] \as Two;
+\definition zeroSigns: Zero.Signs := \fun (i: Fin.Fin N.Nat^::zero) => Bool.Bool^::false;
+\definition zeroDimension: \exists Zero.NormalForm[Zero.standardForm zeroSigns] :=
+  Zero.normalFormExists (Zero.standardForm zeroSigns) (Zero.standardSymmetric zeroSigns) (Zero.standardNondegenerate zeroSigns);
+\definition negativeSign: One.Signs := \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Bool.Bool^::true;
+\definition negativeLine: \exists One.NormalForm[One.standardForm negativeSign] :=
+  One.normalFormExists (One.standardForm negativeSign) (One.standardSymmetric negativeSign) (One.standardNondegenerate negativeSign);
+\definition mixedSigns: Two.Signs := Fin.Tuples[A := Bool.Bool^].extend (N.Nat^::succ N.Nat^::zero) Bool.Bool^::true
+  (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => Bool.Bool^::false);
+\definition mixedForm: Two.Form := Two.standardForm mixedSigns;
+\definition mixed: \exists Two.NormalForm[mixedForm] := Two.normalFormExists mixedForm (Two.standardSymmetric mixedSigns) (Two.standardNondegenerate mixedSigns);
+\import linear_algebra.Euclidean[n := N.Nat^::succ N.Nat^::zero].Successor[] \as Split;
+\import Spaces.Isomorphism[V := One.Vector, W := One.Vector, source := One.space, target := One.space] \as LineIsomorphisms;
+\import Spaces.Eigen[V := One.Vector, space := One.space] \as LineEigen;
+\definition lineIdentity: LineIsomorphisms.Isomorphism := LineIsomorphisms.Isomorphism {
+  forward := LineEigen.identity, backward := LineEigen.identity,
+  leftInverse := \fun (v: One.Vector) => \refl(v), rightInverse := \fun (v: One.Vector) => \refl(v),
+};
+\import Spaces.Linear[V := One.Vector, W := R.Real, source := One.space, target := Spaces.scalarSpace] \as Rows;
+\definition row: Rows.Map := Rows.Map {
+  apply := \fun (v: One.Vector) => v (Fin.zero N.Nat^::zero),
+  preservesAdd := \fun (v, w: One.Vector) => \refl(R.add (v (Fin.zero N.Nat^::zero)) (w (Fin.zero N.Nat^::zero))),
+  preservesScale := \fun (a: R.Real)(v: One.Vector) => \refl(R.mul a (v (Fin.zero N.Nat^::zero))),
+};
+\import Split.Triangular[l := R.one, nonzero := R.Inverse[].positiveNonzero R.one R.Estimates[].Product[].onePositive,
+  row := row, lower := lineIdentity] \as Shear;
+\import Two.Pullback[m := N.Nat^::succ (N.Nat^::succ N.Nat^::zero), h := mixedForm, f := Shear.forward] \as Pullback;
+\definition shearedForm: Two.Form := Pullback.form;
+\definition shearedSymmetric: Two.Symmetric shearedForm := Pullback.symmetric (Two.standardSymmetric mixedSigns);
+\definition shearedNondegenerate: Two.Nondegenerate shearedForm :=
+  Pullback.Bijective[g := Shear.backward, left := Shear.leftInverse, right := Shear.rightInverse].nondegenerate (Two.standardNondegenerate mixedSigns);
+\definition sheared: \exists Two.NormalForm[shearedForm] := Two.normalFormExists shearedForm shearedSymmetric shearedNondegenerate;

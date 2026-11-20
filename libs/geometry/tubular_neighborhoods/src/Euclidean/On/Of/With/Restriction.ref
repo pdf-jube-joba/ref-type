@@ -1,0 +1,27 @@
+\definition openDomain: TotalCharts.OpenSubset := \into[\Pow Normal.Point](t.domain,TotalCharts.OpenSubset) \by { t.open };
+\import manifolds.OpenSubmanifold[n := d].On[M := Normal.manifold].In[U := openDomain] \as Source;
+\import Ambient.Subspace[U := t.image] \as Target;
+\import manifolds.SmoothMapRestriction[n := d,m := d].Between[M := Normal.manifold,N := Bundle.ambient].Of[f := map].On[U := openDomain] \as Forward;
+\import manifolds.SmoothMap[n := d,m := d].Between[M := Source.manifold,N := Bundle.ambient] \as MapsToAmbient;
+\import manifolds.Dimension[n := d].Chart[M := Source.manifold.Point,space := Source.manifold.space] \as ChartsOnDomain;
+\import manifolds.FromCharts[n := d,m := d].Between[M := Source.manifold,N := Target.smoothManifold] \as ChartsToImage;
+\definition send[q: Source.Point]: Open.Carrier t.image := \into[E.Vector](endpoint q,t.image.points) \by { t.into q };
+\module Chart(c: ChartsToImage.SourceChart) {
+  \import MapsToAmbient.Coordinates[f := Forward.map,left := c,right := Ambient.standard] \as Coordinates;
+  \definition regular: Coordinates.Smooth :=
+    (\bysub(MapsToAmbient.ContinuousMap,{ f: MapsToAmbient.ContinuousMap \where MapsToAmbient.Chartwise f },Forward.map))
+      c Ambient.standard (\bysub(ChartsOnDomain.Chart,Source.manifold.atlas.charts,c)) (\bysub(TargetCharts.Chart,Bundle.ambient.atlas.charts,standard));
+  \definition included: Open.Included c.image Coordinates.domain := \fun (u: E.Vector)(member: _) =>
+    Coordinates.intro (\into[E.Vector](u,c.image.points) \by { member }) (\refl(endpoint (ChartsOnDomain.point c (\into[E.Vector](u,c.image.points) \by { member }))));
+  \definition whole: C.Map c.image Open.whole := C.Restriction[U := c.image,V := Coordinates.domain,W := Open.whole].input included (Coordinates.map regular);
+  \definition inside[u: Open.Carrier c.image]: T.Member t.image.points (C.apply c.image Open.whole whole u) := t.into (ChartsOnDomain.point c u);
+  \definition local: C.Map c.image t.image := C.Corestriction[U := c.image,V := Open.whole,W := t.image,f := whole,inside := inside].map;
+  \definition plot: ChartsToImage.LocalMap c := manifolds.EuclideanMap[n := d,m := d].Between[U := c.image,V := t.image].map local;
+}
+\import ChartsToImage.On[f := send,maps := \fun (c: ChartsToImage.SourceChart) => Chart[c := c].plot,
+  agrees := \fun (c: ChartsToImage.SourceChart)(u: Open.Carrier c.image) => \refl(send (ChartsOnDomain.point c u))] \as Send;
+\import manifolds.SmoothMapCorestriction[n := d,m := d].Between[M := Target.smoothManifold,N := Normal.manifold].Into[U := openDomain].Of[f := t.inverse,inside := t.back] \as Undo;
+\import manifolds.Diffeomorphism[n := d,m := d].Between[M := Source.manifold,N := Target.smoothManifold] \as Diffeos;
+\definition diffeomorphism: Diffeos.Diffeomorphism := Diffeos.Diffeomorphism {
+  forward := Send.value,backward := Undo.map,leftInverse := t.left,rightInverse := t.right,
+};

@@ -1,0 +1,40 @@
+\definition sufficient: Nat.Lt n (NatOps.add (N.Nat^::succ n) (N.Nat^::succ n)) := Nat.ltOfSuccLe _ _ (Nat.leAddRight _ _);
+\import \parent.FourierIntegral[] \as Integral;
+\definition HasOrder[u: L2.Space][k: N.Nat^]: \Prop :=
+  \exists ( v: \parent.Order[k := k].Positive \where \parent.Order[k := k].physical v = u );
+\definition AllOrders[u: L2.Space]: \Prop := \forall (k: N.Nat^) -> HasOrder u k;
+\definition finite[u: L2.Space][r: N.Nat^]: HasOrder u (\parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].order) ->
+  \exists ( f: Point -> C.Complex \where Logic.And[Integral.InverseOf u f, \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[f]] ) := \block {
+  \fun (member: _) \then
+  \let k: N.Nat^ := \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].order \then
+  \takefrom v: \Cast[L2.Space] ({ v: L2.Space \where \parent.Order[k := k].physical v = u }) \by member \then
+  \return \idelim \parent.Order[k := k].physical v = u \with z: L2.Space =>
+    \exists ( f: Point -> C.Complex \where Logic.And[Integral.InverseOf z f, \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[f]] ) \by {
+      base: \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].theorem v,
+      equality: \bysub(L2.Space, { v: L2.Space \where \parent.Order[k := k].physical v = u }, v)
+    }
+};
+\definition regularAt[u: L2.Space][f: Point -> C.Complex][r: N.Nat^]: Integral.InverseOf u f ->
+  HasOrder u (\parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].order) -> \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[f] := \block {
+  \fun (inverse: _)(member: _) \then
+  \takefrom g: \Cast[Point -> C.Complex] ({ g: Point -> C.Complex \where Logic.And[Integral.InverseOf u g, \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[g]] }) \by finite u r member \then
+  \let law: Logic.And[Integral.InverseOf u g, \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[g]] := \bysub(Point -> C.Complex, { g: Point -> C.Complex \where Logic.And[Integral.InverseOf u g, \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[g]] }, g) \then
+  \return \idelim g = f \with h: (Point -> C.Complex) => \parent.EmbeddingTheorem[r := r, p := N.Nat^::succ n, range := sufficient].Regular[h] \by {
+    base: law.right, equality: Integral.unique u g f law.left inverse
+  }
+};
+\structure SmoothRepresentative[u: L2.Space, f: Point -> C.Complex]: \Prop := {
+  inverse: Integral.InverseOf u f,
+  real: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (f x)),
+  imaginary: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (f x)),
+};
+\definition smooth[u: L2.Space]: AllOrders u -> \exists ( f: Point -> C.Complex \where SmoothRepresentative[u, f] ) := \block {
+  \fun (all: _) \then
+  \let z: N.Nat^ := N.Nat^::zero \then
+  \takefrom f: \Cast[Point -> C.Complex] ({ f: Point -> C.Complex \where Logic.And[Integral.InverseOf u f, \parent.EmbeddingTheorem[r := z, p := N.Nat^::succ n, range := sufficient].Regular[f]] }) \by finite u z (all _) \then
+  \let law: Logic.And[Integral.InverseOf u f, \parent.EmbeddingTheorem[r := z, p := N.Nat^::succ n, range := sufficient].Regular[f]] := \bysub(Point -> C.Complex, { f: Point -> C.Complex \where Logic.And[Integral.InverseOf u f, \parent.EmbeddingTheorem[r := z, p := N.Nat^::succ n, range := sufficient].Regular[f]] }, f) \then
+  \return Logic.existsIntro[Point -> C.Complex, { f: Point -> C.Complex \where SmoothRepresentative[u, f] }] f (SmoothRepresentative[u, f] {
+    inverse := law.left, real := \fun (r: N.Nat^) => (regularAt u f r law.left (all _)).real,
+    imaginary := \fun (r: N.Nat^) => (regularAt u f r law.left (all _)).imaginary,
+  })
+};

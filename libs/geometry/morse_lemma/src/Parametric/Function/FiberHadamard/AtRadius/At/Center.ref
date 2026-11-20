@@ -1,0 +1,25 @@
+\definition constantPath: \forall (t: Paths.Time) -> HomotopyMaps.apply Homotopy.domain U Homotopy.map (point t) = Open.inclusion domain U included x :=
+  \fun (t: Paths.Time) => trans!{Point} _ _ _ (mapFormula t)
+    (\axiom:funext(Coordinates.addPoint originPoint (Coordinates.scale t (Base.displacement (basePoint x))), x,
+      \fun (k: Fin.Fin dimension) => \block {
+        \let origin: originPoint k = x k := sym!{Real} _ _ (congr!{Point Real} (\fun (v: Point) => v k) x originPoint centered) \then
+        \let deltaZero: Base.displacement (basePoint x) k = R.zero := trans!{Real} _ _ _ (congr!{Real Real} (R.sub (x k)) _ _ origin) (Laws.subSelf (x k)) \then
+        \return eq_reason_in!{Real _
+          "=" _ "by" { congr!{Real Real Real} R.add _ _ _ _ origin (congr!{Real Real} (R.mul t) _ _ deltaZero) }
+          "=" _ "by" { congr!{Real Real} (R.add (x k)) _ _ (Laws.fieldMulZeroRight t) }
+          "=" _ "by" { Laws.addZeroRight (x k) }
+        }
+      }));
+\import Average.Algebra[] \as Integrals;
+\import Average.Weight[] \as Weight;
+\definition law: \forall (i, j: Index) -> coefficient i j x = R.mul R.half (hessianEntry (Open.inclusion domain U included x) i j) :=
+  \fun (i, j: Index) => trans!{Real} _ _ _
+    (Average.congruent (\parent.\parent.Entry[i := i, j := j].section x)
+      (Integrals.scaling (hessianEntry (Open.inclusion domain U included x) i j) Weight.function)
+      (\fun (t: Paths.Time) => eq_reason_in!{Real _
+        "=" _ "by" { \parent.Weighted[].entryValue i j t }
+        "=" _ "by" { congr!{Real Real} (R.mul (Weight.function t)) _ _
+          (congr!{{Open.Carrier U} Real} (\fun (v: Open.Carrier U) => hessianEntry v i j)
+            (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point t)) (Open.inclusion domain U included x) (constantPath t)) }
+        "=" _ "by" { Laws.fieldMulComm (Weight.function t) (hessianEntry (Open.inclusion domain U included x) i j) }
+      })) (Weight.scaleLaw (hessianEntry (Open.inclusion domain U included x) i j));

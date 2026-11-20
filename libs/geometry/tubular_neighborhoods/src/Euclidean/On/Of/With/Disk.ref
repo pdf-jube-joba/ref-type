@@ -1,0 +1,61 @@
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Ball;
+\import Ball.Compactness[] \as Compact;
+\import Normal.SubspaceTopology[] \as Sub;
+\import topological_constructions.Product[A := M.Point,B := E.Vector] \as Product;
+\import metric_spaces.RealLine[] \as Line;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition vectorContinuous: topology.Continuity[A := Normal.Point,B := E.Vector].Continuous Normal.topology Bundle.ambient.space Normal.ambientVector :=
+  \bysub(TotalMaps.Data,{ g: TotalMaps.Data \where TotalMaps.Continuous g },Normal.Vector[].map);
+\definition coordinateVector: topology.Continuity[A := Normal.Point,B := E.Vector].Continuous Normal.topology Ball.topology Normal.ambientVector :=
+  \idelim Bundle.ambient.space = Ball.topology \with s: T.Topology => topology.Continuity[A := Normal.Point,B := E.Vector].Continuous Normal.topology s Normal.ambientVector \by {
+    base: vectorContinuous,equality: sym!{{T.Topology}} _ _ Compact.coordinateMetricAgreement
+  };
+\definition squared[p: Normal.Point]: R.Real := Ball.normSquared (Normal.ambientVector p);
+\definition continuous: metric_spaces.RealFunctions[A := Normal.Point].Continuous Normal.topology squared :=
+  topology.Composition[A := Normal.Point,B := E.Vector,C := R.Real].composeContinuous _ Ball.topology Line.topology Normal.ambientVector Ball.normSquared coordinateVector Ball.Geometry[].normSquaredContinuous;
+\definition closedBall: \Pow Normal.Point := { p: Normal.Point \where Order.Le (squared p) R.one };
+\definition closed: S.IsClosedIn Normal.topology closedBall := topology.Continuity[A := Normal.Point,B := E.Vector].closedPreimage Normal.topology Ball.topology
+  Normal.ambientVector coordinateVector Ball.ClosedBall Ball.Geometry[].diskClosed;
+\definition Point: \Set := \Cast[Normal.Point] closedBall;
+\definition topology: topology.Structures[].Topology[Point] := S.Subspace[S := closedBall].topology Normal.topology;
+\definition boundary: \Pow Point := { p: Point \where squared p = R.one };
+\definition inclusion: topology.Continuity[A := Point,B := Normal.Point].Continuous topology Normal.topology (\fun (p: Point) => p) :=
+  topology.Continuity[A := Normal.Point,B := Normal.Point].Corestriction[S := closedBall].inclusionContinuous Normal.topology;
+\definition compact[compactBase: BaseSpace.IsCompact M.space]: topology.Topology[Carrier := Point].IsCompact topology := \block {
+  \let ambientBall: T.IsCompactIn Bundle.ambient.space Ball.ClosedBall := \idelim Ball.topology = Bundle.ambient.space \with t: T.Topology => T.IsCompactIn t Ball.ClosedBall \by { base: Compact.compactIn,equality: Compact.coordinateMetricAgreement } \then
+  \let box: \Pow Product.CarrierSet := Product.Rectangle BaseSpace.Whole Ball.ClosedBall \then
+  \let compactBox: topology.Topology[Carrier := Product.CarrierSet].IsCompactIn Sub.productTopology box := Product.Compactness[].productCompactIn M.space Bundle.ambient.space _ _ compactBase ambientBall \then
+  \let hull: \Pow Normal.Point := topology.Maps[A := Product.CarrierSet,B := Normal.Point].Image Sub.retraction box \then
+  \let compactHull: S.IsCompactIn Normal.topology hull := topology.Compactness[A := Product.CarrierSet,B := Normal.Point].continuousImage _ _ Sub.retraction Sub.retractionContinuous box compactBox \then
+  \return S.Subspace[S := closedBall].Properties[].compact Normal.topology (S.Compactness[].closedSubset Normal.topology hull closedBall compactHull closed
+    (\fun (q: Normal.Point)(member: _) => Logic.existsIntro[Product.CarrierSet,{ p: Product.CarrierSet \where Logic.And[\In[Product.CarrierSet] box p,Sub.retraction p = q] }]
+      (Sub.inclusion q) (Logic.And[_, _]::# (Logic.And[_, _]::# (\refl(q.base)) member) (Sub.retracts q))))
+};
+\definition scale[a: R.Real][p: Normal.Point]: Normal.Point := Normal.include p.base ((Normal.fiberSpace p.base).smul a p.vector);
+\definition cancel[a,b: R.Real][p: Normal.Point][inverse: R.mul a b = R.one]: scale a (scale b p) = p :=
+  Sub.ext _ _ (\refl(p.base)) (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (E.space.scalarAssoc a b p.vector))
+    (trans!{{E.Vector}} _ _ _ (congr!{{R.Real} {E.Vector}} (\fun (c: R.Real) => E.space.smul c p.vector) _ _ inverse) (E.space.scalarOne p.vector)));
+\definition scaleZero[p: Normal.Point]: scale R.zero p = zero p.base := Sub.ext _ _ (\refl(p.base)) (Laws.zeroScale p.vector);
+\module Family(X: \Set, source: topology.Structures[].Topology[X], a: X -> R.Real, q: X -> Normal.Point,
+  scalar: metric_spaces.RealFunctions[A := X].Continuous source a, regular: topology.Continuity[A := X,B := Normal.Point].Continuous source Normal.topology q);
+
+\import thom_spaces.Thom[].Collapse[A := Point,source := topology,subset := boundary] \as Quotient;
+\definition Thom: \Set := Quotient.Carrier;
+\definition class: Point -> Thom := Quotient.class;
+\definition thomTopology: topology.Structures[].Topology[Thom] := Quotient.topology;
+\definition embedded[r: R.Real][v: Point]: E.Vector := endpoint (scale r v);
+\structure CollapseLaw[r: R.Real,f: E.Vector -> Thom]: \Prop := {
+  disk: \forall (v: Point) -> f (embedded r v) = Quotient.class v,
+  outside: \forall (x: E.Vector) -> (\forall (v: Point) -> Logic.Not (embedded r v = x)) -> f x = Quotient.point,
+};
+\definition unique[r: R.Real][f,g: E.Vector -> Thom][a: CollapseLaw[r,f]][b: CollapseLaw[r,g]]: f = g := \axiom:funext(f,g,\fun (x: E.Vector) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( v: Point \where embedded r v = x )))
+    (\block {
+      \fun (h: _) \then
+      \takefrom v: \Cast[Point] ({ v: Point \where embedded r v = x }) \by h \then
+      \return \idelim embedded r v = x \with y: E.Vector => f y = g y \by { base: trans!{Thom} _ _ _ (a.disk v) (sym!{Thom} _ _ (b.disk v)),equality: \bysub(Point,{ v: Point \where embedded r v = x },v) }
+    })
+    (\fun (h: _) => \block {
+      \let absent: \forall (v: Point) -> Logic.Not (embedded r v = x) := \fun (v: Point)(same: _) => h (Logic.existsIntro[Point,{ v: Point \where embedded r v = x }] v same) \then
+      \return trans!{Thom} _ _ _ (a.outside x absent) (sym!{Thom} _ _ (b.outside x absent))
+    }));

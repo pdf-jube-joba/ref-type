@@ -1,0 +1,22 @@
+\definition value: Linear.Map := Linear.Map {
+  apply := \fun (v: E.Vector) => Coordinates.pack (Matrices.product B (Coordinates.unpack v)),
+  preservesAdd := \fun (v, w: E.Vector) => \axiom:funext(
+    Coordinates.pack (Matrices.product B (Coordinates.unpack (E.space.add v w))),
+    E.space.add (Coordinates.pack (Matrices.product B (Coordinates.unpack v))) (Coordinates.pack (Matrices.product B (Coordinates.unpack w))),
+    \fun (i: Fin.Fin Coordinates.dimension) => trans!{{R.Real}} _ _ _
+      (SumLaws.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n) => Spaces.mulAdd (B (Coordinates.square.row i) j)
+        (Coordinates.unpack v j (Coordinates.square.column i)) (Coordinates.unpack w j (Coordinates.square.column i))))
+      (SumLaws.additive (Fin.elements n) _ _)),
+  preservesScale := \fun (c: R.Real)(v: E.Vector) => \axiom:funext(
+    Coordinates.pack (Matrices.product B (Coordinates.unpack (E.space.smul c v))),
+    E.space.smul c (Coordinates.pack (Matrices.product B (Coordinates.unpack v))),
+    \fun (i: Fin.Fin Coordinates.dimension) => trans!{{R.Real}} _ _ _
+      (SumLaws.congruent (Fin.elements n) _ _ (\fun (j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (Spaces.mulAssoc (B (Coordinates.square.row i) j) c (Coordinates.unpack v j (Coordinates.square.column i))) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (Coordinates.unpack v j (Coordinates.square.column i))) _ _ (Spaces.mulComm (B (Coordinates.square.row i) j) c) }
+        "=" _ "by" { Spaces.mulAssoc c (B (Coordinates.square.row i) j) (Coordinates.unpack v j (Coordinates.square.column i)) }
+      })) (SumLaws.multiplyLeft (Fin.elements n) c _)),
+};
+\definition unpackValue: \forall (v: E.Vector) -> Coordinates.unpack (value.apply v) = Matrices.product B (Coordinates.unpack v) :=
+  \fun (v: E.Vector) => Coordinates.unpackPack (Matrices.product B (Coordinates.unpack v));
+\module Inverse(P: MatrixLaws.Inverse B);

@@ -1,0 +1,19 @@
+\import G.With[continuous := continuousG] \as Left;
+\import H.With[continuous := continuousH] \as Right;
+\module At(b: Open.Carrier U, epsilon, delta, rho: Real,
+  uniform: Right.At[b := b, epsilon := epsilon].Control[delta],
+  ball: Open.BallInside[U.points, b, rho]);
+\definition derivative: PartialLaw -> Analysis.HasPartialDerivative U Left.average i Right.average := \block {
+  \fun (partials: PartialLaw)(b: Open.Carrier U)(epsilon: Real)(positive: R.Lt Scalars.zero epsilon) \then
+  \let theta: Real := Scalars.mul Scalars.half epsilon \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Right.At[b := b, epsilon := theta].Control[delta] })
+    \by Right.At[b := b, epsilon := theta].exists (Bounds.halfOfPositive epsilon positive) \then
+  \let uniform: Right.At[b := b, epsilon := theta].Control[delta] := \bysub(Real, { delta: Real \where Right.At[b := b, epsilon := theta].Control[delta] }, delta) \then
+  \takefrom rho: \Cast[Real] ({ rho: Real \where Open.BallInside[U.points, b, rho] }) \by U.open b (\bysub(Point, U.points, b)) \then
+  \let ball: Open.BallInside[U.points, b, rho] := \bysub(Real, { rho: Real \where Open.BallInside[U.points, b, rho] }, rho) \then
+  \return Logic.existsIntro[Real, { radius: Real \where Analysis.PartialControl[U, Left.average, b, i, Right.average b, epsilon, radius] }] (Distance.min delta rho)
+    (\idelim Scalars.add theta theta = epsilon \with e: Real => Analysis.PartialControl[U, Left.average, b, i, Right.average b, e, Distance.min delta rho] \by {
+      base: At[b := b, epsilon := theta, delta := delta, rho := rho, uniform := uniform, ball := ball].control partials (Bounds.halfOfPositive epsilon positive),
+      equality: Bounds.halfTwice epsilon
+    })
+};

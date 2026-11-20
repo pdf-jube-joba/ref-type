@@ -1,0 +1,51 @@
+/* Finite Euclidean coordinates for a rectangular array. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import std.Data[].Sum[] \as Sum;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.eq_reason_in;
+\structure Encoding[m: N.Nat^]: \Set := {
+  dimension: N.Nat^,
+  row: Fin.Fin dimension -> Fin.Fin m,
+  column: Fin.Fin dimension -> Fin.Fin n,
+  address: Fin.Fin m -> Fin.Fin n -> Fin.Fin dimension,
+  rowAddress: \forall (i: Fin.Fin m)(j: Fin.Fin n) -> row (address i j) = i,
+  columnAddress: \forall (i: Fin.Fin m)(j: Fin.Fin n) -> column (address i j) = j,
+  addressCoordinates: \forall (i: Fin.Fin dimension) -> address (row i) (column i) = i,
+};
+\definition empty: Encoding[N.Nat^::zero] := Encoding[N.Nat^::zero] {
+  dimension := N.Nat^::zero,
+  row := \fun (i: Fin.Fin N.Nat^::zero) => i,
+  column := Fin.Empty[A := Fin.Fin n].function,
+  address := \fun (i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) => i,
+  rowAddress := \fun (i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) => \refl(i),
+  columnAddress := \fun (i: Fin.Fin N.Nat^::zero)(j: Fin.Fin n) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+  addressCoordinates := \fun (i: Fin.Fin N.Nat^::zero) => \refl(i),
+};
+\module Step(m: N.Nat^, previous: Encoding[m]);
+\definition encoding: \forall (m: N.Nat^) -> Encoding[m] := \induction (m: N.Nat^) \return Encoding[m] \with {
+  | zero: empty
+  | succ: \fun (m: N.Nat^)(previous: Encoding[m]) => Step[m := m, previous := previous].value
+};
+\definition square: Encoding[n] := encoding n;
+\definition dimension: N.Nat^ := square.dimension;
+\import real.Analysis[] \as R;
+\definition Matrix: \Set := Fin.Fin n -> Fin.Fin n -> R.Real;
+\definition Vector: \Set := Fin.Fin dimension -> R.Real;
+\definition pack[A: Matrix][i: Fin.Fin dimension]: R.Real := A (square.row i) (square.column i);
+\definition unpack[x: Vector][i, j: Fin.Fin n]: R.Real := x (square.address i j);
+\definition packUnpack: \forall (x: Vector) -> pack (unpack x) = x :=
+  \fun (x: Vector) => \axiom:funext(pack (unpack x), x,
+    \fun (i: Fin.Fin dimension) => congr!{{Fin.Fin dimension} {R.Real}} x _ _ (square.addressCoordinates i));
+\definition unpackPack: \forall (A: Matrix) -> unpack (pack A) = A :=
+  \fun (A: Matrix) => \axiom:funext(unpack (pack A), A, \fun (i: Fin.Fin n) =>
+    \axiom:funext(unpack (pack A) i, A i, \fun (j: Fin.Fin n) =>
+      congr!{{Fin.Fin n} {Fin.Fin n} {R.Real}} A _ _ _ _ (square.rowAddress i j) (square.columnAddress i j)));
+\definition entryPack: \forall (A: Matrix)(i, j: Fin.Fin n) -> unpack (pack A) i j = A i j :=
+  \fun (A: Matrix)(i, j: Fin.Fin n) => congr!{Matrix {R.Real}} (\fun (B: Matrix) => B i j) _ _ (unpackPack A);
+\module Calculus;

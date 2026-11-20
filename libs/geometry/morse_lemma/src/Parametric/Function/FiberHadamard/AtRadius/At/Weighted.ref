@@ -1,0 +1,58 @@
+\import Average.Algebra[] \as Integrals;
+\import Average.Weight[] \as Weight;
+\import SecondSlice.Joint[] \as SecondJoint;
+\import Paths.Taylor[g := Curve.value, d := Speed.value, e := SecondJoint.section x] \as Taylor;
+\definition sumScaleRight: \forall (k: N.Nat^)(values: Fin.Fin k -> Real)(c: Real) ->
+  R.mul (Sums.sum k values) c = Sums.sum k (\fun (i: Fin.Fin k) => R.mul (values i) c) :=
+  \fun (k: N.Nat^)(values: Fin.Fin k -> Real)(c: Real) => eq_reason_in!{Real _
+    "=" _ "by" { Laws.fieldMulComm (Sums.sum k values) c }
+    "=" _ "by" { sym!{Real} _ _ (Sums.scalar k c values) }
+    "=" _ "by" { Sums.congruent k _ _ (\fun (i: Fin.Fin k) => Laws.fieldMulComm c (values i)) }
+  };
+\definition scalarShuffle: \forall (w, h, u, v: Real) -> R.mul w (R.mul (R.mul h v) u) = R.mul (R.mul w h) (R.mul u v) :=
+  \fun (w, h, u, v: Real) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real} (R.mul w) _ _ (Laws.fieldMulAssoc h v u) }
+    "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulAssoc w h (R.mul v u)) }
+    "=" _ "by" { congr!{Real Real} (R.mul (R.mul w h)) _ _ (Laws.fieldMulComm v u) }
+  };
+\definition weightAtPoint: \forall (t: Paths.Time) -> weight (point t) = Weight.function t :=
+  \fun (t: Paths.Time) => congr!{Real Real} (\fun (r: Real) => R.add R.one (R.mul (R.neg R.one) r)) _ _ (clockAtPoint t);
+\definition entryValue: \forall (i, j: Index)(t: Paths.Time) -> \parent.\parent.Entry[i := i, j := j].section x t =
+  R.mul (Weight.function t) (hessianEntry (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point t)) i j) :=
+  \fun (i, j: Index)(t: Paths.Time) => congr!{Real Real} (\fun (w: Real) => R.mul w (hessianEntry (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point t)) i j)) _ _ (weightAtPoint t);
+\definition function: Average.Function := Integrals.summation n (\fun (i: Index) => Integrals.summation n (\fun (j: Index) =>
+  Integrals.scaling (R.mul (delta x i) (delta x j)) (\parent.\parent.Entry[i := i, j := j].section x)));
+\module Time(t: Paths.Time);
+\definition integrand: \forall (t: Paths.Time) -> Taylor.weighted t = function t := \fun (t: Paths.Time) => Time[t := t].law;
+\definition termIntegral[i, j: Index]: Average.Function := Integrals.scaling (R.mul (delta x i) (delta x j))
+  (\parent.\parent.Entry[i := i, j := j].section x);
+\definition rowIntegral[i: Index]: Average.Function := Integrals.summation n (termIntegral i);
+\definition termValue: \forall (i, j: Index) -> Average.value (termIntegral i j) =
+  R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j) :=
+  \fun (i, j: Index) => trans!{Real} (Average.value (termIntegral i j))
+    (R.mul (R.mul (delta x i) (delta x j)) (coefficient i j x))
+    (R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))
+    (Integrals.scaleLaw (R.mul (delta x i) (delta x j)) (\parent.\parent.Entry[i := i, j := j].section x))
+    (trans!{Real} (R.mul (R.mul (delta x i) (delta x j)) (coefficient i j x))
+      (R.mul (coefficient i j x) (R.mul (delta x i) (delta x j)))
+      (R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))
+      (Laws.fieldMulComm (R.mul (delta x i) (delta x j)) (coefficient i j x))
+      (sym!{Real} _ _ (Laws.fieldMulAssoc (coefficient i j x) (delta x i) (delta x j))));
+\definition rowValue: \forall (i: Index) -> Average.value (rowIntegral i) = Sums.sum n (\fun (j: Index) =>
+  R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j)) :=
+  \fun (i: Index) => trans!{Real} (Average.value (rowIntegral i))
+    (Sums.sum n (\fun (j: Index) => Average.value (termIntegral i j)))
+    (Sums.sum n (\fun (j: Index) => R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j)))
+    (Integrals.sumLaw n (termIntegral i))
+    (Sums.congruent n (\fun (j: Index) => Average.value (termIntegral i j))
+      (\fun (j: Index) => R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j)) (termValue i));
+\definition value: Average.value Taylor.weighted = Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+  R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))) :=
+  trans!{Real} (Average.value Taylor.weighted) (Average.value function)
+    (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) => R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))))
+    (Average.congruent Taylor.weighted function integrand)
+    (trans!{Real} (Average.value function) (Sums.sum n (\fun (i: Index) => Average.value (rowIntegral i)))
+      (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) => R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))))
+      (Integrals.sumLaw n rowIntegral)
+      (Sums.congruent n (\fun (i: Index) => Average.value (rowIntegral i))
+        (\fun (i: Index) => Sums.sum n (\fun (j: Index) => R.mul (R.mul (coefficient i j x) (delta x i)) (delta x j))) rowValue));

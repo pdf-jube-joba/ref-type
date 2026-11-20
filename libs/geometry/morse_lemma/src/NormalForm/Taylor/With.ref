@@ -1,0 +1,84 @@
+\definition domain: Open.OpenSet := normalization.domain;
+\definition includedW: Open.Included domain W := normalization.included;
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) => taylor.included x (includedW x member);
+\definition contains: \In[Point] domain.points a := normalization.contains;
+\definition origin: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\definition C[x: Open.Carrier domain]: Matrices.Matrix := normalization.change x;
+\definition matrix[x: Open.Carrier domain]: Linear.Map := Matrices.linear (C x);
+\import matrix_invariants.Real[].At[n := n].Smooth[d := n] \as MatrixComparison;
+\definition matrixEntry: \forall (x: Open.Carrier domain)(i, j: Fin.Fin n) -> (matrix x).apply (E.basis j) i = C x i j :=
+  \fun (x: Open.Carrier domain)(i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Point {R.Real}} (\fun (v: Point) => (matrix x).apply v i) _ _ (MatrixComparison.basisComparison j) }
+    "=" _ "by" { congr!{Point {R.Real}} (\fun (v: Point) => v i) _ _ (Matrices.onBasis (C x) j) }
+  };
+\definition matrixRegular: calculus.MatrixFamily[d := n, p := n, q := n].Regular domain matrix :=
+  \fun (i, j: Fin.Fin n) => \idelim (\fun (x: Open.Carrier domain) => C x i j) = (\fun (x: Open.Carrier domain) => (matrix x).apply (E.basis j) i)
+    \with g: Open.ScalarFunction domain => Smooth.SmoothOn domain g \by {
+      base: normalization.regular i j,
+      equality: \axiom:funext((\fun (x: Open.Carrier domain) => C x i j), (\fun (x: Open.Carrier domain) => (matrix x).apply (E.basis j) i),
+        \fun (x: Open.Carrier domain) => sym!{{R.Real}} _ _ (matrixEntry x i j))
+    };
+\definition negativeCenter: Point := \fun (i: Fin.Fin n) => R.neg (a i);
+\definition shift: Maps.Map domain Open.whole := calculus.Translation[n := n].map domain negativeCenter;
+\definition shiftZero: shift.apply origin = E.space.zero := \axiom:funext((\fun (i: Fin.Fin n) => shift.apply origin i), E.space.zero,
+  \fun (i: Fin.Fin n) => Arithmetic.addNegLeft (a i));
+\definition shiftFormula: \forall (x: Open.Carrier domain)(i: Fin.Fin n) -> shift.apply x i = R.sub (x i) (a i) :=
+  \fun (x: Open.Carrier domain)(i: Fin.Fin n) => Spaces.addComm (R.neg (a i)) (x i);
+\import \root.MatrixAction[d := n, n := n].On[U := domain, A := matrix, regular := matrixRegular, v := shift] \as Action;
+\import calculus.LinearMap[n := n, m := n].On[U := Open.whole, L := normal.change.backward] \as Backward;
+\import Maps.Composition[U := domain, V := Open.whole, f := Action.map].After[l := n, W := Open.whole, g := Backward.map] \as Composition;
+\definition coordinates: Maps.Map domain Open.whole := Composition.compose;
+\definition coordinatesValue[x: Open.Carrier domain]: Point := Maps.apply domain Open.whole coordinates x;
+\definition coordinatesZero: coordinatesValue origin = E.space.zero := trans!{Point} _ _ _
+  (congr!{Point Point} normal.change.backward.apply _ _ (Action.At[a := origin].valueZero shiftZero)) normal.change.backward.preservesZero;
+\definition linearCenter: matrix origin = Identity.linear := trans!{{Linear.Map}} _ _ _
+  (congr!{{Matrices.Matrix} {Linear.Map}} Matrices.linear _ _ normalization.center) (Representation.linearEntries Identity.linear);
+\definition actionDerivative: Maps.Differential[U := domain, V := Open.whole, f := Action.map, a := origin].value = Identity.linear :=
+  trans!{{Linear.Map}} _ _ _ (Action.At[a := origin].differential shiftZero)
+    (trans!{{Linear.Map}} _ _ _
+      (congr!{{Linear.Map} {Linear.Map} {Linear.Map}} Compose.compose _ _ _ _ linearCenter (calculus.Translation[n := n].differential domain negativeCenter origin))
+      (Linear.ext _ _ (\refl(Identity.linear.apply))));
+\definition derivative: Maps.Differential[U := domain, V := Open.whole, f := coordinates, a := origin].value = normal.change.backward :=
+  eq_reason_in!{{Linear.Map} Maps.Differential[U := domain, V := Open.whole, f := coordinates, a := origin].value
+    "=" { Compose.compose
+      Maps.Differential[U := Open.whole, V := Open.whole, f := Backward.map, a := Maps.apply domain Open.whole Action.map origin].value
+      Maps.Differential[U := domain, V := Open.whole, f := Action.map, a := origin].value } "by" { Composition.At[a := origin].jacobian }
+    "=" { Compose.compose normal.change.backward Identity.linear } "by" { congr!{{Linear.Map} {Linear.Map} {Linear.Map}} Compose.compose _ _ _ _
+      (Backward.differential (Maps.apply domain Open.whole Action.map origin)) actionDerivative }
+    "=" { normal.change.backward } "by" { Linear.ext (Compose.compose normal.change.backward Identity.linear) normal.change.backward
+      (\axiom:funext((Compose.compose normal.change.backward Identity.linear).apply, normal.change.backward.apply, \fun (v: Point) => \refl(normal.change.backward.apply v))) }
+  };
+\definition nonzeroBackward: Inversion.Nonzero (Representation.entries normal.change.backward) := Inversion.nonzeroOfInverse (Representation.entries normal.change.backward)
+  (\into[Matrices.Matrix](Representation.entries normal.change.forward, Matrices.Operations[].Inverse (Representation.entries normal.change.backward)) \by {
+    Representation.inverseCertificate normal.change.backward normal.change.forward
+      (Spaces.Isomorphism[V := Point, W := Point, source := E.space, target := E.space].laws normal.change).rightInverse
+      (Spaces.Isomorphism[V := Point, W := Point, source := E.space, target := E.space].laws normal.change).leftInverse
+  });
+\import inverse_implicit.Euclidean[n := n].InverseFunction[U := domain, f := coordinates, a := origin] \as InverseFunction;
+\definition nonsingular: InverseFunction.Nonsingular := \idelim normal.change.backward = Maps.Differential[U := domain, V := Open.whole, f := coordinates, a := origin].value
+  \with L: Linear.Map => Inversion.Nonzero (Representation.entries L) \by { base: nonzeroBackward, equality: sym!{{Linear.Map}} _ _ derivative };
+\definition quadraticFormula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+  R.add (f a) (Inertia.standard normal.sign (coordinatesValue x) (coordinatesValue x)) := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let v: Point := \fun (i: Fin.Fin n) => R.sub (x i) (a i) \then
+  \let shiftSame: v = shift.apply x := \axiom:funext(v, (\fun (i: Fin.Fin n) => shift.apply x i),
+    \fun (i: Fin.Fin n) => sym!{{R.Real}} _ _ (shiftFormula x i)) \then
+  \return eq_reason_in!{{R.Real} _
+    "=" _ "by" { taylor.formula (Open.inclusion domain W includedW x) }
+    "=" { R.add (f a) ((MatrixForm.form (A (Open.inclusion domain W includedW x))).form v v) } "by" {
+      congr!{{R.Real} {R.Real}} (R.add (f a)) _ _ (sym!{{R.Real}} _ _ (MatrixForm.Quadratic[].formula (A (Open.inclusion domain W includedW x)) v)) }
+    "=" { R.add (f a) ((MatrixForm.form (Matrices.product (Matrices.transpose (C x)) (Matrices.product (A centerPoint) (C x)))).form v v) } "by" {
+      congr!{{Matrices.Matrix} {R.Real}} (\fun (M: Matrices.Matrix) => R.add (f a) ((MatrixForm.form M).form v v)) _ _ (normalization.formula x) }
+    "=" { R.add (f a) ((MatrixForm.form (A centerPoint)).form ((matrix x).apply v) ((matrix x).apply v)) } "by" {
+      congr!{{R.Real} {R.Real}} (R.add (f a)) _ _ (MatrixForm.Congruence[].formula (A centerPoint) (C x) v v) }
+    "=" { R.add (f a) (hessianForm.form ((matrix x).apply (shift.apply x)) ((matrix x).apply (shift.apply x))) } "by" {
+      congr!{{Matrices.Matrix} Point Point {R.Real}} (\fun (M: Matrices.Matrix)(u, w: Point) => R.add (f a) ((MatrixForm.form M).form u w)) _ _ _ _ _ _ centerMatrix
+        (congr!{Point Point} (matrix x).apply _ _ shiftSame) (congr!{Point Point} (matrix x).apply _ _ shiftSame) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (f a)) _ _ (Inertia.Normalized[h := hessianForm, normal := normal].formula ((matrix x).apply (shift.apply x)) ((matrix x).apply (shift.apply x))) }
+  }
+};
+\module Using(local: inverse_implicit.Euclidean[n := n].LocalInverse[domain, coordinates, origin]);
+\definition exists: \exists Local := \block {
+  \takefrom local: inverse_implicit.Euclidean[n := n].LocalInverse[domain, coordinates, origin] \by InverseFunction.localExistence nonsingular \then
+  \return \exact(Using[local := local].value, Local)
+};

@@ -1,0 +1,19 @@
+\import topology.Topology[Carrier := X] \as S;
+\import topology.Continuity[A := X,B := A] \as F;
+\import \root.Collapse[A := X,D := D,space := source,disk := disk,sphere := sphere] \as Source;
+\definition shell: \Pow X := F.Preimage f c.shell;
+\definition core: \Pow X := F.Preimage f c.core;
+\definition restrict[x: \Cast[X] shell]: Paste.Left := \into[A](f x,c.shell) \by { \bysub(X,shell,x) };
+\definition restriction: topology.Continuity[A := \Cast[X] shell,B := Paste.Left].Continuous (S.Subspace[S := shell].topology source) (Space.Subspace[S := c.shell].topology space) restrict :=
+  topology.Continuity[A := \Cast[X] shell,B := A].Corestriction[S := c.shell].corestrictContinuous _ space restrict
+    (topology.Composition[A := \Cast[X] shell,B := X,C := A].composeContinuous _ source space (\fun (x: \Cast[X] shell) => x) f
+      (topology.Continuity[A := X,B := X].Corestriction[S := shell].inclusionContinuous source) regular);
+\definition pulled: Source.Chart := Source.Chart {
+  shell := shell, closed := F.closedPreimage source space f regular c.shell c.closed,
+  core := core, open := regular c.core c.open, included := \fun (x: X)(h: _) => c.included (f x) h,
+  read := \fun (x: \Cast[X] shell) => c.read (restrict x),
+  continuous := topology.Composition[A := \Cast[X] shell,B := Paste.Left,C := D].composeContinuous _ _ disk restrict c.read restriction c.continuous,
+  seam := \fun (x: \Cast[X] shell)(out: _) => c.seam (restrict x) out,
+};
+\definition natural: (\fun (x: X) => map (f x)) = Source.Of[c := pulled].map :=
+  Source.Of[c := pulled].unique (\fun (x: X) => map (f x)) (\fun (x: \Cast[X] shell) => onDisk (restrict x)) (\fun (x: X)(h: _) => onExterior (f x) h);

@@ -1,0 +1,45 @@
+\import Hilbert.Riesz[] \as Riesz;
+\import Hilbert.Estimates[] \as Bounds;
+\definition pair[y: Negative][x: Positive]: C.Complex := Inner.value y x;
+\import Multiplication.By[symbol := Multiplication.conjugate W.reciprocal] \as Conjugate;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\definition realSymbol: \forall (x: L2.Space) -> Conjugate.value x = Divide.value x := Q.induction
+  (\fun (x: L2.Space) => Conjugate.value x = Divide.value x)
+  (\fun (f: L2.Representatives) => eq_reason_in!{L2.Space _
+    "=" _ "by" { Conjugate.onClass f }
+    "=" _ "by" { L2.classPointwise (Conjugate.representative f) (Divide.representative f)
+      (\fun (xi: Point) => congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (f xi)) _ _ (CL.conjOfReal (Bessel.inverse xi))) }
+    "=" _ "by" { sym!{L2.Space} _ _ (Divide.onClass f) }
+  });
+\definition pivot[f: L2.Space][x: Positive]: pair (fromL2 f) x = Inner.value f (physical x) := eq_reason_in!{C.Complex _
+  "=" _ "by" { Multiplication.adjoint W.reciprocal (U.forward f) x }
+  "=" _ "by" { congr!{L2.Space C.Complex} (Inner.value (U.forward f)) _ _ (realSymbol x) }
+  "=" _ "by" { U.adjointFormula f (Divide.value x) }
+};
+\definition estimate[y: Negative][x: Positive]: R.Le (Abs.abs (pair y x)) (Real.mul (norm y) (norm x)) := \block {
+  \let z: C.Complex := pair y x \then
+  \let a: Real.Real := Abs.abs z \then
+  \let rotated: Positive := L2.scale (D.conj z) x \then
+  \let square: Product.abs (C.re (pair y rotated)) = Real.mul a a := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{C.Complex Real.Real} (\fun (w: C.Complex) => Product.abs (C.re w)) _ _
+      (trans!{C.Complex} _ _ _ (Inner.scaleRight (D.conj z) y x) (CL.conjMulSelf z)) }
+    "=" _ "by" { Product.absOfNonnegative _ (CL.normSqNonnegative z) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Abs.square z) }
+  } \then
+  \return Bounds.factorCancel a _ (Laws.fieldMulNonnegative _ _ (Geometry.nonnegative y) (Geometry.nonnegative x))
+    (R.leReplace _ _ _ _ square (eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (norm y)) _ _ (Geometry.homogeneous (D.conj z) x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (norm y) (Real.mul r (norm x))) _ _ (Abs.conjugate z) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (norm y)) _ _ (Laws.fieldMulComm a (norm x)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _) }
+    }) (Bounds.cauchySchwarz complete y rotated))
+};
+\definition functional[y: Negative]: Riesz.Functional := Riesz.Functional {
+  apply := pair y, addition := Inner.addRight y, scalar := \fun (c: C.Complex)(x: Positive) => Inner.scaleRight c y x,
+  bound := norm y, boundNonnegative := Geometry.nonnegative y, estimate := estimate y,
+};
+\definition represent[f: Riesz.Functional]: Negative := Riesz.vector complete f;
+\definition represents[f: Riesz.Functional][x: Positive]: f.apply x = pair (represent f) x := Riesz.vectorLaw complete f x;
+\definition unique[f: Riesz.Functional][y: Negative]: (\forall (x: Positive) -> f.apply x = pair y x) -> represent f = y :=
+  Riesz.unique f (represent f) y (represents f);
+\definition inverse[y: Negative]: represent (functional y) = y := unique (functional y) y (\fun (x: Positive) => \refl(pair y x));

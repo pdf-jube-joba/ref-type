@@ -1,0 +1,78 @@
+/* The derivative at zero of 2BH + H^tBH is the isomorphism 2B-. */
+\import \parent.Left[B := B] \as Multiplication;
+\import Calculus.Listed[I := Fin.Fin n] \as SumFunctions;
+\import calculus.LinearMap[n := Coordinates.dimension, m := Coordinates.dimension].On[U := Flat.whole, L := Multiplication.value] \as LinearPart;
+\definition derivative: Linear.Map := LinearOperations.plus Multiplication.value Multiplication.value;
+\import calculus.LinearMap[n := Coordinates.dimension, m := Coordinates.dimension].On[U := Flat.whole, L := derivative] \as TwiceLinear;
+\definition linearComponent[i, j: Fin.Fin n]: Functions.Function := Maps.coordinateFunction Flat.whole Flat.whole LinearPart.map (Coordinates.square.address i j);
+\definition term[i, j, k: Fin.Fin n]: Functions.Function := Functions.product (Calculus.entry k i) (linearComponent k j);
+\definition quadratic[i, j: Fin.Fin n]: Functions.Function := SumFunctions.sum (Fin.elements n) (term i j);
+\definition linear[i, j: Fin.Fin n]: Functions.Function := Maps.coordinateFunction Flat.whole Flat.whole TwiceLinear.map (Coordinates.square.address i j);
+\definition component[i, j: Fin.Fin n]: Functions.Function := Functions.plus (linear i j) (quadratic i j);
+\definition value[H: Matrices.Matrix]: Matrices.Matrix := Arrays.plus
+  (Arrays.plus (Matrices.product B H) (Matrices.product B H)) (Matrices.product (Matrices.transpose H) (Matrices.product B H));
+\definition linearComponentFormula: \forall (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) -> linearComponent i j x = Matrices.product B (Coordinates.unpack x) i j :=
+  \fun (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) => Coordinates.entryPack (Matrices.product B (Coordinates.unpack x)) i j;
+\definition linearFormula: \forall (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) -> linear i j x = Arrays.plus (Matrices.product B (Coordinates.unpack x)) (Matrices.product B (Coordinates.unpack x)) i j :=
+  \fun (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) => Coordinates.entryPack (Arrays.plus (Matrices.product B (Coordinates.unpack x)) (Matrices.product B (Coordinates.unpack x))) i j;
+\definition quadraticFormula: \forall (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) -> quadratic i j x = Matrices.product (Matrices.transpose (Coordinates.unpack x)) (Matrices.product B (Coordinates.unpack x)) i j :=
+  \fun (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) => SumLaws.congruent (Fin.elements n) _ _
+    (\fun (k: Fin.Fin n) => congr!{{R.Real} {R.Real}} (R.mul (Coordinates.unpack x k i)) _ _ (linearComponentFormula k j x));
+\definition componentFormula: \forall (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) -> component i j x = value (Coordinates.unpack x) i j :=
+  \fun (i, j: Fin.Fin n)(x: Flat.Carrier Flat.whole) => congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (linearFormula i j x) (quadraticFormula i j x);
+\definition data: Maps.Data[Flat.whole, Flat.whole] := Maps.Data[Flat.whole, Flat.whole] {
+  apply := \fun (x: Flat.Carrier Flat.whole) => \into[E.Vector](Coordinates.pack (\fun (i, j: Fin.Fin n) => component i j x), Flat.whole.points) \by {
+    \refl(Coordinates.pack (\fun (i, j: Fin.Fin n) => component i j x))
+  },
+};
+\definition map: Maps.Map Flat.whole Flat.whole := \into[Maps.Data[Flat.whole, Flat.whole]](data, Maps.Map Flat.whole Flat.whole) \by {
+  Maps.Laws[Flat.whole, Flat.whole, data] {
+    smooth := \fun (i: Fin.Fin Coordinates.dimension) => \bysub(Flat.ScalarFunction Flat.whole, Flat.Smooth[].SmoothFunction Flat.whole,
+      component (Coordinates.square.row i) (Coordinates.square.column i)),
+  }
+};
+\definition mapValue[x: Flat.Carrier Flat.whole]: E.Vector := Maps.apply Flat.whole Flat.whole map x;
+\definition formula: \forall (x: Flat.Carrier Flat.whole) -> mapValue x = Coordinates.pack (value (Coordinates.unpack x)) :=
+  \fun (x: Flat.Carrier Flat.whole) => \axiom:funext((mapValue x), Coordinates.pack (value (Coordinates.unpack x)),
+    \fun (i: Fin.Fin Coordinates.dimension) => componentFormula (Coordinates.square.row i) (Coordinates.square.column i) x);
+\definition termAtOrigin: \forall (i, j, k: Fin.Fin n) -> term i j k Calculus.origin = R.zero :=
+  \fun (i, j, k: Fin.Fin n) => Spaces.mulZeroLeft (linearComponent k j Calculus.origin);
+\definition quadraticAtOrigin: \forall (i, j: Fin.Fin n) -> quadratic i j Calculus.origin = R.zero :=
+  \fun (i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _ (SumLaws.congruent (Fin.elements n) _ _ (termAtOrigin i j)) (SumLaws.zeroSum (Fin.elements n));
+\definition linearAtOrigin: \forall (i, j: Fin.Fin n) -> linear i j Calculus.origin = R.zero :=
+  \fun (i, j: Fin.Fin n) => congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v (Coordinates.square.address i j)) _ _ derivative.preservesZero;
+\definition center: mapValue Calculus.origin = E.space.zero :=
+  \axiom:funext((mapValue Calculus.origin), E.space.zero,
+    \fun (i: Fin.Fin Coordinates.dimension) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (linearAtOrigin (Coordinates.square.row i) (Coordinates.square.column i)) (quadraticAtOrigin (Coordinates.square.row i) (Coordinates.square.column i)))
+      (Spaces.addZeroLeft R.zero));
+\definition linearComponentAtOrigin: \forall (i, j: Fin.Fin n) -> linearComponent i j Calculus.origin = R.zero :=
+  \fun (i, j: Fin.Fin n) => congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v (Coordinates.square.address i j)) _ _ Multiplication.value.preservesZero;
+\definition termTangent: \forall (i, j, k: Fin.Fin n)(v: E.Vector) -> Calculus.tangent (term i j k) v = R.zero :=
+  \fun (i, j, k: Fin.Fin n)(v: E.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Calculus.product (Calculus.entry k i) (linearComponent k j) v }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.add (R.mul c (Calculus.tangent (Calculus.entry k i) v)) (R.mul R.zero (Calculus.tangent (linearComponent k j) v))) _ _ (linearComponentAtOrigin k j) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Spaces.mulZeroLeft (Calculus.tangent (Calculus.entry k i) v)) (Spaces.mulZeroLeft (Calculus.tangent (linearComponent k j) v)) }
+    "=" _ "by" { Spaces.addZeroLeft R.zero }
+  };
+\definition quadraticTangent: \forall (i, j: Fin.Fin n)(v: E.Vector) -> Calculus.tangent (quadratic i j) v = R.zero :=
+  \fun (i, j: Fin.Fin n)(v: E.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { SumFunctions.summation (Fin.elements n) (term i j) v }
+    "=" _ "by" { SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Fin.Fin n) => termTangent i j k v) }
+    "=" _ "by" { SumLaws.zeroSum (Fin.elements n) }
+  };
+\definition linearTangent: \forall (i, j: Fin.Fin n)(v: E.Vector) -> Calculus.tangent (linear i j) v = derivative.apply v (Coordinates.square.address i j) :=
+  \fun (i, j: Fin.Fin n)(v: E.Vector) => congr!{{Linear.Map} {R.Real}}
+    (\fun (L: Linear.Map) => L.apply v (Coordinates.square.address i j)) _ _ (TwiceLinear.differential Calculus.origin);
+\definition componentTangent: \forall (i, j: Fin.Fin n)(v: E.Vector) -> Calculus.tangent (component i j) v = derivative.apply v (Coordinates.square.address i j) :=
+  \fun (i, j: Fin.Fin n)(v: E.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Calculus.addition (linear i j) (quadratic i j) v }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (linearTangent i j v) (quadraticTangent i j v) }
+    "=" _ "by" { Spaces.addZeroRight (derivative.apply v (Coordinates.square.address i j)) }
+  };
+\definition differential: Maps.Differential[U := Flat.whole, V := Flat.whole, f := map, a := Calculus.origin].value = derivative :=
+  Linear.ext _ _ (\axiom:funext((Maps.Differential[U := Flat.whole, V := Flat.whole, f := map, a := Calculus.origin].value).apply, derivative.apply,
+    \fun (v: E.Vector) => \axiom:funext((Maps.Differential[U := Flat.whole, V := Flat.whole, f := map, a := Calculus.origin].value).apply v, derivative.apply v,
+      \fun (i: Fin.Fin Coordinates.dimension) => trans!{{R.Real}} _ _ _ (componentTangent (Coordinates.square.row i) (Coordinates.square.column i) v)
+        (congr!{{Fin.Fin Coordinates.dimension} {R.Real}} (derivative.apply v) _ _ (Coordinates.square.addressCoordinates i)))));
+\module Inverse(P: MatrixLaws.Inverse B);

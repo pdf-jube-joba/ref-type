@@ -1,0 +1,55 @@
+\import topology.Maps[A := M.Point,B := Normal.Point] \as Z;
+\definition K: \Pow Normal.Point := Z.Image zero BaseSpace.Whole;
+\definition zeroContinuous: topology.Continuity[A := M.Point,B := Normal.Point].Continuous M.space Normal.topology zero :=
+  \idelim Normal.Zero[].map.apply = zero \with g: (M.Point -> Normal.Point) => topology.Continuity[A := M.Point,B := Normal.Point].Continuous M.space Normal.topology g \by {
+    base: \bysub(manifolds.SmoothMap[n := n,m := d].Between[M := M,N := Normal.manifold].Data, { g: manifolds.SmoothMap[n := n,m := d].Between[M := M,N := Normal.manifold].Data \where manifolds.SmoothMap[n := n,m := d].Between[M := M,N := Normal.manifold].Continuous g }, Normal.Zero[].map),
+    equality: Normal.Zero[].formula
+  };
+\definition compactZero: S.IsCompactIn Normal.topology K := topology.Compactness[A := M.Point,B := Normal.Point].continuousImage M.space Normal.topology zero zeroContinuous BaseSpace.Whole compact;
+\definition patchAt[x: M.Point]: \exists ( p: Patch \where S.Member p.chart.domain (zero x) ) := \block {
+  \takefrom b: \Cast[Normal.Local] ({ b: Normal.Local \where Charts.Contains b.chart x }) \by Normal.covers x \then
+  \let base: Charts.LocalPoint b.chart := \into[M.Point](x,b.chart.domain) \by { \bysub(Normal.Local,{ b: Normal.Local \where Charts.Contains b.chart x },b) } \then
+  \let u: BaseOpen.Carrier b.chart.image := Charts.coordinate b.chart base \then
+  \takefrom l: Inverse.LocalInverse[(Normal.totalChart b).image,Frame[b := b].coordinateMap,Frame[b := b].At[u := u].z] \by Frame[b := b].At[u := u].localInverse \then
+  \let p: Patch := Frame[b := b].At[u := u].Using[local := l].patch \then
+  \return Logic.existsIntro[Patch,{ p: Patch \where S.Member p.chart.domain (zero x) }] p
+    (\idelim Charts.point b.chart u = x \with a: M.Point => S.Member p.chart.domain (zero a) \by {
+      base: Frame[b := b].At[u := u].Using[local := l].contains, equality: Charts.Of[chart := b.chart].pointCoordinate base
+    })
+};
+\definition atBase[x: M.Point]: S.Member Shrink.local (zero x) := \block {
+  \takefrom p: \Cast[Patch] ({ p: Patch \where S.Member p.chart.domain (zero x) }) \by patchAt x \then
+  \return S.unionMemberOf Shrink.family p.chart.domain _ (Logic.And[_, _]::# p.chart.open (Local[p := p].safe))
+    (\bysub(Patch,{ p: Patch \where S.Member p.chart.domain (zero x) },p))
+};
+\definition covered: S.Subset K Shrink.local := \fun (q: Normal.Point)(h: _) => Z.imageElim zero BaseSpace.Whole q _
+  (\fun (x: M.Point)(t: _)(same: _) => \idelim zero x = q \with v: Normal.Point => S.Member Shrink.local v \by { base: atBase x, equality: same }) h;
+\definition initial: Shrink.Safe K := \fun (p,q: Normal.Point)(hp: _)(hq: _) => Z.imageElim zero BaseSpace.Whole p _
+  (\fun (x: M.Point)(t: _)(ex: zero x = p) => Z.imageElim zero BaseSpace.Whole q _ (\fun (y: M.Point)(s: _)(ey: zero y = q)(same: _) =>
+    trans!{Normal.Point} _ _ _ (sym!{Normal.Point} _ _ ex) (trans!{Normal.Point} _ _ _
+      (congr!{M.Point Normal.Point} zero _ _ ((Embeddings.embeddingLaws e).injective x y (eq_reason_in!{{E.Vector} _
+        "=" _ "by" { sym!{{E.Vector}} _ _ (atZero x) }
+        "=" _ "by" { congr!{Normal.Point {E.Vector}} endpoint _ _ ex }
+        "=" _ "by" same
+        "=" _ "by" { congr!{Normal.Point {E.Vector}} endpoint _ _ (sym!{Normal.Point} _ _ ey) }
+        "=" _ "by" { atZero y }
+      }))) ey)) hq) hp;
+\definition uniform: \exists Shrink.Neighborhood[K] := Shrink.Compact[K := K,compact := compactZero,covered := covered,initial := initial,
+  continuous := continuous,hausdorff := Bundle.ambient.hausdorff].exists;
+\module Using(tube: Shrink.Neighborhood[K]);
+
+\definition exists: \exists Neighborhood := \block {
+  \takefrom t: Shrink.Neighborhood[K] \by uniform \then
+  \return \exact(Using[tube := t].neighborhood,Neighborhood)
+};
+\definition diskNeighborhood: \exists DiskNeighborhood := \block {
+  \takefrom t: Neighborhood \by exists \then
+  \takefrom w: Inside[t := t].Width \by Inside[t := t].widths compact \then
+  \let fits: \forall (v: Disk[].Point) -> S.Member t.domain (Disk[].scale w.radius v) :=
+    w.within w.radius (dedekind_reals.DedekindReal[].Order[].leOfLt _ _ w.positive) (dedekind_reals.DedekindReal[].leRefl _) \then
+  \return \exact(DiskNeighborhood {
+    tube := t,width := w,collapse := Inside[t := t].At[r := w.radius,positive := w.positive,within := fits,compact := compact].collapse,
+    continuous := Inside[t := t].At[r := w.radius,positive := w.positive,within := fits,compact := compact].continuous,
+    law := Inside[t := t].At[r := w.radius,positive := w.positive,within := fits,compact := compact].law,
+  },DiskNeighborhood)
+};

@@ -1,0 +1,23 @@
+\import metric_spaces.RealFunctions[A := X] \as Functions;
+\definition paired: topology.Continuity[A := X,B := Product.CarrierSet].Continuous source Sub.productTopology (\fun (x: X) => Sub.inclusion (q x)) :=
+  topology.Composition[A := X,B := Normal.Point,C := Product.CarrierSet].composeContinuous _ _ _ q Sub.inclusion regular Sub.inclusionContinuous;
+\definition base: topology.Continuity[A := X,B := M.Point].Continuous source M.space (\fun (x: X) => (q x).base) :=
+  topology.Composition[A := X,B := Product.CarrierSet,C := M.Point].composeContinuous _ _ _ _ (Pair.first M.Point E.Vector) paired (Product.Maps[].firstContinuous M.space Bundle.ambient.space);
+\definition coord[i: Ball.Index]: Functions.Continuous source (\fun (x: X) => Normal.ambientVector (q x) i) :=
+  topology.Composition[A := X,B := Normal.Point,C := R.Real].composeContinuous _ _ _ q _
+    regular (topology.Composition[A := Normal.Point,B := E.Vector,C := R.Real].composeContinuous _ _ _ Normal.ambientVector
+      (\fun (v: E.Vector) => v i) coordinateVector (topological_algebra.Coordinates[K := R.Real,I := Ball.Index].evaluationContinuous Line.topology i));
+\definition vec: X -> E.Vector := \fun (x: X) => Normal.ambientVector (scale (a x) (q x));
+\definition vector: topology.Continuity[A := X,B := E.Vector].Continuous source Bundle.ambient.space vec :=
+  \idelim Ball.topology = Bundle.ambient.space \with t: T.Topology => topology.Continuity[A := X,B := E.Vector].Continuous source t vec \by {
+    base: topological_algebra.Coordinates[K := R.Real,I := Ball.Index].Universal[A := X].continuous source Line.topology vec
+      (\fun (i: Ball.Index) => Functions.Product[].continuous source a _ scalar (coord i)), equality: Compact.coordinateMetricAgreement
+  };
+\definition scaled[x: X]: Normal.Point := scale (a x) (q x);
+\definition continuous: topology.Continuity[A := X,B := Normal.Point].Continuous source Normal.topology scaled :=
+  \idelim (\fun (x: X) => Sub.retraction (Sub.inclusion (scaled x))) = scaled \with g: (X -> Normal.Point) =>
+    topology.Continuity[A := X,B := Normal.Point].Continuous source Normal.topology g \by {
+      base: topology.Composition[A := X,B := Product.CarrierSet,C := Normal.Point].composeContinuous _ _ _ _ Sub.retraction
+        (Product.Universal[X := X].pairContinuous source M.space Bundle.ambient.space (\fun (x: X) => (q x).base) vec base vector) Sub.retractionContinuous,
+      equality: \axiom:funext((\fun (x: X) => Sub.retraction (Sub.inclusion (scaled x))),scaled,\fun (x: X) => Sub.retracts (scaled x))
+    };

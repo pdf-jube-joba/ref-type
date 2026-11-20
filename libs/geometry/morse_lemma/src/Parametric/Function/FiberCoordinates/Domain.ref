@@ -1,0 +1,32 @@
+\definition leftData: Projections.Data[U, Parameters.whole] := Projections.Data[U, Parameters.whole] {
+  apply := \fun (x: Open.Carrier U) => \into[Parameter](Split.left x, Parameters.whole.points) \by { \refl(Split.left x) },
+};
+\definition leftMap: Projections.Map U Parameters.whole :=
+  \into[Projections.Data[U, Parameters.whole]](leftData, { data: Projections.Data[U, Parameters.whole] \where Projections.Laws[U, Parameters.whole, data] }) \by {
+    Projections.Laws[U, Parameters.whole, leftData] { smooth := \fun (i: Fin.Fin p) => Open.Examples[].projectionSmooth U (Indices.left i) }
+  };
+\import Projections.Preimage[U := U, W := Parameters.whole, V := branch.parameters, f := leftMap] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition included: Open.Included domain U := Preimage.included;
+\definition parameter: Projections.Map domain branch.parameters := Preimage.map;
+\definition parameterPoint[x: Open.Carrier domain]: Parameters.Carrier branch.parameters := Projections.apply domain branch.parameters parameter x;
+\definition parameterFormula: \forall (x: Open.Carrier domain) -> parameterPoint x = Split.left x := \fun (x: Open.Carrier domain) => \refl(Split.left x);
+\definition contains: \In[Point] domain.points a := Preimage.intro a branch.containsParameters;
+\definition base: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\import Projections.Composition[U := domain, V := branch.parameters, f := parameter].After[l := dimension, W := U, g := branch.graph] \as Composition;
+\definition graph: Maps.Map domain U := Composition.compose;
+\definition origin[x: Open.Carrier domain]: Open.Carrier U := Maps.apply domain U graph x;
+\definition originFormula: \forall (x: Open.Carrier domain) -> origin x = Split.join (Split.left x) (Branches.apply branch.parameters Fibers.whole branch.branch (parameterPoint x)) :=
+  \fun (x: Open.Carrier domain) => trans!{Point} _ _ _ (branch.graphFormula (parameterPoint x))
+    (congr!{Parameter Point} (\fun (t: Parameter) => Split.join t (Branches.apply branch.parameters Fibers.whole branch.branch (parameterPoint x))) _ _ (parameterFormula x));
+\definition originAtBase: origin base = a := branch.atBase (parameterPoint base) (parameterFormula base);
+\definition critical: \forall (x: Open.Carrier domain) -> Critical (origin x) := \fun (x: Open.Carrier domain) => branch.critical (parameterPoint x);
+\definition originRegular: \forall (i: Fin.Fin dimension) -> Smooth.SmoothOn domain (\fun (x: Open.Carrier domain) => origin x i) := graph.smooth;
+\definition displacement[x: Open.Carrier domain]: Point := Coordinates.subPoint x (origin x);
+\definition displacementRegular: \forall (i: Fin.Fin dimension) -> Smooth.SmoothOn domain (\fun (x: Open.Carrier domain) => displacement x i) :=
+  \fun (i: Fin.Fin dimension) => Smooth.Operations[].subSmooth domain (\fun (x: Open.Carrier domain) => x i) (\fun (x: Open.Carrier domain) => origin x i)
+    (Open.Examples[].projectionSmooth domain i) (originRegular i);
+\definition rightDisplacement: \forall (x: Open.Carrier domain)(i: Fin.Fin n) -> displacement x (Indices.right i) = R.sub (Split.right x i) (Branches.apply branch.parameters Fibers.whole branch.branch (parameterPoint x) i) :=
+  \fun (x: Open.Carrier domain)(i: Fin.Fin n) => congr!{R.Real R.Real} (R.sub (x (Indices.right i))) _ _ (trans!{R.Real} _ _ _
+    (congr!{Point R.Real} (\fun (v: Point) => v (Indices.right i)) _ _ (originFormula x))
+    (Fin.Sum[m := p, n := n].Tuples[A := R.Real].atRight (Split.left x) (Branches.apply branch.parameters Fibers.whole branch.branch (parameterPoint x)) i));

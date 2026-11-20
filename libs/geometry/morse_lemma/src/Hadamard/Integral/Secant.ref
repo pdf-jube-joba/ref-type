@@ -1,0 +1,25 @@
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\import calculus.Real[].Derivative[].Operations[] \as DerivativeLaws;
+\import calculus.Real[].MeanValue[].Interval[a := l, b := r] \as Mean;
+\definition Closed: \Set := \Cast[Real] (Line.ClosedInterval l r);
+\definition estimate: R.Lt l r ->
+  (\forall (t: Closed) -> Derivatives.HasDerivativeAt g t (d t)) ->
+  (\forall (t: Closed) -> R.Le (Scalars.distance (d t) c) epsilon) ->
+  R.Le (Scalars.distance (Derivatives.slope g l r) c) epsilon := \block {
+  \fun (ordered: _)(derivatives: _)(bounded: _) \then
+  \takefrom t: \Cast[Real] ({ t: Real \where Mean.MeanValueResult[g, t] }) \by Mean.meanValue g ordered
+    (\fun (t: Closed) => Mean.Estimate[].continuousAt g d t (derivatives t))
+    (\fun (t: Real)(inside: Mean.Interior t) => \block {
+      \let s: Closed := \into[Real](t, Line.ClosedInterval l r) \by {
+        Logic.And[_, _]::# (Order.leOfLt _ _ inside.left) (Order.leOfLt _ _ inside.right)
+      } \then
+      \return Logic.existsIntro[Real, { e: Real \where Derivatives.HasDerivativeAt g t e }] (d t) (derivatives s)
+    }) \then
+  \let result: Mean.MeanValueResult[g, t] := \bysub(Real, { t: Real \where Mean.MeanValueResult[g, t] }, t) \then
+  \let s: Closed := \into[Real](t, Line.ClosedInterval l r) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ result.interior.left) (Order.leOfLt _ _ result.interior.right)
+  } \then
+  \return R.leReplaceLeft (Scalars.distance (d t) c) (Scalars.distance (Derivatives.slope g l r) c) epsilon
+    (congr!{Real Real} (\fun (z: Real) => Scalars.distance z c) _ _
+      (sym!{Real} _ _ (DerivativeLaws.unique g t (Derivatives.slope g l r) (d t) result.derivative (derivatives s)))) (bounded s)
+};

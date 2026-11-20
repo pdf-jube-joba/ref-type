@@ -1,0 +1,45 @@
+\definition dummy: Smooth.SmoothFunction W := \into[Open.ScalarFunction W]((\fun (x: Open.Carrier W) => Scalars.zero),
+  { g: Open.ScalarFunction W \where Smooth.SmoothOn W g }) \by { Smooth.Operations[].constantSmooth W Scalars.zero };
+\import \root.Hadamard[n := n, U := W, f := dummy, a := b].Integral[] \as Integral;
+\definition point[x: Open.Carrier W][t: Time]: Total.Carrier Z :=
+  \into[Fin.Fin dimension -> Real](Split.join x (time t), Z.points) \by { inside x t };
+\definition iterated: Smooth.Directions -> TotalSmooth.SmoothFunction Z :=
+  \induction (directions: Smooth.Directions) \return TotalSmooth.SmoothFunction Z \with {
+    | nil: h
+    | cons: \fun (i: Index)(directions: Smooth.Directions)(previous: TotalSmooth.SmoothFunction Z) => TotalPartials.derivative Z previous (Indices.left i)
+  };
+\definition jet[directions: Smooth.Directions][t: Time][x: Open.Carrier W]: Real := iterated directions (point x t);
+\definition partial: \forall (directions: Smooth.Directions)(i: Index)(t: Time) ->
+  Analysis.HasPartialDerivative W (jet directions t) i (jet (Smooth.Directions::cons i directions) t) := \block {
+  \fun (directions: Smooth.Directions)(i: Index)(t: Time)(x: Open.Carrier W)(epsilon: Real)(positive: _) \then
+  \let a: Total.Carrier Z := point x t \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where Total.Analysis[].PartialControl[Z, iterated directions, a, Indices.left i,
+    TotalPartials.derivative Z (iterated directions) (Indices.left i) a, epsilon, r] })
+    \by TotalPartials.partialLaw Z (iterated directions) (Indices.left i) a epsilon positive \then
+  \let control: Total.Analysis[].PartialControl[Z, iterated directions, a, Indices.left i,
+    TotalPartials.derivative Z (iterated directions) (Indices.left i) a, epsilon, delta] :=
+    \bysub(Real, { r: Real \where Total.Analysis[].PartialControl[Z, iterated directions, a, Indices.left i,
+      TotalPartials.derivative Z (iterated directions) (Indices.left i) a, epsilon, r] }, delta) \then
+  \let coordinate: a (Indices.left i) = x i := congr!{Point Real} (\fun (v: Point) => v i) _ _ (Split.leftJoin x (time t)) \then
+  \return Logic.existsIntro[Real, { r: Real \where Analysis.PartialControl[W, jet directions t, x, i,
+    jet (Smooth.Directions::cons i directions) t x, epsilon, r] }] delta
+    (Analysis.PartialControl[W, jet directions t, x, i, jet (Smooth.Directions::cons i directions) t x, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (s: Real)(y: Open.Carrier W)(replaced: y = Coordinates.replace x i s)(different: Logic.Not (s = x i))(near: _) =>
+        R.ltReplaceLeft
+          (Scalars.distance (Scalars.mul (Scalars.sub (jet directions t y) (jet directions t x)) (Laws.fieldInv (Scalars.sub s (a (Indices.left i)))))
+            (jet (Smooth.Directions::cons i directions) t x))
+          (Scalars.distance (Scalars.mul (Scalars.sub (jet directions t y) (jet directions t x)) (Laws.fieldInv (Scalars.sub s (x i))))
+            (jet (Smooth.Directions::cons i directions) t x)) epsilon
+          (congr!{Real Real} (\fun (c: Real) => Scalars.distance (Scalars.mul (Scalars.sub (jet directions t y) (jet directions t x)) (Laws.fieldInv (Scalars.sub s c)))
+            (jet (Smooth.Directions::cons i directions) t x)) _ _ coordinate)
+          (control.estimate s (point y t)
+            (trans!{{Fin.Fin dimension -> Real}} _ _ _ (congr!{Point {Fin.Fin dimension -> Real}} (\fun (v: Point) => Split.join v (time t)) _ _ replaced)
+              (sym!{{Fin.Fin dimension -> Real}} _ _ (replaceSpatial x t i s)))
+            (\fun (same: s = a (Indices.left i)) => different (trans!{Real} _ _ _ same coordinate))
+            (R.ltReplaceLeft (Scalars.distance s (x i)) (Scalars.distance s (a (Indices.left i))) delta
+              (congr!{Real Real} (Scalars.distance s) _ _ (sym!{Real} _ _ coordinate)) near)),
+    })
+};
+\module Joint;
+\module Curve(x: Open.Carrier W);

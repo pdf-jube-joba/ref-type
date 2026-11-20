@@ -1,0 +1,51 @@
+\definition error[p: Joint]: Real := Scalars.sub (apply p) (g (Pair.second X Time p) b);
+\import ProductSpace.Universal[X := Joint] \as JointPairs;
+\import topology.Maps[A := Joint, B := X] \as ConstantMaps;
+\definition frozenContinuous: JointFunctions.Continuous jointTopology (\fun (p: Joint) => g (Pair.second X Time p) b) :=
+  topology.Composition[A := Joint, B := Joint, C := Real].composeContinuous jointTopology jointTopology Line.topology
+    (\fun (p: Joint) => Pair.pair X Time b (Pair.second X Time p)) apply
+    (JointPairs.pairContinuous jointTopology Source.topology topology (\fun (p: Joint) => b) (Pair.second X Time)
+      (ConstantMaps.constantContinuous jointTopology Source.topology b) (ProductSpace.Maps[].secondContinuous Source.topology topology)) continuous;
+\definition errorContinuous: JointFunctions.Continuous jointTopology error :=
+  JointFunctions.subContinuous jointTopology apply (\fun (p: Joint) => g (Pair.second X Time p) b) continuous frozenContinuous;
+\definition absolute[p: Joint]: Real := Scalars.distance Scalars.zero (error p);
+\definition absoluteContinuous: JointFunctions.Continuous jointTopology absolute := JointFunctions.Lattice[].absoluteContinuous jointTopology error errorContinuous;
+\definition small: \Pow Joint := { p: Joint \where R.Lt (absolute p) epsilon };
+\definition open: topology.Topology[Carrier := Joint].IsOpenIn jointTopology small :=
+  absoluteContinuous (Line.Rays[].Below epsilon) (Line.Rays[].belowOpen epsilon);
+\import topology.Topology[Carrier := X] \as XSpace;
+\import metric_spaces.MetricSpace[Carrier := Point] \as Metrics;
+\import Space.Norm[] \as Norm;
+\import Space.Topology[] \as AmbientTopology;
+\import topology.Topology[Carrier := Point].Subspace[S := U.points] \as Subspace;
+\structure Control[delta: Real]: \Prop := {
+  positive: R.Lt Scalars.zero delta,
+  estimate: \forall (x: X)(t: Time) -> R.Lt (Coordinates.pointDistance x b) delta -> R.Lt (Scalars.distance (g t x) (g t b)) epsilon,
+};
+\definition exists: R.Lt Scalars.zero epsilon -> \exists ( delta: Real \where Control[delta] ) := \block {
+  \fun (positive: R.Lt Scalars.zero epsilon) \then
+  \takefrom tube: ProductSpace.Compactness[].Tube[Source.topology, b, small, topology.Topology[Carrier := Time].Whole]
+    \by ProductSpace.Compactness[].tubeLemma Source.topology topology topology.Topology[Carrier := Time].Whole Continuous.compact b small open
+      (\fun (t: Time)(whole: _) => R.ltReplaceLeft Scalars.zero (absolute (Pair.pair X Time b t)) epsilon
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (Scalars.distance Scalars.zero) _ _ (Laws.subSelf (g t b)))
+          (Distance.distanceSelf Scalars.zero))) positive) \then
+  \return Subspace.openTraceElim AmbientTopology.topology tube.neighborhood
+    (\exists ( delta: Real \where Control[delta] )) (\block {
+      \fun (W: \Pow Point)(openW: topology.Topology[Carrier := Point].IsOpenIn AmbientTopology.topology W)(same: tube.neighborhood = Subspace.Trace W) \then
+      \let inside: \In[Point] W b := \idelim tube.neighborhood = Subspace.Trace W \with V: \Pow X => \In[X] V b \by {
+        base: tube.contains, equality: same
+      } \then
+      \takefrom radius: \Cast[Real] (Metrics.NeighborhoodRadius Norm.metric W b) \by openW b inside \then
+      \let ball: Logic.And[R.Lt Scalars.zero radius, topology.Topology[Carrier := Point].Subset (Metrics.Ball Norm.metric b radius) W] :=
+        \bysub(Real, Metrics.NeighborhoodRadius Norm.metric W b, radius) \then
+      \return Logic.existsIntro[Real, { delta: Real \where Control[delta] }] radius (Control[radius] {
+        positive := ball.left,
+        estimate := \fun (x: X)(t: Time)(near: _) => R.ltReplaceLeft (absolute (Pair.pair X Time x t)) (Scalars.distance (g t x) (g t b)) epsilon
+          (trans!{Real} _ _ _ (Distance.distanceSymmetric Scalars.zero (Scalars.sub (g t x) (g t b))) (Bounds.distanceDifference (g t x) (g t b)))
+          (tube.within x (\idelim Subspace.Trace W = tube.neighborhood \with V: \Pow X => \In[X] V x \by {
+            base: ball.right x (R.ltReplaceLeft (Coordinates.pointDistance x b) (Coordinates.pointDistance b x) radius (Norm.distanceSymmetric x b) near),
+            equality: sym!{\Pow X} _ _ same
+          }) t (\refl(t))),
+      })
+    }) (Subspace.openRepresentation AmbientTopology.topology tube.neighborhood tube.open)
+};

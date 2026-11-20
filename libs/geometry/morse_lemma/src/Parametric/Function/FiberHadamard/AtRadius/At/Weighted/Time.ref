@@ -1,0 +1,43 @@
+\definition w: Real := Weight.function t;
+\definition h[i, j: Index]: Real := hessianEntry (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point t)) i j;
+\definition speedTerms: Second.value (point t) = Sums.sum n (\fun (i: Index) => R.mul
+  (Sums.sum n (\fun (j: Index) => R.mul (h i j) (delta x j))) (delta x i)) :=
+  Sums.congruent n _ _ (\fun (i: Index) => congr!{Real Real Real} R.mul _ _ _ _
+    (Sums.congruent n _ _ (\fun (j: Index) => congr!{Real Real} (R.mul (h i j)) _ _ (deltaAtPoint t j))) (deltaAtPoint t i));
+\definition row[i: Index]: Real := R.mul (Sums.sum n (\fun (j: Index) => R.mul (h i j) (delta x j))) (delta x i);
+\definition inner[i, j: Index]: Real := R.mul (R.mul (h i j) (delta x j)) (delta x i);
+\definition target[i, j: Index]: Real := R.mul (R.mul (delta x i) (delta x j)) (\parent.\parent.\parent.Entry[i := i, j := j].section x t);
+\definition termLaw: \forall (i, j: Index) -> R.mul w (inner i j) = target i j :=
+  \fun (i, j: Index) => trans!{Real}
+    (R.mul w (inner i j))
+    (R.mul (R.mul w (h i j)) (R.mul (delta x i) (delta x j)))
+    (target i j)
+    (scalarShuffle w (h i j) (delta x i) (delta x j))
+    (trans!{Real}
+      (R.mul (R.mul w (h i j)) (R.mul (delta x i) (delta x j)))
+      (R.mul (\parent.\parent.\parent.Entry[i := i, j := j].section x t) (R.mul (delta x i) (delta x j)))
+      (target i j)
+      (congr!{Real Real} (\fun (v: Real) => R.mul v (R.mul (delta x i) (delta x j)))
+        (R.mul w (h i j)) (\parent.\parent.\parent.Entry[i := i, j := j].section x t)
+        (sym!{Real} _ _ (entryValue i j t)))
+      (Laws.fieldMulComm (\parent.\parent.\parent.Entry[i := i, j := j].section x t) (R.mul (delta x i) (delta x j))));
+\definition rowLaw: \forall (i: Index) -> R.mul w (row i) = Sums.sum n (target i) :=
+  \fun (i: Index) => trans!{Real}
+    (R.mul w (row i))
+    (R.mul w (Sums.sum n (inner i)))
+    (Sums.sum n (target i))
+    (congr!{Real Real} (R.mul w) (row i) (Sums.sum n (inner i))
+      (sumScaleRight n (\fun (j: Index) => R.mul (h i j) (delta x j)) (delta x i)))
+    (trans!{Real}
+      (R.mul w (Sums.sum n (inner i)))
+      (Sums.sum n (\fun (j: Index) => R.mul w (inner i j)))
+      (Sums.sum n (target i))
+      (sym!{Real} _ _ (Sums.scalar n w (inner i)))
+      (Sums.congruent n (\fun (j: Index) => R.mul w (inner i j)) (target i) (termLaw i)));
+\definition law: Taylor.weighted t = function t :=
+  trans!{Real} (Taylor.weighted t) (R.mul w (Sums.sum n row)) (function t)
+    (congr!{Real Real} (R.mul w) (Second.value (point t)) (Sums.sum n row) speedTerms)
+    (trans!{Real} (R.mul w (Sums.sum n row))
+      (Sums.sum n (\fun (i: Index) => R.mul w (row i))) (function t)
+      (sym!{Real} _ _ (Sums.scalar n w row))
+      (Sums.congruent n (\fun (i: Index) => R.mul w (row i)) (\fun (i: Index) => Sums.sum n (target i)) rowLaw));

@@ -1,0 +1,44 @@
+\import R.Estimates[] \as Bounds;
+\import metric_spaces.RealFunctions[A := I.Carrier] \as RealFunctions;
+\definition blend[s: I.Carrier][u,v: R.Real]: R.Real := R.add (R.mul (I.reverse s) u) (R.mul s v);
+\definition fixed[s: I.Carrier][r: R.Real]: blend s r r = r := eq_reason_in!{{R.Real} _
+  "=" _ "by" { sym!{{R.Real}} _ _ (R.Algebra[].mulAddRight _ _ _) }
+  "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.mul z r) _ _ (I.Convex[].weight s) }
+  "=" _ "by" { Field.fieldMulOneLeft r }
+};
+\definition monotone[s: I.Carrier][u,v,x,y: R.Real]: O.Le u x -> O.Le v y -> O.Le (blend s u v) (blend s x y) :=
+  \fun (ux: _)(vy: _) => Bounds.addLe _ _ _ _ (Bounds.mulMonotone _ _ _ (I.bounds (I.reverse s)).left ux) (Bounds.mulMonotone _ _ _ (I.bounds s).left vy);
+\definition radius[s: I.Carrier]: R.Real := blend s a b;
+\definition regular: RealFunctions.Continuous I.topology radius := RealFunctions.sumContinuous _ _ _
+  (RealFunctions.Product[].continuous I.topology _ _ (topology.Composition[A := I.Carrier,B := I.Carrier,C := R.Real].composeContinuous _ _ _ I.reverse (\fun (s: I.Carrier) => s) I.reverseContinuous I.inclusionContinuous) (RealFunctions.constantContinuous _ a))
+  (RealFunctions.Product[].continuous I.topology _ _ I.inclusionContinuous (RealFunctions.constantContinuous _ b));
+\definition positive[s: I.Carrier]: O.Lt R.zero (radius s) := O.ltLeTrans _ _ _ (Bounds.Product[].minPositive a b ap bp)
+  (O.leReplaceLeft _ _ _ (fixed s (R.Distance[].min a b)) (monotone s _ _ _ _ (R.Distance[].minLeft a b) (R.Distance[].minRight a b)));
+\definition within[s: I.Carrier]: \forall (v: D.Point) -> S.Member t.domain (D.scale (radius s) v) :=
+  w.within (radius s) (O.Order[].leOfLt _ _ (positive s)) (O.leReplaceRight _ _ _ (fixed s w.radius) (monotone s _ _ _ _ aw bw));
+\import \parent.Family[radius := radius,regular := regular,positive := positive,within := within,compact := compact] \as Path;
+\definition start: radius I.start = a := eq_reason_in!{{R.Real} _
+  "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r a) _ _ I.reverseStart) (Field.fieldMulOneLeft a)) (Field.fieldMulZeroLeft b) }
+  "=" _ "by" { Field.addZeroRight a }
+};
+\definition end: radius I.end = b := eq_reason_in!{{R.Real} _
+  "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r a) _ _ I.reverseEnd) (Field.fieldMulZeroLeft a)) (Field.fieldMulOneLeft b) }
+  "=" _ "by" { Field.addZeroLeft b }
+};
+\definition first: E.Vector -> D.Thom := Path.Slice[s := I.start].collapse;
+\definition last: E.Vector -> D.Thom := Path.Slice[s := I.end].collapse;
+\definition homotopy: algebraic_topology.Homotopy[A := E.Vector,B := D.Thom].Homotopy[Bundle.ambient.space,D.thomTopology,first,last] := Path.homotopy;
+\definition firstLaw: D.CollapseLaw[a,first] := \idelim radius I.start = a \with r: R.Real => D.CollapseLaw[r,first] \by { base: Path.Slice[s := I.start].law,equality: start };
+\definition lastLaw: D.CollapseLaw[b,last] := \idelim radius I.end = b \with r: R.Real => D.CollapseLaw[r,last] \by { base: Path.Slice[s := I.end].law,equality: end };
+\import algebraic_topology.Homotopy[A := D.Point,B := E.Vector] \as Paths;
+\import algebraic_topology.Cylinder[A := D.Point] \as Disks;
+\definition Track[u,v: R.Real]: \Set :=
+  \Cast[Paths.Homotopy[D.topology,Bundle.ambient.space,D.embedded u,D.embedded v]]
+    ({ h: Paths.Homotopy[D.topology,Bundle.ambient.space,D.embedded u,D.embedded v] \where
+      \forall (s: I.Carrier)(p,q: D.Point) -> h (Disks.at s p) = h (Disks.at s q) -> p = q });
+\definition embeddings: Track[a,b] := \idelim radius I.end = b \with v: R.Real => Track[a,v] \by {
+  base: \idelim radius I.start = a \with u: R.Real => Track[u,radius I.end] \by {
+    base: \into[Paths.Homotopy[D.topology,Bundle.ambient.space,D.embedded (radius I.start),D.embedded (radius I.end)]](Path.embeddings,Track[radius I.start,radius I.end]) \by { Path.sliceInjective },
+    equality: start
+  },equality: end
+};

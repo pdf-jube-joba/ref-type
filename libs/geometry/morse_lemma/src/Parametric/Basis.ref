@@ -1,0 +1,28 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import linear_algebra.Commutative[K := R.Real,
+  scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.FiniteCoordinates[n := dimension] \as Full;
+\import Spaces.FiniteCoordinates[n := n] \as Fiber;
+\import Spaces.Coordinates[I := Fin.Fin dimension].Kronecker[] \as FullDelta;
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as FiberDelta;
+\definition leftValue: \forall (j: Fin.Fin n)(i: Fin.Fin p) -> Full.vectors (Indices.right j) (Indices.left i) = R.zero :=
+  \fun (j: Fin.Fin n)(i: Fin.Fin p) => FullDelta.different (Indices.right j) (Indices.left i)
+    (\fun (same: Indices.right j = Indices.left i) => Indices.different i j (sym!{{Fin.Fin dimension}} _ _ same));
+\definition rightValue: \forall (i, j: Fin.Fin n) -> Full.vectors (Indices.right j) (Indices.right i) = Fiber.vectors j i :=
+  \fun (i, j: Fin.Fin n) => either!{{(Classical.excludedMiddle (j = i))} {Full.vectors (Indices.right j) (Indices.right i) = Fiber.vectors j i}
+    {\fun (same: j = i) => trans!{{R.Real}} _ _ _
+      (FullDelta.equal (Indices.right j) (Indices.right i) (congr!{{Fin.Fin n} {Fin.Fin dimension}} Indices.right _ _ same))
+      (sym!{{R.Real}} _ _ (FiberDelta.equal j i same))}
+    {\fun (different: Logic.Not (j = i)) => trans!{{R.Real}} _ _ _
+      (FullDelta.different (Indices.right j) (Indices.right i) (\fun (same: _) => different (Indices.rightInjective j i same)))
+      (sym!{{R.Real}} _ _ (FiberDelta.different j i different))}
+  };
+\definition vertical: \forall (j: Fin.Fin n) -> Inverse.vertical.apply (Fiber.vectors j) = Full.vectors (Indices.right j) :=
+  \fun (j: Fin.Fin n) => trans!{Point} _ _ _
+    (congr!{Parameter Vector Point} Split.join _ _ _ _
+      (\axiom:funext((\fun (i: Fin.Fin p) => R.zero), Split.left (Full.vectors (Indices.right j)),
+        \fun (i: Fin.Fin p) => sym!{{R.Real}} _ _ (leftValue j i)))
+      (\axiom:funext(Fiber.vectors j, Split.right (Full.vectors (Indices.right j)),
+        \fun (i: Fin.Fin n) => sym!{{R.Real}} _ _ (rightValue i j))))
+    (Split.recover (Full.vectors (Indices.right j)));

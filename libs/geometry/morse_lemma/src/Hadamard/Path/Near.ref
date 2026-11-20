@@ -1,0 +1,58 @@
+\import inverse_implicit.Euclidean[n := n] \as Inverse;
+\import Space.Norm[] \as Norm;
+\import \parent.Homotopy[] \as H;
+\definition domain: Open.OpenSet := Inverse.ball a r;
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) =>
+  ball.included x (Inverse.ofBall a r (\into[Point](x, domain.points) \by { member }));
+\definition contains: \In[Point] domain.points a := Inverse.inBall a a r
+  (R.ltReplaceLeft Scalars.zero (Coordinates.pointDistance a a) r (sym!{Real} _ _ (Norm.distanceSelf a)) ball.positive);
+\definition center: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\definition pointDistance: \forall (x: Point)(t: Real) -> Coordinates.pointDistance (H.value (Split.join x (time t))) a =
+  Scalars.mul (Product.abs t) (Coordinates.pointDistance x a) := \block {
+  \fun (x: Point)(t: Real) \then
+  \let difference: Coordinates.subPoint (H.value (Split.join x (time t))) a = Coordinates.scale t (Coordinates.subPoint x a) :=
+    trans!{Point} _ _ _ (congr!{Point Point} (\fun (v: Point) => Coordinates.subPoint v a) _ _ (H.formula x t))
+      (\axiom:funext(Coordinates.subPoint (Coordinates.addPoint a (Coordinates.scale t (Coordinates.subPoint x a))) a, Coordinates.scale t (Coordinates.subPoint x a),
+        \fun (i: Index) => trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => Scalars.sub s (a i)) _ _
+          (Laws.addComm (a i) (Scalars.mul t (Scalars.sub (x i) (a i)))))
+          (Laws.addNegCancelRight (a i) (Scalars.mul t (Scalars.sub (x i) (a i)))))) \then
+  \return trans!{Real} _ _ _ (congr!{Point Real} Coordinates.norm _ _ difference) (Norm.homogeneous t (Coordinates.subPoint x a))
+};
+\definition pathNear: \forall (x: Open.Carrier domain)(t: Time) -> R.Lt (Coordinates.pointDistance (H.value (Split.join x (time t))) a) r := \block {
+  \fun (x: Open.Carrier domain)(t: Time) \then
+  \let bounds: Logic.And[R.Le Scalars.zero t, R.Le t Scalars.one] := \bysub(Real, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one, t) \then
+  \let distance: Real := Coordinates.pointDistance x a \then
+  \let upper: R.Le (Scalars.mul t distance) distance := R.leReplace
+    (Scalars.mul distance t) (Scalars.mul t distance) (Scalars.mul distance Scalars.one) distance
+    (Laws.fieldMulComm distance t) (Scalars.Algebra[].mulOneRight distance)
+    (Bounds.mulMonotone distance t Scalars.one (Norm.nonnegative (Coordinates.subPoint x a)) bounds.right) \then
+  \return R.ltReplaceLeft (Scalars.mul t distance) (Coordinates.pointDistance (H.value (Split.join x (time t))) a) r
+    (sym!{Real} _ _ (trans!{Real} _ _ _ (pointDistance x t)
+      (congr!{Real Real} (\fun (c: Real) => Scalars.mul c distance) _ _ (Product.absOfNonnegative t bounds.left))))
+    (R.leLtTrans _ _ _ upper (Inverse.ofBall a r x))
+};
+\definition inside: \forall (x: Open.Carrier domain)(t: Time) ->
+  \In[Fin.Fin dimension -> Real] H.domain.points (Split.join x (time t)) :=
+  \fun (x: Open.Carrier domain)(t: Time) => H.intro (Split.join x (time t)) (ball.included (H.value (Split.join x (time t))) (pathNear x t));
+\definition point[x: Open.Carrier domain][t: Time]: Total.Carrier H.domain :=
+  \into[Fin.Fin dimension -> Real](Split.join x (time t), H.domain.points) \by { inside x t };
+\import TotalSmooth.Algebra[U := H.domain] \as Functions;
+\definition weight: TotalSmooth.SmoothFunction H.domain := \into[Total.ScalarFunction H.domain]
+  ((\fun (z: Total.Carrier H.domain) => Scalars.sub Scalars.one (z timeIndex)),
+    { h: Total.ScalarFunction H.domain \where TotalSmooth.SmoothOn H.domain h }) \by {
+    TotalSmooth.Operations[].subSmooth H.domain (\fun (z: Total.Carrier H.domain) => Scalars.one)
+      (\fun (z: Total.Carrier H.domain) => z timeIndex)
+      (TotalSmooth.Operations[].constantSmooth H.domain Scalars.one) (Total.Examples[].projectionSmooth H.domain timeIndex)
+  };
+\module Hessian(i, j: Index);
+\definition hessian[i, j: Index]: TotalSmooth.SmoothFunction H.domain := Hessian[i := i, j := j].function;
+\definition weightedHessian[i, j: Index]: TotalSmooth.SmoothFunction H.domain := Functions.product weight (hessian i j);
+\module Coefficient(i, j: Index);
+\module At(x: Open.Carrier domain);
+\definition local[critical: Critical]: Local := Local {
+  domain := domain, included := included, contains := contains,
+  coefficient := \fun (i, j: Index) => Coefficient[i := i, j := j].value,
+  symmetric := \fun (i, j: Index)(x: Open.Carrier domain) => Coefficient[i := i, j := j].symmetric x,
+  formula := \fun (x: Open.Carrier domain) => At[x := x].formula critical,
+  center := \fun (i, j: Index)(x: Open.Carrier domain)(same: x = a) => Coefficient[i := i, j := j].centerValue x same,
+};

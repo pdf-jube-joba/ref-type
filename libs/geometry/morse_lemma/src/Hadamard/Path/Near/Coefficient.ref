@@ -1,0 +1,48 @@
+\import \parent.\parent.Slice[W := domain, b := center, Z := H.domain, inside := inside, h := weightedHessian i j] \as Averaged;
+\import \parent.\parent.Slice[W := domain, b := center, Z := H.domain, inside := inside, h := weightedHessian j i] \as OtherAveraged;
+\definition value: Smooth.SmoothFunction domain := Averaged.Joint[].average;
+\definition section[x: Open.Carrier domain]: Average.Function := Averaged.Joint[].section x;
+\definition formula: \forall (x: Open.Carrier domain) -> value x = Average.value (section x) := Averaged.Joint[].formula;
+\definition sampleFormula: \forall (x: Open.Carrier domain)(t: Time) -> section x t = weightedHessian i j (point x t) :=
+  \fun (x: Open.Carrier domain)(t: Time) => \refl(weightedHessian i j (point x t));
+\definition timeValue: \forall (x: Open.Carrier domain)(t: Time) -> point x t timeIndex = t :=
+  \fun (x: Open.Carrier domain)(t: Time) => congr!{{One.Index -> Real} Real} (\fun (s: One.Index -> Real) => s One.index) _ _ (Split.rightJoin x (time t));
+\definition weightedValue: \forall (x: Open.Carrier domain)(t: Time) -> section x t =
+  Scalars.mul (Scalars.sub Scalars.one t) (Partials.derivative U (Partials.derivative U f i) j (H.map.apply (point x t))) :=
+  \fun (x: Open.Carrier domain)(t: Time) => congr!{Real Real}
+    (\fun (s: Real) => Scalars.mul (Scalars.sub Scalars.one s) (Partials.derivative U (Partials.derivative U f i) j (H.map.apply (point x t)))) _ _ (timeValue x t);
+\definition symmetric: \forall (x: Open.Carrier domain) -> value x = OtherAveraged.Joint[].average x :=
+  \fun (x: Open.Carrier domain) => trans!{Real} _ _ _ (formula x)
+    (trans!{Real} _ _ _ (Average.congruent (section x) (OtherAveraged.Joint[].section x) (\fun (t: Time) =>
+      congr!{Real Real} (Scalars.mul (Scalars.sub Scalars.one (point x t timeIndex))) _ _
+        (Smooth.Schwarz[U := U, f := f, a := H.map.apply (point x t), i := j, j := i].Commutation[].law)))
+      (sym!{Real} _ _ (OtherAveraged.Joint[].formula x)));
+\definition stationaryPath: \forall (x: Open.Carrier domain) -> x = a -> \forall (t: Time) -> H.map.apply (point x t) = a :=
+  \fun (x: Open.Carrier domain)(same: x = a)(t: Time) => eq_reason_in!{Point _
+    "=" _ "by" { H.formula x t }
+    "=" _ "by" { congr!{Point Point} (\fun (y: Point) => Coordinates.addPoint a (Coordinates.scale t (Coordinates.subPoint y a))) _ _ same }
+    "=" a "by" { \axiom:funext((Coordinates.addPoint a (Coordinates.scale t (Coordinates.subPoint a a))), a,
+      \fun (k: Index) => trans!{Real} _ _ _
+        (congr!{Real Real} (\fun (s: Real) => Scalars.add (a k) (Scalars.mul t s)) _ _ (Laws.subSelf (a k)))
+        (trans!{Real} _ _ _ (congr!{Real Real} (Scalars.add (a k)) _ _ (Laws.fieldMulZeroRight t)) (Laws.addZeroRight (a k)))) }
+  };
+\definition centerValue: \forall (x: Open.Carrier domain) -> x = a -> value x =
+  Scalars.mul Scalars.half (Partials.derivative U (Partials.derivative U f j) i a) := \block {
+  \fun (x: Open.Carrier domain)(same: x = a) \then
+  \let c: Real := Partials.derivative U (Partials.derivative U f i) j a \then
+  \let weighted: Average.Function := Average.Algebra[].scaling c Average.Weight[].function \then
+  \return eq_reason_in!{Real _
+    "=" _ "by" { formula x }
+    "=" { Average.value weighted } "by" { Average.congruent (section x) weighted (\fun (t: Time) => eq_reason_in!{Real _
+      "=" _ "by" { weightedValue x t }
+      "=" { Scalars.mul (Scalars.sub Scalars.one t) c } "by" {
+        congr!{{Open.Carrier U} Real} (\fun (y: Open.Carrier U) => Scalars.mul (Scalars.sub Scalars.one t)
+          (Partials.derivative U (Partials.derivative U f i) j y)) _ _ (stationaryPath x same t) }
+      "=" { Scalars.mul c (Scalars.sub Scalars.one t) } "by" { Laws.fieldMulComm (Scalars.sub Scalars.one t) c }
+      "=" _ "by" { congr!{Real Real} (Scalars.mul c) _ _ (sym!{Real} _ _ (Average.Weight[].formula t)) }
+    }) }
+    "=" { Scalars.mul Scalars.half c } "by" { Average.Weight[].scaleLaw c }
+    "=" _ "by" { congr!{Real Real} (Scalars.mul Scalars.half) _ _
+      (Smooth.Schwarz[U := U, f := f, a := a, i := j, j := i].Commutation[].law) }
+  }
+};

@@ -1,0 +1,32 @@
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Differential[].Operations[U := U] \as DifferentialOperations;
+\import Smooth.Derivative[].Linear[U := U] \as PartialOperations;
+\import Smooth.Sums[] \as SmoothSums;
+\definition function[k: N.Nat^][f: Fin.Fin k -> Functions.Function]: Functions.Function :=
+  \into[Open.ScalarFunction U](SmoothSums.sum U k f, { g: Open.ScalarFunction U \where Smooth.SmoothOn U g }) \by {
+    SmoothSums.smooth U k f (\fun (i: Fin.Fin k) => \bysub(Open.ScalarFunction U, { g: Open.ScalarFunction U \where Smooth.SmoothOn U g }, f i))
+  };
+\definition constant: \forall (c: R.Real)(a: Open.Carrier U)(z: Domain.Vector) -> (Differential.value U (Functions.constant c) a).apply z = R.zero :=
+  \fun (c: R.Real)(a: Open.Carrier U)(z: Domain.Vector) => trans!{{R.Real}} _ _ _
+    (Sums.congruent d _ (\fun (i: Fin.Fin d) => R.zero) (\fun (i: Fin.Fin d) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (\fun (b: R.Real) => R.mul b (z i)) _ _
+        (congr!{{Functions.Function} {R.Real}} (\fun (g: Functions.Function) => g a) _ _ (PartialOperations.constant i c)))
+      (Arithmetic.fieldMulZeroLeft (z i))))
+    (Sums.zeroSum d);
+\definition differential: \forall (k: N.Nat^)(f: Fin.Fin k -> Functions.Function)(a: Open.Carrier U)(z: Domain.Vector) ->
+  (Differential.value U (function k f) a).apply z = Sums.sum k (\fun (j: Fin.Fin k) => (Differential.value U (f j) a).apply z) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Functions.Function)(a: Open.Carrier U)(z: Domain.Vector) ->
+    (Differential.value U (function k f) a).apply z = Sums.sum k (\fun (j: Fin.Fin k) => (Differential.value U (f j) a).apply z) \with {
+      | zero: \fun (f: _)(a: Open.Carrier U)(z: Domain.Vector) => trans!{{R.Real}} _ _ _
+        (congr!{{Functions.Function} {R.Real}} (\fun (g: Functions.Function) => (Differential.value U g a).apply z) _ _
+          (Functions.ext (function N.Nat^::zero f) (Functions.constant R.zero) (\fun (x: Open.Carrier U) => \refl(R.zero))))
+        (constant R.zero a z)
+      | succ: \fun (k: N.Nat^)(previous: _)(f: _)(a: Open.Carrier U)(z: Domain.Vector) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (g: Functions.Function) => (Differential.value U g a).apply z) _ _
+          (Functions.ext (function (N.Nat^::succ k) f) (Functions.plus (f (Fin.zero k)) (function k (\fun (j: Fin.Fin k) => f (Fin.succ k j))))
+            (\fun (x: Open.Carrier U) => \refl(function (N.Nat^::succ k) f x))) }
+        "=" _ "by" { DifferentialOperations.addition (f (Fin.zero k)) (function k (\fun (j: Fin.Fin k) => f (Fin.succ k j))) a z }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add ((Differential.value U (f (Fin.zero k)) a).apply z)) _ _
+          (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j)) a z) }
+      }
+    };

@@ -1,0 +1,27 @@
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := n] \as Inversion;
+\import Open.Topology[].Of[U := U] \as Topology;
+\import Topology.Continuity[] \as Continuity;
+\import matrix_invariants.Topological[K := R.Real, ring := topological_algebra.Real[].topologicalRing].At[n := n].Families[X := Open.Carrier U] \as Families;
+\import topology.Topology[Carrier := Fin.Fin d -> R.Real] \as Ambient;
+\import Ambient.Subspace[S := U.points] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\import topology.Topology[Carrier := Open.Carrier U] \as Local;
+\import topology.Topology[Carrier := R.Real] \as ScalarTopology;
+\definition entriesContinuous: Families.Regular Topology.topology A := \fun (i, j: Fin.Fin n) =>
+  Continuity.topological (\fun (x: Open.Carrier U) => A x i j) (Smooth.Properties[].continuous U (\fun (x: Open.Carrier U) => A x i j) (regular i j));
+\definition determinantContinuous: Families.Continuous Topology.topology (\fun (x: Open.Carrier U) => Matrices.determinant (A x)) :=
+  Families.determinantContinuous Topology.topology A entriesContinuous;
+\definition preimage: \Pow (Open.Carrier U) := { x: Open.Carrier U \where Inversion.Nonzero (A x) };
+\definition preimageOpen: Local.IsOpenIn Topology.topology preimage := determinantContinuous
+  (ScalarTopology.Complement (ScalarTopology.Singleton R.zero))
+  (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.zero);
+\definition points: \Pow (Fin.Fin d -> R.Real) := OpenSubspace.image preimage;
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points
+  (OpenSubspace.imageOpen topological_algebra.Euclidean[].Dimension[n := d].Topology[].topology (Open.Topology[].open U) preimage preimageOpen);
+\definition included: Open.Included domain U := OpenSubspace.imageIncluded preimage;
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition nonzero: \forall (x: Open.Carrier domain) -> Inversion.Nonzero (A (input x)) :=
+  \fun (x: Open.Carrier domain) => OpenSubspace.imageElim preimage x (Inversion.Nonzero (A (input x)))
+    (\fun (y: Open.Carrier U)(member: Inversion.Nonzero (A y))(same: y = x) =>
+      \idelim y = input x \with z: Open.Carrier U => Inversion.Nonzero (A z) \by { base: member, equality: same }) (\bysub(Fin.Fin d -> R.Real, points, x));
+\definition intro[x: Open.Carrier U]: Inversion.Nonzero (A x) -> \In[Fin.Fin d -> R.Real] domain.points x := OpenSubspace.imageMember preimage x;

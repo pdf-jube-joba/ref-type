@@ -1,0 +1,29 @@
+\definition finalDomain: Open.OpenSet := local.neighborhood;
+\definition finalIncluded: Open.Included finalDomain U := \fun (x: Point)(member: _) => included x (local.included x member);
+\definition finalContains: \In[Point] finalDomain.points a := local.contains;
+\definition finalPoint: Open.Carrier finalDomain := \into[Point](a, finalDomain.points) \by { finalContains };
+\import Projections.Restriction[U := finalDomain, V := domain, W := branch.parameters] \as Restriction;
+\definition finalParameter: Projections.Map finalDomain branch.parameters := Restriction.input local.included parameter;
+\definition rightCoordinates: \forall (x: Open.Carrier finalDomain) ->
+  Split.right (Maps.apply finalDomain (Split.product local.parameters local.values) local.coordinates.forward x) =
+    coordinatesValue (Open.inclusion finalDomain domain local.included x) :=
+  \fun (x: Open.Carrier finalDomain) => trans!{Vector} _ _ _
+    (congr!{Point Vector} Split.right _ _ (local.coordinateFormula x))
+    (Split.rightJoin (Split.left x) (coordinatesValue (Open.inclusion finalDomain domain local.included x)));
+\definition containsZero: \In[Vector] local.values.points E.space.zero := \idelim coordinatesValue origin = E.space.zero
+  \with v: Vector => \In[Vector] local.values.points v \by { base: local.containsValues, equality: coordinatesZero };
+\definition value: Local := Local {
+  branch := branch, normal := normal, domain := finalDomain, included := finalIncluded, contains := finalContains,
+  parameters := local.parameters, values := local.values, containsParameters := local.containsParameters, containsZero := containsZero,
+  equivalence := local.coordinates, parameter := finalParameter,
+  parameterFormula := \fun (x: Open.Carrier finalDomain) => parameterFormula (Open.inclusion finalDomain domain local.included x),
+  preservesParameters := \fun (x: Open.Carrier finalDomain) => trans!{Parameter} _ _ _
+    (congr!{Point Parameter} Split.left _ _ (local.coordinateFormula x))
+    (Split.leftJoin (Split.left x) (coordinatesValue (Open.inclusion finalDomain domain local.included x))),
+  center := \fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => v i) _ _ (rightCoordinates finalPoint))
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => v i) _ _ coordinatesZero),
+  formula := \fun (x: Open.Carrier finalDomain) => trans!{{R.Real}} _ _ _ (quadraticFormula (Open.inclusion finalDomain domain local.included x))
+    (congr!{Vector Vector {R.Real}} (\fun (v, w: Vector) => R.add (criticalValue (Open.inclusion finalDomain domain local.included x)) (Inertia.standard normal.sign v w)) _ _ _ _
+      (sym!{Vector} _ _ (rightCoordinates x)) (sym!{Vector} _ _ (rightCoordinates x))),
+};

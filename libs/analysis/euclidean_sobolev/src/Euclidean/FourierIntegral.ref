@@ -1,0 +1,44 @@
+\import fourier_schwartz.ComplexCalculus[] \as Calculus;
+\import fourier_schwartz.RealBounds[] \as RealBounds;
+\import E.Kernel[] \as Kernel;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as CoordinateLaws;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import Analysis.Operations[] \as Operations;
+\module Partial(source, differentiated: CI.Representatives, i: E.Coordinate,
+  law: \forall (xi: Point) -> differentiated xi = \parent.Moments[].step i xi (source xi));
+\module Continuity;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\import M.AlmostEverywhere[mu := LE.measure] \as AE;
+\structure InverseData: \Set := {
+  frequency: L2.Representatives,
+  conjugate: CI.Representatives,
+  law: \forall (xi: Point) -> conjugate xi = D.conj (frequency xi),
+};
+\definition inverse[data: InverseData][x: Point]: C.Complex :=
+  D.scale Transform.coefficient (D.conj (FI.transform data.conjugate x));
+\definition independent[f,g: InverseData][same: L2.ofFunction f.frequency = L2.ofFunction g.frequency][x: Point]:
+  inverse f x = inverse g x := congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale Transform.coefficient (D.conj z)) _ _
+    (CI.integralAlmost (FI.section f.conjugate x) (FI.section g.conjugate x)
+      (AE.nullSubset _ ({ xi: Point \where Logic.Not (f.frequency xi = g.frequency xi) })
+        (\fun (xi: Point)(different: _)(equal: _) => different
+          (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value xi x)) _ _ (eq_reason_in!{C.Complex _
+            "=" _ "by" { f.law xi }
+            "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ equal }
+            "=" _ "by" { sym!{C.Complex} _ _ (g.law xi) }
+          })))
+        (L2.almost f.frequency g.frequency (Q.equivalentOfClassEq L2.equivalence _ _ same))));
+\definition InverseOf[u: L2.Space][f: Point -> C.Complex]: \Prop :=
+  \exists ( data: InverseData \where Logic.And[L2.ofFunction data.frequency = U.forward u, f = inverse data] );
+\definition unique[u: L2.Space][f,g: Point -> C.Complex]: InverseOf u f -> InverseOf u g -> f = g := \block {
+  \fun (left: _)(right: _) \then
+  \takefrom a: \Cast[InverseData] ({ a: InverseData \where Logic.And[L2.ofFunction a.frequency = U.forward u, f = inverse a] }) \by left \then
+  \takefrom b: \Cast[InverseData] ({ b: InverseData \where Logic.And[L2.ofFunction b.frequency = U.forward u, g = inverse b] }) \by right \then
+  \let ha: Logic.And[L2.ofFunction a.frequency = U.forward u, f = inverse a] := \bysub(InverseData, { a: InverseData \where Logic.And[L2.ofFunction a.frequency = U.forward u, f = inverse a] }, a) \then
+  \let hb: Logic.And[L2.ofFunction b.frequency = U.forward u, g = inverse b] := \bysub(InverseData, { b: InverseData \where Logic.And[L2.ofFunction b.frequency = U.forward u, g = inverse b] }, b) \then
+  \return eq_reason_in!{{Point -> C.Complex} f
+    "=" _ "by" { ha.right }
+    "=" _ "by" { \axiom:funext(inverse a, inverse b, independent a b (trans!{L2.Space} _ _ _ ha.left (sym!{L2.Space} _ _ hb.left))) }
+    "=" _ "by" { sym!{{Point -> C.Complex}} _ _ hb.right }
+  }
+};

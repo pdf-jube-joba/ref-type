@@ -1,0 +1,63 @@
+\import LE.Compact[p := PA.two] \as Bounds;
+\import L.Holder[exponents := L.Hilbert[].exponents] \as Holder;
+\import Diffeo.Inverse[U := U, V := V, f := e] \as Backward;
+\import Change.Jacobian[U := V, V := U, f := e.backward] \as Jacobian;
+\definition density: Dist.TestOn V := Pull.test (squareTest a);
+\definition square[f: S.Function]: Coefficient :=
+  On.add (squareTest (component a f.real)) (squareTest (component a f.imaginary));
+\definition squareValue[f: S.Function][x: Point]: square f x = D.normSq (S.value (transform a f) x) := \refl(square f x);
+\definition inside[f: S.Function][p: Open.Carrier U]: square f p =
+  Real.mul (squareTest a p) (D.normSq (S.value f (Maps.apply U V e.forward p))) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{C.Complex Real.Real} D.normSq _ _ (CL.ext _ _
+    (LocalProduct[a := a, h := Chain.function (restrict f.real)].inside p)
+    (LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside p)) }
+  "=" _ "by" { Derivatives.scaleSquared _ _ }
+};
+\definition transported[f: S.Function][y: Point]: Pull.test (square f) y = Real.mul (density y) (D.normSq (S.value f y)) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member V.points y)) (\fun (member: _) => \block {
+    \let q: Open.Carrier V := \into[Point](y, V.points) \by { member } \then
+    \let p: Open.Carrier U := Maps.apply V U e.backward q \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { Pull.inside (square f) q }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Jacobian.absolute q)) _ _ (inside f p) }
+      "=" _ "by" { congr!{{Open.Carrier V} Real.Real} (\fun (z: Open.Carrier V) => Real.mul (Jacobian.absolute q) (Real.mul (squareTest a p) (D.normSq (S.value f z)))) _ _ (e.rightInverse q) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (D.normSq (S.value f y))) _ _ (sym!{Real.Real} _ _ (Pull.inside (squareTest a) q)) }
+    }
+  }) (\fun (absent: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Pull.outside (square f) y absent }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft _) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (D.normSq (S.value f y))) _ _ (sym!{Real.Real} _ _ (Pull.outside (squareTest a) y absent)) }
+  });
+\definition change[f: S.Function]: Energy.squared (Embedding.value (transform a f)) = I.integral (Compact.representative (Pull.test (square f))) := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Energy.squareIntegral (Embedding.representative (transform a f))) }
+  "=" _ "by" { Holder.integralPointwise _ (Compact.representative (square f)) (\fun (x: Point) => L2.squareSumLaw _ x) }
+  "=" _ "by" { sym!{Real.Real} _ _ (change_of_variables.Change[].theorem n V U Backward.inverse (square f) (Dist.testWithin U (square f))) }
+};
+\definition bound[c: LE.Nonnegative][dominates: \forall (y: Point) -> R.Le (Product.abs (density y)) c][f: S.Function]:
+  R.Le (Energy.norm N.Nat^::zero (transform a f)) (Real.mul (Root.sqrt c) (Energy.norm N.Nat^::zero f)) := \block {
+  \let h: I.Representatives := L2.squareSum (Embedding.representative f) \then
+  \let scaled: I.Representatives := Scaling.scalarRepresentative c h \then
+  \let pointwise: \forall (y: Point) -> R.Le (Pull.test (square f) y) (scaled y) := \fun (y: Point) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (transported f y))
+    (congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (L2.squareSumLaw _ y)))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _ (CL.normSqNonnegative (S.value f y))
+      (R.leTrans _ _ _ (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (density y))) (Real.Distance[].maxRight _ _)) (dominates y)))) \then
+  \let bound: R.Le (Energy.squared (Embedding.value (transform a f))) (Real.mul c (Energy.squared (Embedding.value f))) :=
+    R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (change f)) (trans!{Real.Real} _ _ _ (Scaling.integralScalar c h)
+      (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Energy.squareIntegral (Embedding.representative f))))
+      (I.Absolute[].integralMono (Compact.representative (Pull.test (square f))) scaled pointwise) \then
+  \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Energy.gradeZero (transform a f)))
+    (congr!{Real.Real Real.Real} (Real.mul (Root.sqrt c)) _ _ (sym!{Real.Real} _ _ (Energy.gradeZero f)))
+    (Energy.unsquare _ _ (Laws.fieldMulNonnegative _ _ (Root.nonnegative _) (Geometry.nonnegative _))
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Algebra.mulFour _ _ _ _)
+        (congr!{Real.Real Real.Real} (\fun (b: Real.Real) => Real.mul b (Energy.squared (Embedding.value f))) _ _ (Root.squareOfNonnegative c (Scaling.nonnegative c))))) bound))
+};
+\definition exists: \exists ( b: LE.Nonnegative \where \forall (f: S.Function) ->
+  R.Le (Energy.norm N.Nat^::zero (transform a f)) (Real.mul b (Energy.norm N.Nat^::zero f)) ) := \block {
+  \takefrom c: \Cast[LE.Nonnegative] ({ c: LE.Nonnegative \where \forall (y: Point) -> R.Le (Product.abs (density y)) c }) \by
+    Bounds.absoluteBound density (Bounds.smoothContinuous density (LE.smoothCompactLaws density).smooth) (LE.smoothCompactLaws density).compact \then
+  \return Logic.existsIntro[LE.Nonnegative, { b: LE.Nonnegative \where \forall (f: S.Function) -> R.Le (Energy.norm N.Nat^::zero (transform a f)) (Real.mul b (Energy.norm N.Nat^::zero f)) }]
+    (\into[Real.Real](Root.sqrt c, LE.Nonnegative) \by { Root.nonnegative c })
+    (bound c (\bysub(LE.Nonnegative, { c: LE.Nonnegative \where \forall (y: Point) -> R.Le (Product.abs (density y)) c }, c)))
+};
