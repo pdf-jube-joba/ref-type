@@ -8,16 +8,18 @@
 \definition squareValue[f: S.Function][x: Point]: square f x = D.normSq (S.value (transform a f) x) := \refl(square f x);
 \definition inside[f: S.Function][p: Open.Carrier U]: square f p =
   Real.mul (squareTest a p) (D.normSq (S.value f (Maps.apply U V e.forward p))) := eq_reason_in!{Real.Real _
-  "=" _ "by" { congr!{C.Complex Real.Real} D.normSq _ _ (CL.ext _ _
-    (LocalProduct[a := a, h := Chain.function (restrict f.real)].inside p)
-    (LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside p)) }
+  "=" _ "by" { congr!{C.Complex Real.Real} D.normSq _ _ (CL.ext (S.value (transform a f) p) (D.scale (a p) (S.value f (Maps.apply U V e.forward p)))
+    (\parent.LocalProduct[a := a, h := Chain.function (restrict f.real)].inside p)
+    (\parent.LocalProduct[a := a, h := Chain.function (restrict f.imaginary)].inside p)) }
   "=" _ "by" { Derivatives.scaleSquared _ _ }
 };
 \definition transported[f: S.Function][y: Point]: Pull.test (square f) y = Real.mul (density y) (D.normSq (S.value f y)) :=
-  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member V.points y)) (\fun (member: _) => \block {
+  Logic.orElim (Sets.Member V.points y) (Logic.Not (Sets.Member V.points y))
+    (Pull.test (square f) y = Real.mul (density y) (D.normSq (S.value f y)))
+    (Classical.excludedMiddle (Sets.Member V.points y)) (\fun (member: Sets.Member V.points y) => \block {
     \let q: Open.Carrier V := \into[Point](y, V.points) \by { member } \then
     \let p: Open.Carrier U := Maps.apply V U e.backward q \then
-    \return eq_reason_in!{Real.Real _
+    \return eq_reason_in!{Real.Real {Pull.test (square f) y}
       "=" _ "by" { Pull.inside (square f) q }
       "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Jacobian.absolute q)) _ _ (inside f p) }
       "=" _ "by" { congr!{{Open.Carrier V} Real.Real} (\fun (z: Open.Carrier V) => Real.mul (Jacobian.absolute q) (Real.mul (squareTest a p) (D.normSq (S.value f z)))) _ _ (e.rightInverse q) }
