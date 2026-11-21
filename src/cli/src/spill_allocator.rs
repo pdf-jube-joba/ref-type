@@ -70,6 +70,9 @@ static BACKING: Mutex<Backing> = Mutex::new(Backing {
     offset: 0,
 });
 static HEAP: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+const HEAP_CLASSES: usize = usize::BITS as usize * 4;
+static CLASS_HEAPS: [AtomicPtr<c_void>; HEAP_CLASSES] =
+    [const { AtomicPtr::new(std::ptr::null_mut()) }; HEAP_CLASSES];
 static PAGEOUT_BYTES: AtomicU64 = AtomicU64::new(0);
 
 impl Backing {
@@ -245,11 +248,13 @@ impl SpillAllocator {
                 }
             }
         };
-        let heap = HEAP.load(Ordering::Acquire);
+        let newest = HEAP.load(Ordering::Acquire);
         // Objects larger than mimalloc's arena range, or with exceptional page
         // alignment, retain the allocator's native OS path instead of acquiring
         // an artificial maximum allocation size from this backing strategy.
-        if heap.is_null() || layout.size() > MAX_ARENA_SIZE - 32 * MIB || layout.align() > 64 * 1024
+        if newest.is_null()
+            || layout.size() > MAX_ARENA_SIZE - 32 * MIB
+            || layout.align() > 64 * 1024
         {
             return if zeroed {
                 unsafe { mimalloc::MiMalloc.alloc_zeroed(layout) }
@@ -257,8 +262,18 @@ impl SpillAllocator {
                 unsafe { mimalloc::MiMalloc.alloc(layout) }
             };
         }
+        // Alternating allocation sizes can otherwise keep selecting an arena
+        // whose pages for the next size are full, forcing mimalloc to collect
+        // that arena on each miss. Retain a reusable heap per coarse size class;
+        // collisions affect reuse only, since every heap accepts every layout.
+        let size = layout.size().max(layout.align()).saturating_sub(1).max(1);
+        let exponent = size.ilog2() as usize;
+        let class = exponent * 4 + ((size >> exponent.saturating_sub(2)) & 3);
+        let cached = CLASS_HEAPS[class].load(Ordering::Acquire);
+        let heap = if cached.is_null() { newest } else { cached };
         let pointer = allocate(heap);
         if !pointer.is_null() {
+            CLASS_HEAPS[class].store(heap, Ordering::Release);
             return pointer;
         }
         let mut backing = BACKING.lock().unwrap_or_else(|error| error.into_inner());
@@ -267,7 +282,7 @@ impl SpillAllocator {
         for mapping in &backing.mappings[..backing.count] {
             let pointer = allocate(mapping.heap as *mut c_void);
             if !pointer.is_null() {
-                HEAP.store(mapping.heap as *mut c_void, Ordering::Release);
+                CLASS_HEAPS[class].store(mapping.heap as *mut c_void, Ordering::Release);
                 return pointer;
             }
         }
@@ -291,7 +306,12 @@ impl SpillAllocator {
             }
             return std::ptr::null_mut();
         }
-        allocate(HEAP.load(Ordering::Acquire))
+        let heap = HEAP.load(Ordering::Acquire);
+        let pointer = allocate(heap);
+        if !pointer.is_null() {
+            CLASS_HEAPS[class].store(heap, Ordering::Release);
+        }
+        pointer
     }
 }
 
