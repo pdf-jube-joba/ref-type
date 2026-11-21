@@ -21,8 +21,15 @@
   \idelim TotalMaps.apply map = endpoint \with g: (Normal.Point -> E.Vector) => topology.Continuity[A := Normal.Point, B := E.Vector].Continuous Normal.topology Bundle.ambient.space g \by {
     base: \bysub(TotalMaps.Data, { g: TotalMaps.Data \where TotalMaps.Continuous g }, map), equality: \refl(endpoint)
   };
-\definition InverseMap[V: Open.OpenSet]: \Set := manifolds.SmoothMap[n := d,m := d].Between[
-  M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := V].smoothManifold,N := Normal.manifold].Map;
+\module InverseOn(V: Open.OpenSet) {
+  \import Ambient.Subspace[U := V] \as Source;
+  \import manifolds.SmoothMap[n := d,m := d].Between[M := Source.smoothManifold,N := Normal.manifold] \as Maps;
+  \definition Map: \Set := Maps.Map;
+  \definition continuous[f: Map]: topology.Continuity[A := Open.Carrier V,B := Normal.Point].Continuous
+    (Open.Topology[].Of[U := V].topology) Normal.topology f.apply :=
+    \bysub(Maps.Data,{ g: Maps.Data \where Maps.Continuous g },f);
+}
+\definition InverseMap[V: Open.OpenSet]: \Set := InverseOn[V := V].Map;
 \structure Neighborhood: \Set := {
   domain: \Pow Normal.Point, open: S.IsOpenIn Normal.topology domain,
   section: \forall (x: M.Point) -> S.Member domain (zero x),
@@ -42,5 +49,5 @@
   law: Disk[].CollapseLaw[width.radius,collapse],
 };
 \module Compact(compact: BaseSpace.IsCompact M.space);
-\module Compare(left,right: Neighborhood, first: Inside[t := left].Width,second: Inside[t := right].Width,compact: BaseSpace.IsCompact M.space);
+\module Compare(left,right: Neighborhood, first: \parent.Inside[t := left].Width,second: \parent.Inside[t := right].Width,compact: BaseSpace.IsCompact M.space);
 

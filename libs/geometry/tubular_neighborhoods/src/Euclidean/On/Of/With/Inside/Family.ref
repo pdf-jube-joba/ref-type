@@ -7,10 +7,13 @@
 \import topological_constructions.Product[A := I.Carrier,B := E.Vector] \as Product;
 \import \root.DiskImage[A := Cylinder.Carrier,N := Normal.Point,space := ambient,normals := Normal.topology,squared := D.squared] \as Model;
 \definition scaled[p: Disks.Carrier]: Normal.Point := D.scale (radius (Disks.time p)) (Disks.point p);
+\definition radiusContinuous: metric_spaces.RealFunctions[A := Disks.Carrier].Continuous source (\fun (p: Disks.Carrier) => radius (Disks.time p)) :=
+  topology.Composition[A := Disks.Carrier,B := I.Carrier,C := R.Real].composeContinuous _ _ _ Disks.time radius (Disks.timeContinuous D.topology) regular;
+\definition pointContinuous: topology.Continuity[A := Disks.Carrier,B := Normal.Point].Continuous source Normal.topology (\fun (p: Disks.Carrier) => Disks.point p) :=
+  topology.Composition[A := Disks.Carrier,B := D.Point,C := Normal.Point].composeContinuous _ _ _ Disks.point (\fun (q: D.Point) => q) (Disks.pointContinuous D.topology) D.inclusion;
 \definition scaledContinuous: topology.Continuity[A := Disks.Carrier,B := Normal.Point].Continuous source Normal.topology scaled :=
   D.Family[X := Disks.Carrier,source := source,a := \fun (p: Disks.Carrier) => radius (Disks.time p),q := \fun (p: Disks.Carrier) => Disks.point p,
-    scalar := topology.Composition[A := Disks.Carrier,B := I.Carrier,C := R.Real].composeContinuous _ _ _ Disks.time radius (Disks.timeContinuous D.topology) regular,
-    regular := topology.Composition[A := Disks.Carrier,B := D.Point,C := Normal.Point].composeContinuous _ _ _ Disks.point (\fun (q: D.Point) => q) (Disks.pointContinuous D.topology) D.inclusion].continuous;
+    scalar := radiusContinuous,regular := pointContinuous].continuous;
 \definition place[p: Disks.Carrier]: Cylinder.Carrier := Cylinder.at (Disks.time p) (endpoint (scaled p));
 \definition placeContinuous: topology.Continuity[A := Disks.Carrier,B := Cylinder.Carrier].Continuous source ambient place :=
   Product.Universal[X := Disks.Carrier].pairContinuous source I.topology Bundle.ambient.space Disks.time (\fun (p: Disks.Carrier) => endpoint (scaled p))
@@ -32,10 +35,12 @@
 \definition yContinuous: topology.Continuity[A := U.CarrierSet,B := Open.Carrier t.image].Continuous space (Open.Topology[].Of[U := t.image].topology) y :=
   topology.Continuity[A := U.CarrierSet,B := E.Vector].Corestriction[S := t.image.points].corestrictContinuous _ _ y
     (topology.Composition[A := U.CarrierSet,B := Cylinder.Carrier,C := E.Vector].composeContinuous _ _ _ _ Cylinder.point inc (Cylinder.pointContinuous Bundle.ambient.space));
+\definition inverseRegular: topology.Continuity[A := U.CarrierSet,B := Normal.Point].Continuous space Normal.topology (\fun (p: U.CarrierSet) => t.inverse.apply (y p)) :=
+  topology.Composition[A := U.CarrierSet,B := Open.Carrier t.image,C := Normal.Point].composeContinuous _ _ _ y t.inverse.apply yContinuous inverseContinuous;
 \definition coords: Model.Coordinates := Model.Coordinates {
   tube := tube,open := tubeOpen,read := read,continuous := D.Family[X := U.CarrierSet,source := space,
     a := \fun (p: U.CarrierSet) => multiplier (Cylinder.time p),q := \fun (p: U.CarrierSet) => t.inverse.apply (y p),scalar := scalarContinuous,
-    regular := topology.Composition[A := U.CarrierSet,B := Open.Carrier t.image,C := Normal.Point].composeContinuous _ _ _ y t.inverse.apply yContinuous inverseContinuous].continuous,
+    regular := inverseRegular].continuous,
 };
 \import Model.On[c := coords,sizeContinuous := D.continuous] \as Region;
 \definition placed[p: Disks.Carrier]: U.CarrierSet := \into[Cylinder.Carrier](place p,tube) \by {
@@ -47,21 +52,27 @@
   (D.cancel _ _ (Disks.point p) (times (Disks.time p)));
 \definition placeRead[p: U.CarrierSet][bounded: O.Le (D.squared (read p)) R.one]:
   place (Disks.at (Cylinder.time p) (\into[Normal.Point](read p,D.closedBall) \by { bounded })) = p :=
-  Pair.Prop[A := I.Carrier,B := E.Vector].ext _ _ (\refl(Cylinder.time p)) (trans!{{E.Vector}} _ _ _
+  Pair.Prop[A := I.Carrier,B := E.Vector].ext
+    (place (Disks.at (Cylinder.time p) (\into[Normal.Point](read p,D.closedBall) \by { bounded }))) p
+    (\refl(Cylinder.time p)) (trans!{{E.Vector}} _ _ _
     (congr!{Normal.Point {E.Vector}} endpoint _ _ (D.cancel _ _ (t.inverse.apply (y p))
       (trans!{{R.Real}} _ _ _ (Field.fieldMulComm _ _) (times (Cylinder.time p))))) (t.right (y p)));
+\definition boundedReads: \Pow U.CarrierSet := { p: U.CarrierSet \where O.Le (D.squared (read p)) R.one };
+\definition placeInShell[p: Disks.Carrier]: A.Member Region.shell (place p) :=
+  U.Open[].imageMember boundedReads (placed p) (\idelim Disks.point p = read (placed p) \with v: Normal.Point => O.Le (D.squared v) R.one \by {
+    base: \bysub(Normal.Point,D.closedBall,Disks.point p),equality: sym!{Normal.Point} _ _ (readPlace p)
+  });
 \definition shellEq: Sets.Image place B.Whole = Region.shell := \axiom:setext((Sets.Image place B.Whole),Region.shell,
-  \fun (x: Cylinder.Carrier)(h: _) => Sets.imageElim place B.Whole x _ (\fun (p: Disks.Carrier)(w: _)(same: _) =>
-    \idelim place p = x \with q: Cylinder.Carrier => A.Member Region.shell q \by {
-      base: U.Open[].imageMember _ (placed p) (\idelim Disks.point p = read (placed p) \with v: Normal.Point => O.Le (D.squared v) R.one \by {
-        base: \bysub(Normal.Point,D.closedBall,Disks.point p),equality: sym!{Normal.Point} _ _ (readPlace p)
-      }), equality: same
-    }) h,
-  \fun (x: Cylinder.Carrier)(h: _) => U.Open[].imageElim _ x _ (\fun (p: U.CarrierSet)(bound: _)(same: _) =>
-    \block {
+  \fun (x: Cylinder.Carrier)(h: A.Member (Sets.Image place B.Whole) x) =>
+    Sets.imageElim place B.Whole x (A.Member Region.shell x) (\fun (p: Disks.Carrier)(w: _)(same: place p = x) =>
+      \idelim place p = x \with q: Cylinder.Carrier => A.Member Region.shell q \by { base: placeInShell p,equality: same }) h,
+  \fun (x: Cylinder.Carrier)(h: A.Member Region.shell x) => U.Open[].imageElim boundedReads x (A.Member (Sets.Image place B.Whole) x)
+    (\fun (p: U.CarrierSet)(bound: O.Le (D.squared (read p)) R.one)(same: p = x) => \block {
       \let q: Disks.Carrier := Disks.at (Cylinder.time p) (\into[Normal.Point](read p,D.closedBall) \by { bound }) \then
-      \return Logic.existsIntro[Disks.Carrier,{ z: Disks.Carrier \where Logic.And[B.Member B.Whole z,place z = x] }] q
-        (Logic.And[_, _]::# (\refl(q)) (trans!{Cylinder.Carrier} _ _ _ (placeRead p bound) same))
+      \let samePlace: place q = x := trans!{Cylinder.Carrier} (place q) p x (placeRead p bound) same \then
+      \return \idelim place q = x \with z: Cylinder.Carrier => A.Member (Sets.Image place B.Whole) z \by {
+        base: Sets.imageMember place B.Whole q (\refl(q)),equality: samePlace
+      }
     }) h);
 \definition shellClosed: A.IsClosedIn ambient Region.shell := \idelim Sets.Image place B.Whole = Region.shell \with F: \Pow Cylinder.Carrier => A.IsClosedIn ambient F \by {
   base: A.Compactness[].compactClosed ambient (topological_constructions.Separation[].Product[A := I.Carrier,B := E.Vector].On[left := I.topology,
@@ -81,8 +92,11 @@
       \let p: Disks.Carrier := Disks.at s v \then
       \let member: \In[E.Vector] chart.shell (D.embedded (radius s) v) := \idelim Sets.Image place B.Whole = Region.shell \with F: \Pow Cylinder.Carrier =>
         \In[Cylinder.Carrier] F (place p) \by { base: Sets.imageMember place B.Whole p (\refl(p)),equality: shellEq } \then
-      \return trans!{D.Thom} _ _ _ (Collapse.Of[c := chart].onDisk (\into[E.Vector](D.embedded (radius s) v,chart.shell) \by { member }))
-        (congr!{{D.Point} D.Thom} D.class _ _ (readPlace p))
+      \let shellPoint: \Cast[E.Vector] chart.shell := \into[E.Vector](D.embedded (radius s) v,chart.shell) \by { member } \then
+      \let decoded: D.Point := chart.read shellPoint \then
+      \let decodes: decoded = v := boundary_manifolds.Refinement[A := Normal.Point].equality D.closedBall decoded v (readPlace p) \then
+      \return trans!{D.Thom} _ _ _ (Collapse.Of[c := chart].onDisk shellPoint)
+        (congr!{{D.Point} D.Thom} D.class decoded v decodes)
     },
     outside := \fun (x: E.Vector)(absent: _) => Collapse.Of[c := chart].onExterior x (\fun (inner: _) => \block {
       \let p: Cylinder.Carrier := Cylinder.at s x \then
@@ -117,7 +131,14 @@
       start := \fun (v: D.Point) => \refl(D.embedded (radius I.start) v),end := \fun (v: D.Point) => \refl(D.embedded (radius I.end) v),
     }
   };
-\definition sliceInjective[s: I.Carrier][v,w: D.Point][same: embeddings (Disks.at s v) = embeddings (Disks.at s w)]: v = w :=
-  trans!{Normal.Point} _ _ _ (sym!{Normal.Point} _ _ (readPlace (Disks.at s v)))
-    (trans!{Normal.Point} _ _ _ (congr!{U.CarrierSet Normal.Point} read _ _ (Pair.Prop[A := I.Carrier,B := E.Vector].ext _ _ (\refl(s)) same))
-      (readPlace (Disks.at s w)));
+\definition sliceInjective[s: I.Carrier][v,w: D.Point][same: embeddings (Disks.at s v) = embeddings (Disks.at s w)]: v = w := \block {
+  \let first: U.CarrierSet := placed (Disks.at s v) \then
+  \let second: U.CarrierSet := placed (Disks.at s w) \then
+  \let samePlace: (first \of Cylinder.Carrier) = (second \of Cylinder.Carrier) :=
+    Pair.Prop[A := I.Carrier,B := E.Vector].ext first second (\refl(s)) same \then
+  \let sameRead: read first = read second := congr!{U.CarrierSet Normal.Point} read first second
+    (boundary_manifolds.Refinement[A := Cylinder.Carrier].equality tube first second samePlace) \then
+  \return boundary_manifolds.Refinement[A := Normal.Point].equality D.closedBall v w
+    (trans!{Normal.Point} _ _ _ (sym!{Normal.Point} _ _ (readPlace (Disks.at s v)))
+      (trans!{Normal.Point} _ _ _ sameRead (readPlace (Disks.at s w))))
+};

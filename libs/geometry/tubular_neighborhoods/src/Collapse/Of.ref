@@ -1,7 +1,9 @@
 \definition outside: \Pow A := Space.Complement c.core;
 \import topological_constructions.Gluing[A := A,B := Thom.Carrier].Pasting[F := c.shell,G := outside] \as Paste;
-\definition covered: Paste.Covered := \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Space.Member c.core x))
-  (\fun (h: _) => Logic.Or[_, _]::left (c.included x h)) (\fun (h: _) => Logic.Or[_, _]::right h);
+\definition covered: Paste.Covered := \fun (x: A) => Logic.orElim (Space.Member c.core x) (Logic.Not (Space.Member c.core x))
+  (Logic.Or[Space.Member c.shell x,Space.Member outside x]) (Classical.excludedMiddle (Space.Member c.core x))
+  (\fun (h: Space.Member c.core x) => Logic.Or[Space.Member c.shell x,Space.Member outside x]::left (c.included x h))
+  (\fun (h: Space.Member outside x) => Logic.Or[Space.Member c.shell x,Space.Member outside x]::right h);
 \definition chart[x: Paste.Left]: Thom.Carrier := Thom.class (c.read x);
 \definition constant[x: Paste.Right]: Thom.Carrier := Thom.point;
 \definition compatible: Paste.Compatible chart constant := \fun (x: Paste.Left)(y: Paste.Right)(same: x = y) =>
@@ -17,10 +19,10 @@
     (topology.Maps[A := Paste.Right,B := Thom.Carrier].constantContinuous _ Thom.topology Thom.point);
 \definition unique[g: A -> Thom.Carrier][inside: \forall (x: Paste.Left) -> g x = Thom.class (c.read x)]
   [out: \forall (x: A) -> Space.Member outside x -> g x = Thom.point]: g = map :=
-  \axiom:funext(g,map,\fun (x: A) => Logic.orElim _ _ _ (covered x)
-    (\fun (h: _) => \block {
+  \axiom:funext(g,map,\fun (x: A) => Logic.orElim (Space.Member c.shell x) (Space.Member outside x) (g x = map x) (covered x)
+    (\fun (h: Space.Member c.shell x) => \block {
       \let p: Paste.Left := \into[A](x,c.shell) \by { h } \then
       \return trans!{Thom.Carrier} _ _ _ (inside p) (sym!{Thom.Carrier} _ _ (onDisk p))
-    }) (\fun (h: _) => trans!{Thom.Carrier} _ _ _ (out x h) (sym!{Thom.Carrier} _ _ (onExterior x h))));
+    }) (\fun (h: Space.Member outside x) => trans!{Thom.Carrier} _ _ _ (out x h) (sym!{Thom.Carrier} _ _ (onExterior x h))));
 \module Pullback(X: \Set, source: topology.Structures[].Topology[X], f: X -> A,
   regular: topology.Continuity[A := X,B := A].Continuous source space f);

@@ -14,12 +14,15 @@
 \definition decode[p: \Cast[A] shell]: Disk := \into[N](c.read (input p),ball) \by { bounded p };
 \definition chart[closed: S.IsClosedIn space shell]: Collapse.Chart := Collapse.Chart {
   shell := shell,closed := closed,core := core,open := coreOpen,
-  included := \fun (x: A)(h: _) => Include.imageElim strict x _ (\fun (q: U.CarrierSet)(less: _)(same: q = x) =>
-    \idelim q = x \with z: A => S.Member shell z \by { base: Include.imageMember _ q (O.Order[].leOfLt _ _ less),equality: same }) h,
+  included := \fun (x: A)(h: S.Member core x) => Include.imageElim strict x (S.Member shell x)
+    (\fun (q: U.CarrierSet)(less: O.Lt (size q) R.one)(same: q = x) =>
+      \idelim q = x \with z: A => S.Member shell z \by {
+        base: Include.imageMember ({ p: U.CarrierSet \where O.Le (size p) R.one }) q (O.Order[].leOfLt (size q) R.one less),equality: same
+      }) h,
   read := decode, continuous := topology.Continuity[A := \Cast[A] shell,B := N].Corestriction[S := ball].corestrictContinuous _ normals decode
     (topology.Composition[A := \Cast[A] shell,B := U.CarrierSet,C := N].composeContinuous _ _ normals input c.read
       (topology.Continuity[A := \Cast[A] shell,B := A].Corestriction[S := c.tube].corestrictContinuous _ space input
         (topology.Continuity[A := A,B := A].Corestriction[S := shell].inclusionContinuous space)) c.continuous),
-  seam := \fun (p: \Cast[A] shell)(out: _) => O.leAntisym _ _ (bounded p)
-    (O.Order[].leOfNotLtReverse _ _ (\fun (less: _) => out (Include.imageMember strict (input p) less))),
+  seam := \fun (p: \Cast[A] shell)(out: Logic.Not (S.Member core p)) => O.leAntisym (size (input p)) R.one (bounded p)
+    (O.Order[].leOfNotLtReverse R.one (size (input p)) (\fun (less: O.Lt (size (input p)) R.one) => out (Include.imageMember strict (input p) less))),
 };
