@@ -238,6 +238,12 @@ impl Backing {
 pub struct SpillAllocator;
 
 impl SpillAllocator {
+    fn class(layout: Layout) -> usize {
+        let size = layout.size().max(layout.align()).saturating_sub(1).max(1);
+        let exponent = size.ilog2() as usize;
+        exponent * 4 + ((size >> exponent.saturating_sub(2)) & 3)
+    }
+
     unsafe fn allocate(&self, layout: Layout, zeroed: bool) -> *mut u8 {
         let allocate = |heap: *mut c_void| -> *mut u8 {
             unsafe {
@@ -266,9 +272,7 @@ impl SpillAllocator {
         // whose pages for the next size are full, forcing mimalloc to collect
         // that arena on each miss. Retain a reusable heap per coarse size class;
         // collisions affect reuse only, since every heap accepts every layout.
-        let size = layout.size().max(layout.align()).saturating_sub(1).max(1);
-        let exponent = size.ilog2() as usize;
-        let class = exponent * 4 + ((size >> exponent.saturating_sub(2)) & 3);
+        let class = Self::class(layout);
         let cached = CLASS_HEAPS[class].load(Ordering::Acquire);
         let heap = if cached.is_null() { newest } else { cached };
         let pointer = allocate(heap);
@@ -327,7 +331,19 @@ unsafe impl GlobalAlloc for SpillAllocator {
     }
 
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
-        unsafe { mimalloc::MiMalloc.dealloc(pointer, layout) }
+        let address = pointer as usize;
+        unsafe { mimalloc::MiMalloc.dealloc(pointer, layout) };
+        // Checkpoint restoration frees old argument vectors while interning new
+        // ones. Their newly available slots may be in any earlier arena. Use
+        // that arena directly instead of repeatedly collecting full heaps.
+        // This is a hint only; avoid waiting if another allocation owns the lock.
+        if let Ok(backing) = BACKING.try_lock()
+            && let Some(mapping) = backing.mappings[..backing.count]
+                .iter()
+                .find(|mapping| address >= mapping.start && address - mapping.start < mapping.len)
+        {
+            CLASS_HEAPS[Self::class(layout)].store(mapping.heap as *mut c_void, Ordering::Release);
+        }
     }
 }
 
