@@ -44,6 +44,8 @@ def arguments():
     parser.add_argument('--memory-mib', type=int, default=3072,
                         help='resident-memory paging target; not a hard limit')
     parser.add_argument('--cache-budget-mib', type=int, default=12288)
+    parser.add_argument('--checkpoint-seconds', type=int,
+                        help='forward the CLI checkpoint interval; omitted uses its default')
     parser.add_argument('--min-free-mib', type=int, default=256)
     parser.add_argument('--time-limit-seconds', type=int)
     parser.add_argument('--max-scope-targets', type=int, default=0,
@@ -55,6 +57,8 @@ def arguments():
     for name in ['memory_mib', 'cache_budget_mib', 'min_free_mib', 'max_scope_targets']:
         if getattr(args, name) < 0:
             parser.error(name.replace('_', '-') + ' must be nonnegative')
+    if args.checkpoint_seconds is not None and args.checkpoint_seconds < 0:
+        parser.error('checkpoint-seconds must be nonnegative')
     return args
 
 
@@ -179,6 +183,7 @@ def main():
         report.update(targets=targets, source_sha256=digest(snapshot), cache_dir=str(cache),
                       memory_mib=args.memory_mib,
                       cache_budget_mib=args.cache_budget_mib,
+                      checkpoint_seconds=args.checkpoint_seconds,
                       max_scope_targets=args.max_scope_targets, split_packages=args.split_package)
         save(attempt / 'targets.json', targets)
         package_entries = {}
@@ -258,6 +263,8 @@ def main():
                               '--source-snapshot', str(scope_snapshot), '--cache-dir', str(cache),
                               '--cache-budget-mib', str(args.cache_budget_mib),
                               '--report-json', str(result_file)]
+            if args.checkpoint_seconds is not None:
+                command += ['--checkpoint-seconds', str(args.checkpoint_seconds)]
             if module is not None:
                 command += ['--module', module]
             if only:
