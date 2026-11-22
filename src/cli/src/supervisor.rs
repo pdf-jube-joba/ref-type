@@ -525,69 +525,45 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     if args.clear_cache {
         crate::clear_cache_directory(&cache)?;
     }
-    let mut database = sema::Database::new();
-    let snapshot = match crate::input_snapshot(args, &mut database) {
-        Ok(snapshot) => snapshot,
+    let workspace = Workspace::new(&cache)?;
+    let captured = args.source_snapshot.as_deref().map(|path| {
+        fs::read(path)
+            .with_context(|| format!("read source snapshot {}", path.display()))
+            .and_then(|bytes| {
+                Ok((
+                    crate::decode_input_snapshot(args, path, &bytes)?,
+                    Some(bytes),
+                ))
+            })
+    });
+    let (snapshot, bytes) = match captured.unwrap_or_else(|| {
+        crate::input_snapshot(args, &mut sema::Database::new()).map(|snapshot| (snapshot, None))
+    }) {
+        Ok(input) => input,
         Err(error) => {
             eprintln!("Module Load Error: {error}");
             return Ok(report::Report::checked(false, false));
         }
     };
     crate::save_input_snapshot(args, &snapshot)?;
-    let workspace = Workspace::new(&cache)?;
-    let paths = if args.module.is_some() {
-        match database.module_paths(&snapshot) {
-            Ok(paths) => paths,
-            Err(diagnostics) => {
-                display.finish(false);
-                for diagnostic in diagnostics {
-                    eprintln!("{}", diagnostic.render(&snapshot));
-                }
-                return Ok(report::Report::checked(false, false));
-            }
-        }
-    } else {
-        Vec::new()
-    };
-    let module = args
-        .module
-        .as_ref()
-        .map(|name| name.split('.').map(str::to_owned).collect::<Vec<_>>());
-    if module.as_ref().is_some_and(|p| !paths.contains(p)) {
-        eprintln!(
-            "Module Selection Error: module '{}' was not found",
-            args.module.as_ref().unwrap()
-        );
-        return Ok(report::Report::checked(false, false));
-    }
-    let mut plan = ProgressPlan {
-        packages: paths
-            .iter()
-            .filter(|p| p.len() == 1)
-            .map(|p| p[0].clone())
-            .collect(),
-        modules: paths
-            .iter()
-            .filter(|p| {
-                module
-                    .as_ref()
-                    .is_none_or(|m| *p == m || (!args.module_only && p.starts_with(m)))
-            })
-            .map(|p| sema::ProgressModule {
-                path: p.clone(),
-                dependencies: vec![],
-            })
-            .collect(),
-    };
-    progress::receive(&ProgressEvent::Planned(plan.clone()));
     let initial_key = snapshot_key(&snapshot);
-    serde_json::to_writer(
-        std::io::BufWriter::new(File::create(workspace.path("snapshot.json"))?),
-        &snapshot,
-    )?;
-    // The snapshot on disk also supports lazy scope enumeration after a limit.
+    let private_snapshot = workspace.path("snapshot.json");
+    let file_key = if let Some(bytes) = bytes {
+        fs::write(private_snapshot, &bytes)?;
+        Some(Sha256::digest(bytes))
+    } else {
+        let mut writer = std::io::BufWriter::new(File::create(private_snapshot)?);
+        serde_json::to_writer(&mut writer, &snapshot)?;
+        writer.flush()?;
+        None
+    };
     drop(snapshot);
-    drop(database);
+    // The worker enumerates the selection and checks it using one parse cache.
+    // Its Planned event supplies the dependency closure to the display.
+    let mut plan = ProgressPlan {
+        packages: Vec::new(),
+        modules: Vec::new(),
+    };
     let fresh = args.full_check || args.no_cache || args.trace;
     let worker_cache = if fresh {
         workspace.path("cache")
@@ -599,9 +575,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         session_store.set_budget(budget.saturating_mul(1024 * 1024));
     }
     let session_token = session_store.session_token()?;
-    let label = module
-        .as_ref()
-        .map_or_else(|| "project".to_owned(), |path| path.join("."));
+    let label = args.module.as_deref().unwrap_or("project");
     let started = Instant::now();
     let mut last_checkpoint = 0;
     let mut workers = 0u64;
@@ -781,15 +755,22 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         }
         break;
     }
-    if !interrupted()
-        && snapshot_key(&crate::input_snapshot(args, &mut sema::Database::new())?) != initial_key
-    {
-        if args.source_snapshot.is_some() {
-            bail!(
-                "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
-            );
+    if !interrupted() {
+        if let (Some(path), Some(file_key)) = (&args.source_snapshot, file_key) {
+            let bytes = fs::read(path)?;
+            // Formatting changes can still describe exactly the same snapshot.
+            if Sha256::digest(&bytes) != file_key
+                && snapshot_key(&crate::decode_input_snapshot(args, path, &bytes)?) != initial_key
+            {
+                bail!(
+                    "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
+                );
+            }
+        } else if snapshot_key(&crate::input_snapshot(args, &mut sema::Database::new())?)
+            != initial_key
+        {
+            bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
         }
-        bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
     if fresh && !args.no_cache {
         match workspace.publish(

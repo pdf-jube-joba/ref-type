@@ -298,24 +298,31 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn decode_input_snapshot(
+    args: &Args,
+    path: &std::path::Path,
+    bytes: &[u8],
+) -> anyhow::Result<sema::SourceSnapshot> {
+    let snapshot: sema::SourceSnapshot = serde_json::from_slice(bytes)
+        .with_context(|| format!("decode source snapshot {}", path.display()))?;
+    let requested = sema::SourceSnapshot::new(&args.path);
+    anyhow::ensure!(
+        snapshot.entry() == requested.entry(),
+        "source snapshot entry {} does not match requested path {}",
+        snapshot.entry().display(),
+        requested.entry().display()
+    );
+    Ok(snapshot)
+}
+
 fn input_snapshot(
     args: &Args,
     database: &mut sema::Database,
 ) -> anyhow::Result<sema::SourceSnapshot> {
     if let Some(path) = &args.source_snapshot {
-        let snapshot: sema::SourceSnapshot = serde_json::from_slice(
-            &std::fs::read(path)
-                .with_context(|| format!("read source snapshot {}", path.display()))?,
-        )
-        .with_context(|| format!("decode source snapshot {}", path.display()))?;
-        let requested = sema::SourceSnapshot::new(&args.path);
-        anyhow::ensure!(
-            snapshot.entry() == requested.entry(),
-            "source snapshot entry {} does not match requested path {}",
-            snapshot.entry().display(),
-            requested.entry().display()
-        );
-        Ok(snapshot)
+        let bytes = std::fs::read(path)
+            .with_context(|| format!("read source snapshot {}", path.display()))?;
+        decode_input_snapshot(args, path, &bytes)
     } else {
         Ok(database.read_snapshot(&args.path, args.full_check_local)?)
     }
@@ -434,6 +441,23 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         let result = match &args.module {
             Some(name) => {
                 let path = name.split('.').map(str::to_owned).collect::<Vec<_>>();
+                // A supervised selection reports parse errors even in unrelated
+                // modules. Run that preflight in the query's own parse cache.
+                if args.worker.is_some() {
+                    match database.module_paths(&snapshot) {
+                        Err(diagnostics) => {
+                            for diagnostic in diagnostics {
+                                eprintln!("{}", diagnostic.render(&snapshot));
+                            }
+                            return Ok(report::Report::checked(false, false));
+                        }
+                        Ok(paths) if !paths.contains(&path) => {
+                            eprintln!("Module Selection Error: module '{name}' was not found");
+                            return Ok(report::Report::checked(false, false));
+                        }
+                        Ok(_) => {}
+                    }
+                }
                 let result = database.module_with_options(&snapshot, &path, &options);
                 if result.is_success() && !result.modules.iter().any(|module| module.path == path) {
                     display.finish(false);
