@@ -15,6 +15,7 @@ pub(crate) struct Metadata {
     coverage: BTreeSet<Vec<String>>,
     history: Vec<Fingerprint>,
     generation: Option<String>,
+    deferred_input: Option<Fingerprint>,
     bytes: usize,
     graph: Vec<artifact_store::ObjectRef>,
 }
@@ -44,12 +45,84 @@ impl Metadata {
     }
 }
 
+/// One additional boundary per local package batch. A separate source file
+/// lets us identify the entire unchanged input without guessing name dependencies.
+struct LeafBoundary {
+    index: usize,
+    key: Fingerprint,
+}
+
 impl PackageRun<'_, '_> {
+    fn leaf_boundary(&self, wanted: &BTreeSet<usize>) -> Option<LeafBoundary> {
+        if self.database.disk.is_none()
+            || self.options.force
+            || self.options.force_local
+            || self.options.collect_statistics
+            || self.packages.len() < 2
+            || self.local_packages.len() != 1
+        {
+            return None;
+        }
+        let &index = wanted.last()?;
+        let unit = &self.graph.units[index];
+        let module = unit.module;
+        let file = &module.source.as_ref()?.id.0;
+        let header = &module.header_source.as_ref()?.id.0;
+        let syntax::ModuleBody::Inline(items) = &module.body else {
+            return None;
+        };
+        // The parent owns the header. The skipped file must own exactly one
+        // leaf body and must not determine a nested namespace or another header.
+        if unit.path.len() < 2
+            || !self.local_packages.contains(&unit.path[0])
+            || file == header
+            || self.snapshot.source(file).is_none()
+            || items
+                .iter()
+                .any(|item| matches!(item, syntax::ModuleItem::ChildModule { .. }))
+            || self.graph.units.iter().enumerate().any(|(other, unit)| {
+                (other != index
+                    && unit
+                        .module
+                        .source
+                        .as_ref()
+                        .is_some_and(|source| &source.id.0 == file))
+                    || unit
+                        .module
+                        .header_source
+                        .as_ref()
+                        .is_some_and(|source| &source.id.0 == file)
+                    || (wanted.contains(&other) && unit.dependencies.contains(&index))
+            })
+        {
+            return None;
+        }
+        let input = crate::cache::snapshot_key(
+            &self.snapshot.with_file(file, ""),
+            &self.options.configuration,
+            self.options.diagnostics == elaboration::DiagnosticMode::Compact,
+        );
+        let key = crate::cache::fingerprint(
+            &artifact_store::serialize(&(
+                b"deferred-leaf",
+                input,
+                &unit.path,
+                file,
+                header,
+                &module.parameters,
+                module.span,
+            ))
+            .ok()?,
+        );
+        Some(LeafBoundary { index, key })
+    }
+
     fn resume_prefix(
         &mut self,
         request: Fingerprint,
         forced: &BTreeSet<usize>,
         wanted: &BTreeSet<usize>,
+        leaf: Option<&LeafBoundary>,
     ) -> Option<(PackageChecker, Metadata)> {
         let store = self.database.disk.as_ref()?.store();
         let manifest = store.read_checkpoint(&request).ok()?;
@@ -57,9 +130,29 @@ impl PackageRun<'_, '_> {
             return None;
         }
         let bytes = store.read_object(manifest.environment.as_ref()?).ok()?;
-        let (magic, metadata, bytes): ([u8; 8], Metadata, Vec<u8>) =
+        let (magic, mut metadata, bytes): ([u8; 8], Metadata, Vec<u8>) =
             artifact_store::deserialize(&bytes).ok()?;
         let continuing = metadata.continuing();
+        if let Some(leaf) = leaf {
+            let path = &self.graph.units[leaf.index].path;
+            if metadata.deferred_input != Some(leaf.key)
+                || metadata.coverage.iter().ne(manifest.coverage.iter())
+                || metadata.syntax.contains(path)
+                || metadata.coverage.contains(path)
+                || !wanted.iter().all(|&index| {
+                    index == leaf.index || metadata.coverage.contains(&self.graph.units[index].path)
+                })
+            {
+                return None;
+            }
+            // The leaf witness accounts for the one package input that can
+            // differ. All other package inputs still pass normal validation.
+            let owner = self
+                .packages
+                .iter()
+                .position(|package| package.name == path[0])?;
+            *metadata.inputs.get_mut(&path[0])? = self.inputs[owner].key;
+        }
         if magic != *b"REFSES02"
             || !self.valid_prefix(&metadata)
             || metadata.syntax.iter().any(|path| {
@@ -76,10 +169,19 @@ impl PackageRun<'_, '_> {
         }
         let pages = GraphPages::new(self.database.disk.as_ref()?.shared_store());
         pages.validate(&metadata.graph)?;
-        let checker = elaboration::with_graph_store(pages, || {
+        let mut checker = elaboration::with_graph_store(pages, || {
             PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())
         })?;
-        self.database.stats.checkpoint_hits += 1;
+        if let Some(leaf) = leaf {
+            let unit = &self.graph.units[leaf.index];
+            if !checker.refresh_deferred_leaf(&unit.path, unit.module) {
+                return None;
+            }
+            metadata.deferred_input = None;
+            self.database.stats.environment_hits += 1;
+        } else {
+            self.database.stats.checkpoint_hits += 1;
+        }
         self.progress.environment_reused(
             metadata
                 .coverage
@@ -310,6 +412,7 @@ impl PackageRun<'_, '_> {
         checker: &mut PackageChecker,
         metadata: &mut Metadata,
         request: Fingerprint,
+        deferred_input: Option<Fingerprint>,
     ) {
         self.progress
             .session_statistics(checker.session_statistics());
@@ -325,12 +428,14 @@ impl PackageRun<'_, '_> {
             return;
         };
         metadata.input = self.inputs[owner].key;
+        metadata.deferred_input = deferred_input;
         let Ok(key_bytes) = artifact_store::serialize(&(
             metadata.input,
             &metadata.inputs,
             &metadata.syntax,
             &metadata.coverage,
             &metadata.history,
+            deferred_input,
         )) else {
             return;
         };
@@ -371,6 +476,13 @@ impl PackageRun<'_, '_> {
                     ..Default::default()
                 };
                 disk.store().publish(&manifest)?;
+                if let Some(key) = deferred_input {
+                    disk.store().publish_checkpoint(&StoreManifest {
+                        key,
+                        input: key,
+                        ..manifest.clone()
+                    })?;
+                }
                 // Advance the recovery pointer too: an older in-flight
                 // checkpoint must never hide this newer completed prefix.
                 disk.store().publish_checkpoint(&StoreManifest {
@@ -472,19 +584,32 @@ impl PackageRun<'_, '_> {
             .flat_map(|state| state.indices.iter().copied())
             .collect();
         self.progress.phase(ProgressPhase::Restoring);
+        let leaf = self.leaf_boundary(&wanted);
         let (mut checker, mut metadata) = self
-            .resume_prefix(request, &forced, &wanted)
+            .resume_prefix(request, &forced, &wanted, None)
+            .or_else(|| {
+                leaf.as_ref()
+                    .and_then(|leaf| self.resume_prefix(leaf.key, &forced, &wanted, Some(leaf)))
+            })
             .unwrap_or_else(|| self.restore_prefix(&wanted, &forced));
         metadata.generation = std::env::var("REF_TYPE_CACHE_SESSION").ok();
         let roots = self.graph.roots.to_vec();
         let mut saved_position = checker.checkpoint_position();
         let mut entered_local = false;
-        for root in &roots {
-            let selected: BTreeSet<_> = wanted
+        let graph = self.graph;
+        let batches = roots.iter().flat_map(|root| {
+            let mut selected: BTreeSet<_> = wanted
                 .iter()
                 .copied()
-                .filter(|&i| self.graph.units[i].path.first() == Some(&root.name.0))
+                .filter(|&index| graph.units[index].path[0] == root.name.0)
                 .collect();
+            let boundary = leaf
+                .as_ref()
+                .filter(|leaf| selected.len() > 1 && selected.remove(&leaf.index));
+            let last = boundary.map(|leaf| (root, BTreeSet::from([leaf.index]), None));
+            std::iter::once((root, selected, boundary)).chain(last)
+        });
+        for (root, mut selected, mut tail) in batches {
             if selected.is_empty() {
                 continue;
             }
@@ -502,7 +627,7 @@ impl PackageRun<'_, '_> {
             if !entered_local && self.local_packages.contains(&root.name.0) {
                 // Keep a reusable dependency boundary for local edits and
                 // forced local checks, independently of checkpoint spacing.
-                self.save_prefix(&mut checker, &mut metadata, request);
+                self.save_prefix(&mut checker, &mut metadata, request, None);
                 saved_position = checker.checkpoint_position();
                 entered_local = true;
             }
@@ -515,10 +640,22 @@ impl PackageRun<'_, '_> {
                     &mut metadata,
                 )?;
             }
-            let paths: BTreeSet<_> = selected
+            let mut paths: BTreeSet<_> = selected
                 .iter()
                 .map(|&i| self.graph.units[i].path.clone())
                 .collect();
+            // Resolution can discover a body through an instantiated namespace.
+            // If it needed the tail, keep the original package checking batch.
+            let mut resolved = Ok(());
+            if let Some(boundary) = tail {
+                let unit = &self.graph.units[boundary.index];
+                resolved = checker.append_resolution_selected(root, &paths);
+                if resolved.is_ok() && !checker.refresh_deferred_leaf(&unit.path, unit.module) {
+                    selected.insert(boundary.index);
+                    paths.insert(unit.path.clone());
+                    tail = None;
+                }
+            }
             let mut did = BTreeSet::new();
             let mut step_modules = Vec::new();
             let mut remaining = BTreeMap::<usize, usize>::new();
@@ -608,11 +745,10 @@ impl PackageRun<'_, '_> {
                     _ => {}
                 })
             };
-            let checked = if let Some(pages) = &pages {
-                elaboration::with_graph_store(pages.clone(), check)
-            } else {
-                check()
-            };
+            let checked = resolved.and_then(|()| match &pages {
+                Some(pages) => elaboration::with_graph_store(pages.clone(), check),
+                None => check(),
+            });
             self.progress.finish_batch();
             if let Err(error) = checked {
                 if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
@@ -681,14 +817,21 @@ impl PackageRun<'_, '_> {
             // the added work. Immutable graph pages are still appended once;
             // timed in-flight checkpoints provide independent recovery points.
             let position = checker.checkpoint_position();
-            if position >= saved_position.max(1).saturating_mul(2) {
-                self.save_prefix(&mut checker, &mut metadata, request);
+            let deferred = tail
+                .filter(|leaf| {
+                    let unit = &self.graph.units[leaf.index];
+                    !metadata.syntax.contains(&unit.path)
+                        && checker.refresh_deferred_leaf(&unit.path, unit.module)
+                })
+                .map(|leaf| leaf.key);
+            if deferred.is_some() || position >= saved_position.max(1).saturating_mul(2) {
+                self.save_prefix(&mut checker, &mut metadata, request, deferred);
                 saved_position = position;
             }
         }
         self.save_covered_results(&checker, &metadata, states);
         self.progress.phase(ProgressPhase::Saving);
-        self.save_prefix(&mut checker, &mut metadata, request);
+        self.save_prefix(&mut checker, &mut metadata, request, None);
         if let Some(disk) = &self.database.disk {
             let _ = disk.store().discard_checkpoint(&request);
         }

@@ -344,6 +344,29 @@ impl Session {
         self.append_selected(module, None)
     }
 
+    /// A reserved leaf has no declarations in the resolver or proof environment
+    /// until module() consumes its deferred syntax. Its parent owns the header.
+    pub fn refresh_deferred_leaf(
+        &mut self,
+        path: &[String],
+        module: &syntax::syntax::Module,
+    ) -> bool {
+        let mut ids = self
+            .resolver
+            .input
+            .keys()
+            .filter(|id| self.resolver.paths.get(id).is_some_and(|p| p == path));
+        let Some(&id) = ids.next() else { return false };
+        if ids.next().is_some() || self.resolver.states.contains_key(&id) {
+            return false;
+        }
+        let Some(deferred) = self.resolver.deferred.get_mut(&id) else {
+            return false;
+        };
+        deferred.0 = module.clone();
+        true
+    }
+
     /// Reserve source identities once, then extend the resolved request set.
     /// Unselected bodies stay in `input`, with their lexical term scope captured
     /// when the parent is resolved. Their errors do not affect another request.

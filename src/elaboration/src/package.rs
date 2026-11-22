@@ -134,6 +134,10 @@ impl PackageChecker {
         Ok(())
     }
 
+    pub fn refresh_deferred_leaf(&mut self, path: &[String], module: &Module) -> bool {
+        self.resolution.refresh_deferred_leaf(path, module)
+    }
+
     pub fn append_resolution_selected(
         &mut self,
         module: &Module,
