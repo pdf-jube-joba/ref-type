@@ -862,6 +862,7 @@ impl Resolver {
                 _ => None,
             };
             if let Some((mut base, field, mut parameters, span)) = projected {
+                let _cost = timing::costs::Scope::enter("projection.resolve-candidate");
                 if let Err(e) = self.normalize_in_scope(&mut base, locals) {
                     error = Some(e);
                     return false;
@@ -897,6 +898,7 @@ impl Resolver {
                             .iter()
                             .find(|(name, _)| name == field.as_str().trim_end_matches('^'))
                         {
+                            let _cost = timing::costs::Scope::enter("projection.expand-field");
                             let expression = if field.as_str().ends_with('^') {
                                 let is_type =
                                     self.structures.get(&value.signature).is_some_and(|shape| {

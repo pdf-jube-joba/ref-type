@@ -76,6 +76,7 @@ fn eliminate(
     cases: &[Expression],
     recursive: bool,
 ) -> Result<Option<Expression>, crate::error::Error> {
+    let _cost = timing::costs::Scope::enter("kernel.eliminate");
     // Refinement introductions carry certificates, but their underlying value
     // is the same constructor seen by Set eliminators and record projections.
     let (head, args) = decompose(env, env.erased_head(scrutinee)?);

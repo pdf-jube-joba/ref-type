@@ -412,6 +412,7 @@ impl GlobalEnvironment {
         &mut self,
         inductive: InductiveId,
     ) -> Result<Vec<(Identifier, DefId)>, ElaborationError> {
+        let _cost = timing::costs::Scope::enter("projection.declare");
         let module = self.module_manager.current();
         let spec = self.crate_env.inductive(inductive).clone();
         let parameters = spec.parameters().to_vec();
@@ -425,6 +426,7 @@ impl GlobalEnvironment {
                 .map(|(_, definition)| *definition)
                 .collect::<Vec<_>>();
             let (name, ty, body) = {
+                let _cost = timing::costs::Scope::enter("projection.generate");
                 let arena = self.crate_env.arena();
                 let CtorBinder::Simple((field_name, _)) = &spec.constructors()[0].telescope[field]
                 else {
@@ -518,6 +520,7 @@ impl GlobalEnvironment {
                 (name, ty, body)
             };
 
+            let _cost = timing::costs::Scope::enter("projection.check-and-register");
             let mut context = Vec::new();
             CheckSession::new(&self.crate_env, &mut context)
                 .check_pts(body, ty)
