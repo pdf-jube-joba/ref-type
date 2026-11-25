@@ -555,7 +555,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     // The snapshot on disk also supports lazy scope enumeration after a limit.
     drop(snapshot);
     drop(database);
-    let fresh = args.full_check || args.no_cache || args.trace;
+    let fresh = args.forces_verification();
     let worker_cache = if fresh {
         workspace.path("cache")
     } else {

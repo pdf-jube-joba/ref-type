@@ -88,6 +88,35 @@ struct Args {
     diagnostics: Option<DiagnosticMode>,
 }
 
+impl Args {
+    fn forces_verification(&self) -> bool {
+        self.trace || self.no_cache || self.full_check
+    }
+
+    fn check_options(&self, display_enabled: bool) -> sema::CheckOptions {
+        sema::CheckOptions {
+            force: self.forces_verification(),
+            skip_environment_cache: self.no_cache,
+            force_local: self.full_check_local,
+            progress: (!self.no_progress).then_some(show_progress),
+            progress_events: match &self.worker {
+                #[cfg(target_os = "linux")]
+                Some(_) => Some(supervisor::send_event),
+                _ => display_enabled.then_some(progress::receive),
+            },
+            collect_statistics: self.stats,
+            module_only: self.module_only,
+            checkpoint_interval: self.checkpoint_seconds.map(Duration::from_secs),
+            diagnostics: match self.diagnostics {
+                Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
+                Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,
+                None => sema::DiagnosticMode::default(),
+            },
+            ..sema::CheckOptions::default()
+        }
+    }
+}
+
 #[derive(clap::ValueEnum, Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 enum DiagnosticMode {
     Compact,
@@ -353,31 +382,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
             .map(|diagnostic| diagnostic.render(&snapshot))
             .collect::<Vec<_>>()
     } else {
-        let options = sema::CheckOptions {
-            force: args.trace || args.no_cache || args.full_check,
-            skip_environment_cache: args.no_cache,
-            force_local: args.full_check_local,
-            progress: (!args.no_progress).then_some(show_progress),
-            progress_events: display.enabled().then_some(progress::receive),
-            collect_statistics: args.stats,
-            module_only: args.module_only,
-            checkpoint_interval: args.checkpoint_seconds.map(Duration::from_secs),
-            diagnostics: match args.diagnostics {
-                Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
-                Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,
-                None => sema::DiagnosticMode::default(),
-            },
-            ..sema::CheckOptions::default()
-        };
-        #[cfg(target_os = "linux")]
-        let options = if args.worker.is_some() {
-            sema::CheckOptions {
-                progress_events: Some(supervisor::send_event),
-                ..options
-            }
-        } else {
-            options
-        };
+        let options = args.check_options(display.enabled());
         let result = match &args.module {
             Some(name) => {
                 let path = name.split('.').map(str::to_owned).collect::<Vec<_>>();
@@ -432,9 +437,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         }
     }
     let stats = database.stats();
-    let reused = !args.no_cache
-        && !args.full_check
-        && !args.trace
+    let reused = !args.forces_verification()
         && (stats.disk_hits > 0 || stats.restored_modules > 0)
         && (stats.reused_modules > 0 || stats.restored_modules > 0);
     let mut report = report::Report::checked(error.is_none(), reused);
