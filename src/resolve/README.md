@@ -34,7 +34,7 @@ Dependency macros are referenced by definition ID.
 `reserve_import` reserves IDs; `import_package` relocates and validates references before publication.
 `restore_sources` reconnects source text to the current snapshot.
 
-See [benchmarks](../../benchmarks/README.md) for measurements, and [macros](../../docs/book/src/language/macro.md) and [structures](../../docs/book/src/language/structure.md) for expansion rules.
+See [benchmarks](../../benchmarks/README.md) for measurements, and [macros](../../docs/language/macro.md) and [structures](../../docs/language/structure.md) for expansion rules.
 
 Substitution and instantiation of structure namespace arguments process children of the original syntax tree before specializing the reference target.
 Revisiting namespace arguments inserted by specialization in the same traversal would repeatedly expand the same references inside those arguments and never terminate.

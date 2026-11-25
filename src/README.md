@@ -38,4 +38,4 @@ Default Cargo commands select the implementation crates.
 `--workspace` also builds and checks `benchmarks/`; its binaries use the same `target/` directory.
 No implementation crate depends on benchmark or Python tooling code.
 
-See [CLI usage](USAGE.md), [source acceptance tests](../tests/README.md), and [benchmarks](../benchmarks/README.md) for the separate entry points.
+See the [language reference](../docs/language/README.md), [CLI usage](USAGE.md), [source acceptance tests](../tests/README.md), and [benchmarks](../benchmarks/README.md) for the separate entry points.

@@ -27,7 +27,7 @@ packages = ["std", "example"]
 
 A workspace input checks all members and their dependencies, including the root package if `[package]` is also present.
 To select one member, pass its directory as input or its package name to `--module`.
-See [surface syntax](../docs/book/src/language/syntax.md#2-module) for external modules and imports, and [libs](https://github.com/pdf-jube-joba/ref-type-libs/tree/main/libs) for library layout.
+See [surface syntax](../docs/language/syntax.md#2-modules) for external modules and imports, and [libs](https://github.com/pdf-jube-joba/ref-type-libs/tree/main/libs) for library layout.
 
 ## Checking and caching
 

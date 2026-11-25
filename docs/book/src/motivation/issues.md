@@ -1,7 +1,4 @@
-> このページは体系と構文の検討記録です。現行の仕様は [体系](../system.md) と [表面構文](../language/syntax.md) を参照してください。
-
-# 体系の検討記録
-## ideal な世界としての computation や template 用の universe ?
+# 体系の検討記録## ideal な世界としての computation や template 用の universe ?
 次の問題は全部、ある種の computation 用の sort を用意しておいて、
 そこの世界の template としての項を、
 （条件付きで）持ってきてよいという感じに考えた方がよさそうに思えた。
