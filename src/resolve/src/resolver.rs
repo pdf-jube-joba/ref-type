@@ -359,27 +359,6 @@ impl Session {
             resolver.scopes.push(Scope::default());
         }
         if !exists {
-            fn headers(module: &syntax::syntax::Module) -> syntax::syntax::Module {
-                let mut result = module.clone();
-                if let syntax::syntax::ModuleBody::Inline(items) = &module.body {
-                    result.body = syntax::syntax::ModuleBody::Inline(
-                        items
-                            .iter()
-                            .filter_map(|item| {
-                                if let syntax::syntax::ModuleItem::ChildModule { module } = item {
-                                    Some(syntax::syntax::ModuleItem::ChildModule {
-                                        module: Box::new(headers(module)),
-                                    })
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .into(),
-                    );
-                }
-                result
-            }
             fn defer(resolver: &mut Resolver, id: ModuleId, module: &syntax::syntax::Module) {
                 let children: Vec<_> = match &resolver.input[&id].body {
                     ModuleBody::Inline(items) => items
@@ -407,7 +386,7 @@ impl Session {
                 }
                 resolver.deferred.insert(id, DeferredSyntax(module.clone()));
             }
-            let mut root = lower::module(headers(module));
+            let mut root = lower::module_headers(module);
             resolver.reserve(ModuleId(0), &mut root);
             defer(resolver, root.id, module);
             resolver.changed_roots.insert(root.id);
@@ -987,37 +966,13 @@ impl Resolver {
         let previous = self.current;
         let location = self.location.clone();
         self.current = id;
-        if let Some(DeferredSyntax(mut syntax)) = self.deferred.remove(&id) {
-            if let syntax::syntax::ModuleBody::Inline(items) = &mut syntax.body {
-                for item in Arc::make_mut(items) {
-                    if let syntax::syntax::ModuleItem::ChildModule { module } = item {
-                        module.body = syntax::syntax::ModuleBody::Inline(Arc::new(Vec::new()));
-                    }
-                }
-            }
-            let mut lowered = lower::module(syntax);
-            let reserved = &self.input[&id];
-            lowered.id = id;
-            lowered.name = reserved.name.clone();
-            if let (ModuleBody::Inline(old), ModuleBody::Inline(new)) =
-                (&reserved.body, &mut lowered.body)
-            {
-                let mut children = old.iter().filter_map(|item| {
-                    if let ModuleItem::ChildModule { module } = item {
-                        Some(module)
-                    } else {
-                        None
-                    }
-                });
-                for item in Arc::make_mut(new) {
-                    if let ModuleItem::ChildModule { module } = item {
-                        *module = children.next().expect("reserved child header").clone();
-                    }
-                }
-            }
-            self.input.insert(id, lowered);
-        }
         let input = self.input.get_mut(&id).expect("reserved module");
+        if let Some(DeferredSyntax(syntax)) = self.deferred.remove(&id) {
+            let mut module = lower::deferred_module(syntax, &input.body);
+            module.id = id;
+            module.name = input.name.clone();
+            *input = module;
+        }
         let body = std::mem::replace(&mut input.body, ModuleBody::External);
         let mut module = Module {
             body,
@@ -1041,9 +996,12 @@ impl Resolver {
                 crate::error::Invalid::ExternalModuleWasNotLoaded,
             )));
         };
-        self.collect_macro_scope(id, items, &module.declaration_spans, module.source.clone())?;
+        let has_macro_items =
+            self.collect_macro_scope(id, items, &module.declaration_spans, module.source.clone())?;
+        let replay_predecessors = has_macro_items || !self.dependency_stack.is_empty();
         for index in 0..items.len() {
-            self.resolve_macro_item(id, index)?;
+            let predecessors = if replay_predecessors { 0..index } else { 0..0 };
+            self.resolve_macro_item(id, index, predecessors)?;
         }
         self.record_macro_template_references(id);
         let work = self.work.remove(&id).expect("module work");

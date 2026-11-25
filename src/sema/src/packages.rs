@@ -97,109 +97,7 @@ impl Database {
                 force,
             };
             if !force {
-                let mut available = BTreeMap::new();
-                let memory = self.package_results.get(&key).or_else(|| {
-                    self.package_results.values().find(|saved| {
-                        saved.manifest.input == input
-                            && coverage
-                                .iter()
-                                .all(|path| saved.manifest.coverage.contains(path))
-                    })
-                });
-                if let Some(memory) = memory {
-                    state.results = Some(
-                        memory
-                            .results
-                            .iter()
-                            .filter(|result| coverage.contains(&result.path))
-                            .cloned()
-                            .collect(),
-                    );
-                    state.key = memory.manifest.key;
-                    state.manifest = Some(memory.manifest.clone());
-                }
-                if state.results.is_none() {
-                    state.results = indices_for_results(&state.indices, module_keys, graph, self);
-                }
-                if state.results.is_none()
-                    && let Some(disk) = &self.disk
-                    && let Some(manifest) = disk
-                        .store()
-                        .read_manifest(&key)
-                        .ok()
-                        .filter(|manifest| manifest.input == input)
-                    && let Some(saved) = read_results(disk, &manifest, &coverage)
-                {
-                    self.stats.disk_hits += saved.len();
-                    state.results = Some(saved);
-                    state.manifest = Some(manifest);
-                }
-                if state.manifest.is_none() {
-                    if state.results.is_none() {
-                        for saved in self
-                            .package_results
-                            .values()
-                            .filter(|saved| saved.manifest.input == input)
-                        {
-                            available.extend(
-                                saved
-                                    .results
-                                    .iter()
-                                    .filter(|result| {
-                                        result.status == ModuleStatus::Verified
-                                            && coverage.contains(&result.path)
-                                    })
-                                    .map(|result| (result.path.clone(), result.clone())),
-                            );
-                        }
-                    }
-                    if let Some(disk) = &self.disk {
-                        let candidates = disk.store().list_matching(&input).unwrap_or_default();
-                        if state.results.is_none() {
-                            for manifest in &candidates {
-                                if let Some(saved) = read_results(disk, manifest, &coverage) {
-                                    self.stats.disk_hits += saved.len();
-                                    state.results = Some(saved);
-                                    state.key = manifest.key;
-                                    state.manifest = Some(manifest.clone());
-                                    break;
-                                }
-                            }
-                        }
-                        if state.manifest.is_none() && state.results.is_none() {
-                            for manifest in candidates {
-                                let missing: Vec<_> = coverage
-                                    .iter()
-                                    .filter(|path| {
-                                        manifest.coverage.contains(path)
-                                            && !available.contains_key(*path)
-                                    })
-                                    .cloned()
-                                    .collect();
-                                if let Some(saved) = read_results(disk, &manifest, &missing) {
-                                    self.stats.disk_hits += saved.len();
-                                    available.extend(
-                                        saved
-                                            .into_iter()
-                                            .map(|result| (result.path.clone(), result)),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-                if state.results.is_none() {
-                    // Workers can publish individual verified modules without a
-                    // complete package manifest. Exhaust result-only reuse before
-                    // importing any environment to continue checking this package.
-                    state.results = complete_module_results(
-                        &state.indices,
-                        module_keys,
-                        graph,
-                        self,
-                        available,
-                    );
-                }
+                self.reuse_package_results(&mut state, &coverage, module_keys, graph);
             }
             if let Some(saved) = &state.results {
                 self.stats.package_hits += 1;
@@ -306,6 +204,109 @@ impl Database {
             diagnostics: Vec::new(),
         }))
     }
+
+    fn reuse_package_results(
+        &mut self,
+        state: &mut PackageState<'_>,
+        coverage: &[Vec<String>],
+        module_keys: &[Fingerprint],
+        graph: &ModuleGraph<'_>,
+    ) {
+        let memory = self.package_results.get(&state.key).or_else(|| {
+            self.package_results.values().find(|saved| {
+                saved.manifest.input == state.input
+                    && coverage
+                        .iter()
+                        .all(|path| saved.manifest.coverage.contains(path))
+            })
+        });
+        if let Some(memory) = memory {
+            state.results = Some(
+                memory
+                    .results
+                    .iter()
+                    .filter(|result| coverage.contains(&result.path))
+                    .cloned()
+                    .collect(),
+            );
+            state.key = memory.manifest.key;
+            state.manifest = Some(memory.manifest.clone());
+            return;
+        }
+
+        if let Some(results) = indices_for_results(&state.indices, module_keys, graph, self) {
+            state.results = Some(results);
+            if let Some(disk) = &self.disk {
+                let _ = disk.store().list_matching(&state.input);
+            }
+            return;
+        }
+
+        if let Some(disk) = &self.disk
+            && let Some(manifest) = disk
+                .store()
+                .read_manifest(&state.key)
+                .ok()
+                .filter(|manifest| manifest.input == state.input)
+            && let Some(saved) = read_results(disk, &manifest, coverage)
+        {
+            self.stats.disk_hits += saved.len();
+            state.results = Some(saved);
+            state.manifest = Some(manifest);
+            return;
+        }
+
+        let mut available = BTreeMap::new();
+        for saved in self
+            .package_results
+            .values()
+            .filter(|saved| saved.manifest.input == state.input)
+        {
+            available.extend(
+                saved
+                    .results
+                    .iter()
+                    .filter(|result| {
+                        result.status == ModuleStatus::Verified && coverage.contains(&result.path)
+                    })
+                    .map(|result| (result.path.clone(), result.clone())),
+            );
+        }
+        if let Some(disk) = &self.disk {
+            let candidates = disk.store().list_matching(&state.input).unwrap_or_default();
+            for manifest in &candidates {
+                if let Some(saved) = read_results(disk, manifest, coverage) {
+                    self.stats.disk_hits += saved.len();
+                    state.results = Some(saved);
+                    state.key = manifest.key;
+                    state.manifest = Some(manifest.clone());
+                    return;
+                }
+            }
+            for manifest in candidates {
+                let missing: Vec<_> = coverage
+                    .iter()
+                    .filter(|path| {
+                        manifest.coverage.contains(path) && !available.contains_key(*path)
+                    })
+                    .cloned()
+                    .collect();
+                if let Some(saved) = read_results(disk, &manifest, &missing) {
+                    self.stats.disk_hits += saved.len();
+                    available.extend(
+                        saved
+                            .into_iter()
+                            .map(|result| (result.path.clone(), result)),
+                    );
+                }
+            }
+        }
+        // Workers can publish individual verified modules without a
+        // complete package manifest. Exhaust result-only reuse before
+        // importing any environment to continue checking this package.
+        state.results =
+            complete_module_results(&state.indices, module_keys, graph, self, available);
+    }
 }
 
 fn indices_for_results(
@@ -379,10 +380,11 @@ fn read_results(
     if !coverage.iter().all(|path| manifest.coverage.contains(path)) {
         return None;
     }
+    let requested: HashSet<_> = coverage.iter().collect();
     let objects: Vec<_> = manifest
         .results
         .iter()
-        .filter(|(path, _)| coverage.contains(path))
+        .filter(|(path, _)| requested.contains(path))
         .map(|(_, object)| object)
         .collect();
     let results: Option<Vec<ModuleResult>> = disk.store().read_values(&objects).ok();

@@ -12,6 +12,26 @@ pub(super) struct MacroWork {
     pub output_spans: Vec<SourceSpan>,
 }
 
+impl TermScope {
+    fn apply_to(&self, scope: &mut Scope) {
+        for (name, &id) in self.names.iter() {
+            if scope.names.get(name) != Some(&id) {
+                Arc::make_mut(&mut scope.names).insert(name.clone(), id);
+            }
+        }
+        for (name, &module) in &self.imports {
+            if scope.imports.get(name) != Some(&module) {
+                scope.imports.insert(name.clone(), module);
+            }
+        }
+        for (name, &id) in self.import_ids.iter() {
+            if scope.import_ids.get(name) != Some(&id) {
+                Arc::make_mut(&mut scope.import_ids).insert(name.clone(), id);
+            }
+        }
+    }
+}
+
 impl Resolver {
     pub(super) fn collect_macro_scope(
         &mut self,
@@ -19,7 +39,7 @@ impl Resolver {
         items: &[ModuleItem],
         spans: &[SourceSpan],
         source: Option<Arc<SourceFile>>,
-    ) -> Result<(), Diagnostic> {
+    ) -> Result<bool, Diagnostic> {
         let mut names = HashMap::new();
         for (index, item) in items.iter().enumerate() {
             let (name, definition) = match item {
@@ -98,26 +118,19 @@ impl Resolver {
                 ..MacroWork::default()
             },
         );
-        Ok(())
-    }
-
-    fn apply_term_delta(&mut self, module: ModuleId, delta: &TermScope) {
-        let scope = &mut self.scopes[module.0 as usize];
-        Arc::make_mut(&mut scope.names).extend(delta.names.iter().map(|(n, &id)| (n.clone(), id)));
-        scope.imports.extend(delta.imports.clone());
-        Arc::make_mut(&mut scope.import_ids)
-            .extend(delta.import_ids.iter().map(|(n, &id)| (n.clone(), id)));
+        Ok(!names.is_empty())
     }
 
     pub(super) fn resolve_macro_item(
         &mut self,
         module: ModuleId,
         index: usize,
+        predecessors: std::ops::Range<usize>,
     ) -> Result<(), Diagnostic> {
         let state = self.work[&module].states[index];
         if state == 2 {
-            if let Some(delta) = self.work[&module].deltas[index].clone() {
-                self.apply_term_delta(module, &delta);
+            if let Some(delta) = &self.work[&module].deltas[index] {
+                delta.apply_to(&mut self.scopes[module.0 as usize]);
             }
             return Ok(());
         }
@@ -144,7 +157,7 @@ impl Resolver {
                 })
         });
         let dependencies = preparing_macro.then(|| term_dependencies(&item));
-        for previous in 0..index {
+        for previous in predecessors {
             let preceding = &self.work[&module].items[previous];
             if matches!(
                 preceding,
@@ -165,7 +178,7 @@ impl Resolver {
             } else if self.work[&module].states[previous] == 1 {
                 continue;
             }
-            self.resolve_macro_item(module, previous)?;
+            self.resolve_macro_item(module, previous, 0..previous)?;
         }
         let before = self.scopes[module.0 as usize].terms();
         let work = &self.work[&module];
@@ -288,7 +301,7 @@ impl Resolver {
                     continue;
                 }
                 let saved = self.scopes[module.0 as usize].clone();
-                self.resolve_macro_item(module, index)?;
+                self.resolve_macro_item(module, index, 0..index)?;
                 let scope = &mut self.scopes[module.0 as usize];
                 scope.names = saved.names;
                 scope.imports = saved.imports;
@@ -345,7 +358,7 @@ impl Resolver {
         });
         if let Some(index) = index {
             let saved = self.scopes[module.0 as usize].clone();
-            self.resolve_macro_item(module, index)?;
+            self.resolve_macro_item(module, index, 0..index)?;
             let scope = &mut self.scopes[module.0 as usize];
             scope.names = saved.names;
             scope.imports = saved.imports;
