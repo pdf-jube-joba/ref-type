@@ -501,3 +501,153 @@ fn expanding_a_request_keeps_completed_declarations() {
     assert_eq!(expanded, fresh.check(&snapshot));
     assert_eq!(first + additional, fresh.stats().checked_steps);
 }
+
+fn deferred_leaf_project() -> SourceSnapshot {
+    project("app")
+        .with_file(
+            "/virtual/app/src/root.ref",
+            r"\module Provider; \module Reserved; \module Leaf;",
+        )
+        .with_file(
+            "/virtual/app/src/Provider.ref",
+            r"\import base.Core[] \as B; \definition value: \Prop := B.P;",
+        )
+        .with_file(
+            "/virtual/app/src/Reserved.ref",
+            r"\definition T: \Prop := \forall (P: \Prop) -> P -> P;",
+        )
+        .with_file(
+            "/virtual/app/src/Leaf.ref",
+            r"\import \root.Provider[] \as P; \definition result: \Prop := P.value;",
+        )
+}
+
+fn check_leaf(
+    db: &mut Database,
+    snapshot: &SourceSnapshot,
+) -> std::sync::Arc<sema::SemanticResult> {
+    db.module_with_options(
+        snapshot,
+        &["app".into(), "Leaf".into()],
+        &CheckOptions {
+            module_only: true,
+            ..Default::default()
+        },
+    )
+}
+
+#[test]
+fn deferred_leaf_rechecks_current_body_and_matches_independent_checks() {
+    let snapshot = deferred_leaf_project();
+    let cache = Cache::new();
+    let seed = Database::with_cache(&cache.0).check(&snapshot);
+    assert!(seed.is_success(), "{:?}", seed.diagnostics);
+    for (body, valid) in [
+        (
+            r"\import \root.Provider[] \as P; \definition changed: \Prop := P.value; \infer changed;",
+            true,
+        ),
+        (
+            r"\import \root.Provider[] \as P; \definition changed: \Prop := \Set;",
+            false,
+        ),
+        (
+            r"\import \root.Reserved[] \as R; \definition changed: \Prop := R.T;",
+            true,
+        ),
+        (
+            r"\import \root.Provider[] \as P; \definition changed: \Prop := P.missing;",
+            false,
+        ),
+    ] {
+        let edited = snapshot.with_file("/virtual/app/src/Leaf.ref", body);
+        let mut warm = Database::with_cache(&cache.0);
+        let actual = check_leaf(&mut warm, &edited);
+        let fresh = Cache::new();
+        let reference = check_leaf(&mut Database::with_cache(&fresh.0), &edited);
+        assert_eq!(actual.is_success(), valid, "{:?}", actual.diagnostics);
+        assert_eq!(actual.diagnostics, reference.diagnostics);
+        if valid {
+            assert_eq!(actual, reference);
+            assert_eq!(warm.stats().checked_modules, 1);
+        }
+    }
+}
+
+#[test]
+fn deferred_leaf_invalidates_on_other_inputs_and_preserves_scope() {
+    let snapshot = deferred_leaf_project();
+    let cache = Cache::new();
+    assert!(check_leaf(&mut Database::with_cache(&cache.0), &snapshot).is_success());
+    let provider = "/virtual/app/src/Provider.ref";
+    let leaf = "/virtual/app/src/Leaf.ref";
+    let changed = snapshot.with_file(
+        provider,
+        r"\import base.Core[] \as B; \definition value: \Set := B.Unit;",
+    );
+    let provider_only =
+        Database::with_cache(&cache.0).module(&changed, &["app".into(), "Provider".into()]);
+    assert!(
+        provider_only.is_success(),
+        "{:?}",
+        provider_only.diagnostics
+    );
+    let fresh = Cache::new();
+    assert_eq!(
+        provider_only,
+        Database::with_cache(&fresh.0).module(&changed, &["app".into(), "Provider".into()])
+    );
+    assert!(
+        !provider_only
+            .modules
+            .iter()
+            .any(|module| module.path == ["app", "Leaf"])
+    );
+    // A partial seed includes Reserved's name but has not checked its body.
+    let new_import = snapshot.with_file(
+        leaf,
+        r"\import \root.Reserved[] \as R; \definition result: \Prop := R.T;",
+    );
+    let mut warm = Database::with_cache(&cache.0);
+    let reference = check_leaf(&mut Database::with_cache(&Cache::new().0), &new_import);
+    assert!(reference.is_success());
+    assert_eq!(check_leaf(&mut warm, &new_import), reference);
+    assert!(warm.stats().checked_modules > 1);
+    let renamed = snapshot
+        .without_file(provider)
+        .with_file(
+            "/virtual/app/src/New.ref",
+            r"\definition value: \Prop := \forall (P: \Prop) -> P -> P;",
+        )
+        .with_file(
+            "/virtual/app/src/root.ref",
+            r"\module New; \module Reserved; \module Leaf;",
+        );
+    let removed = snapshot
+        .without_file("/virtual/app/src/Reserved.ref")
+        .with_file(
+            "/virtual/app/src/root.ref",
+            r"\module Provider; \module Leaf;",
+        )
+        .with_file(
+            leaf,
+            r"\import \root.Reserved[] \as R; \definition result: \Prop := R.T;",
+        );
+    let other_body = snapshot
+        .with_file(
+            "/virtual/app/src/Reserved.ref",
+            r"\definition U: \Prop := \forall (P: \Prop) -> P -> P;",
+        )
+        .with_file(
+            leaf,
+            r"\import \root.Reserved[] \as R; \definition result: \Prop := R.T;",
+        );
+    for edited in [changed, renamed, removed, other_body] {
+        let fresh = Cache::new();
+        let reference = check_leaf(&mut Database::with_cache(&fresh.0), &edited);
+        let actual = check_leaf(&mut Database::with_cache(&cache.0), &edited);
+        assert!(!reference.is_success());
+        assert_eq!(actual.diagnostics, reference.diagnostics);
+        assert!(!actual.is_success());
+    }
+}
