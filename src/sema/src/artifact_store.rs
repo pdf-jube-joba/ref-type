@@ -613,12 +613,20 @@ impl ArtifactStore {
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
         let result = (|| {
-            let mut file = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&temporary)?;
+            let mut options = OpenOptions::new();
+            options.create_new(true).write(true);
+            #[cfg(target_os = "linux")]
+            let synchronous_write = durable && !bytes.is_empty();
+            #[cfg(not(target_os = "linux"))]
+            let synchronous_write = false;
+            #[cfg(target_os = "linux")]
+            if synchronous_write {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.custom_flags(libc::O_SYNC);
+            }
+            let mut file = options.open(&temporary)?;
             file.write_all(bytes)?;
-            if durable {
+            if durable && !synchronous_write {
                 file.sync_all()?;
             }
             fs::rename(&temporary, destination)?;
