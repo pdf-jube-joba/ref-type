@@ -706,12 +706,37 @@ fn conversion(
     right: Expression,
     erase: bool,
 ) -> Result<bool, crate::error::Error> {
+    #[derive(Default)]
+    struct SeenPairs {
+        pairs: rustc_hash::FxHashSet<(Expression, Expression)>,
+        inserted: Vec<(Expression, Expression)>,
+    }
+    impl SeenPairs {
+        fn insert(&mut self, pair: (Expression, Expression)) -> bool {
+            if self.pairs.insert(pair) {
+                self.inserted.push(pair);
+                true
+            } else {
+                false
+            }
+        }
+
+        fn branch<T>(&mut self, visit: impl FnOnce(&mut Self) -> T) -> T {
+            let start = self.inserted.len();
+            let result = visit(self);
+            for pair in self.inserted.drain(start..) {
+                self.pairs.remove(&pair);
+            }
+            result
+        }
+    }
+
     fn compare(
         env: &Environment,
         left: Expression,
         right: Expression,
         erase: bool,
-        seen: &mut rustc_hash::FxHashSet<(Expression, Expression)>,
+        seen: &mut SeenPairs,
         profile: &mut Option<(usize, Expression, Expression)>,
     ) -> Result<bool, crate::error::Error> {
         let _cost = timing::costs::Scope::enter("kernel.conversion-pair");
@@ -763,7 +788,9 @@ fn conversion(
                 }
                 let mut congruent = true;
                 for &index in env.conversion_arguments(l)?.iter() {
-                    if !compare(env, la[index], ra[index], erase, &mut seen.clone(), profile)? {
+                    if !seen
+                        .branch(|seen| compare(env, la[index], ra[index], erase, seen, profile))?
+                    {
                         congruent = false;
                         break;
                     }
@@ -777,7 +804,7 @@ fn conversion(
                     .into_iter()
                     .zip(comparison_children(&env.arena, right))
                 {
-                    if ld != rd || !compare(env, l, r, erase, &mut seen.clone(), profile)? {
+                    if ld != rd || !seen.branch(|seen| compare(env, l, r, erase, seen, profile))? {
                         congruent = false;
                         break;
                     }
@@ -865,7 +892,7 @@ fn conversion(
         left,
         right,
         erase,
-        &mut rustc_hash::FxHashSet::default(),
+        &mut SeenPairs::default(),
         &mut std::env::var_os("REF_TYPE_PROFILE_CONVERSION").map(|_| (0, left, right)),
     )
 }
