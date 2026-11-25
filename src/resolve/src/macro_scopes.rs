@@ -12,6 +12,26 @@ pub(super) struct MacroWork {
     pub output_spans: Vec<SourceSpan>,
 }
 
+impl TermScope {
+    fn apply_to(&self, scope: &mut Scope) {
+        for (name, &id) in self.names.iter() {
+            if scope.names.get(name) != Some(&id) {
+                Arc::make_mut(&mut scope.names).insert(name.clone(), id);
+            }
+        }
+        for (name, &module) in &self.imports {
+            if scope.imports.get(name) != Some(&module) {
+                scope.imports.insert(name.clone(), module);
+            }
+        }
+        for (name, &id) in self.import_ids.iter() {
+            if scope.import_ids.get(name) != Some(&id) {
+                Arc::make_mut(&mut scope.import_ids).insert(name.clone(), id);
+            }
+        }
+    }
+}
+
 impl Resolver {
     pub(super) fn collect_macro_scope(
         &mut self,
@@ -101,14 +121,6 @@ impl Resolver {
         Ok(())
     }
 
-    fn apply_term_delta(&mut self, module: ModuleId, delta: &TermScope) {
-        let scope = &mut self.scopes[module.0 as usize];
-        Arc::make_mut(&mut scope.names).extend(delta.names.iter().map(|(n, &id)| (n.clone(), id)));
-        scope.imports.extend(delta.imports.clone());
-        Arc::make_mut(&mut scope.import_ids)
-            .extend(delta.import_ids.iter().map(|(n, &id)| (n.clone(), id)));
-    }
-
     pub(super) fn resolve_macro_item(
         &mut self,
         module: ModuleId,
@@ -116,8 +128,8 @@ impl Resolver {
     ) -> Result<(), Diagnostic> {
         let state = self.work[&module].states[index];
         if state == 2 {
-            if let Some(delta) = self.work[&module].deltas[index].clone() {
-                self.apply_term_delta(module, &delta);
+            if let Some(delta) = &self.work[&module].deltas[index] {
+                delta.apply_to(&mut self.scopes[module.0 as usize]);
             }
             return Ok(());
         }
