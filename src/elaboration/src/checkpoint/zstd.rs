@@ -1,6 +1,6 @@
 //! Streaming native checkpoints with bounded compressed and decoded buffers.
 use postcard::{Error, Result, ser_flavors::Flavor};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 
 const CHUNK_BYTES: usize = 32 * 1024;
 
@@ -109,13 +109,18 @@ impl<const LIMIT: usize> Flavor for Buffer<LIMIT> {
     }
 }
 
-pub(crate) fn decompress<const LIMIT: usize>(bytes: &[u8]) -> Option<Vec<u8>> {
+fn decoder<const LIMIT: usize>(bytes: &[u8]) -> Option<impl Read> {
     if bytes.is_empty() || bytes.len() > LIMIT {
         return None;
     }
     let mut decoder = zstd::stream::read::Decoder::new(bytes).ok()?;
     // Fast checkpoints use a smaller window; bound decoder scratch space too.
     decoder.window_log_max(23).ok()?;
+    Some(decoder)
+}
+
+pub(crate) fn decompress<const LIMIT: usize>(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut decoder = decoder::<LIMIT>(bytes)?;
     let mut output = BoundedBytes::<LIMIT>::default();
     io::copy(&mut decoder, &mut output).ok()?;
     Some(output.0)
@@ -124,12 +129,7 @@ pub(crate) fn decompress<const LIMIT: usize>(bytes: &[u8]) -> Option<Vec<u8>> {
 pub(super) fn deserialize<T: serde::de::DeserializeOwned, const LIMIT: usize>(
     bytes: &[u8],
 ) -> Option<T> {
-    use std::io::Read;
-    if bytes.is_empty() || bytes.len() > LIMIT {
-        return None;
-    }
-    let mut decoder = zstd::stream::read::Decoder::new(bytes).ok()?;
-    decoder.window_log_max(23).ok()?;
+    let decoder = decoder::<LIMIT>(bytes)?;
     let mut buffer = vec![0; CHUNK_BYTES * 2];
     let (value, (mut reader, _)) =
         postcard::from_io::<T, _>((decoder.take(LIMIT as u64 + 1), &mut buffer)).ok()?;
