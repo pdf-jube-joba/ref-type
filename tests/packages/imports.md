@@ -2,7 +2,7 @@
 
 ## packages resolve temporary module expressions
 
-外部依存と同じ package の module の具体化は、同じ型引数を代入した carrier として利用できる。
+Instantiations of an external dependency and a module in the same package can be used as carriers with the same type arguments substituted.
 
 ```toml case
 id = "packages_resolve_temporary_module_expressions"
@@ -38,7 +38,7 @@ shared = { path = "../shared" }
 
 ## packages resolve dependencies and local children
 
-二つの依存経路で共有する package と局所的な子 module を同時に import できる。
+A package shared through two dependency paths and a local child module can be imported together.
 
 ```toml case
 id = "packages_resolve_dependencies_and_local_children"
@@ -100,7 +100,7 @@ right = { path = "../right" }
 
 ## cyclic dependencies
 
-package の依存が循環する。
+Package dependencies are cyclic.
 
 ```toml case
 id = "cyclic-dependencies"
@@ -133,7 +133,7 @@ a = { path = "../a" }
 
 ## external parameter inference
 
-外部 module の parameter に未解決の型が残る。
+An external module parameter retains an unresolved type.
 
 ```toml case
 id = "external-parameter-inference"
@@ -151,7 +151,7 @@ expect = "reject"
 
 ## external program module parameters are instantiated in nested modules
 
-Program の module parameter は外部ファイルの子 module にも代入される。
+Program module parameters are also substituted into child modules in external files.
 
 ```toml case
 id = "external_program_module_parameters_are_instantiated_in_nested_modules"
@@ -185,7 +185,7 @@ expect = "accept"
 
 ## external child module inherits parent import aliases
 
-外部ファイルにある子 module も親の import alias を利用できる。
+Child modules in external files can also use their parent's import aliases.
 
 ```toml case
 id = "external_child_module_inherits_parent_import_aliases"
@@ -211,7 +211,7 @@ expect = "accept"
 
 ## parent and external references share checked child declarations
 
-親の内側からも外側からも、子 module の宣言を参照できる。
+Child module declarations can be referenced both inside and outside the parent.
 
 ```toml case
 id = "parent_and_external_references_share_checked_child_declarations"

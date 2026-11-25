@@ -489,7 +489,8 @@ fn native_check_detects_captured_input_changes_after_starting() {
     let output = parent.wait_with_output().unwrap();
     assert!(!output.status.success(), "{}", output_details(&output));
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("検査中に入力 snapshot が変更されました"),
+        String::from_utf8_lossy(&output.stderr)
+            .contains("The input snapshot changed during checking"),
         "{}",
         output_details(&output)
     );

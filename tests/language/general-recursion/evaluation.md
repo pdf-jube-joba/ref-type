@@ -2,7 +2,7 @@
 
 ## bind wrong value
 
-bind で束縛する値の型が computation の結果型と一致しない。
+The type of the value bound by bind does not match the computation's result type.
 
 ```toml case
 id = "reject-general-recursion.bind-wrong-value"
@@ -19,7 +19,7 @@ parameters = '''A: \VType, a: A'''
 
 ## finish wrong result
 
-finish に渡した値が結果の型を持たない。
+The value passed to finish does not have the result type.
 
 ```toml case
 id = "reject-general-recursion.finish-wrong-result"
@@ -35,7 +35,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## let wrong computation
 
-let の束縛対象が要求される Program value になっていない。
+The subject of a let binding is not the required Program value.
 
 ```toml case
 id = "reject-general-recursion.let-wrong-computation"
@@ -52,7 +52,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program case wrong branch count
 
-Program case の分岐数が constructor の数と一致しない。
+The number of Program case branches does not match the number of constructors.
 
 ```toml case
 id = "reject-general-recursion.program-case-wrong-branch-count"
@@ -74,7 +74,7 @@ name = "IncompleteProgramCase"
 
 ## block syntax
 
-block 内の sequencing が Program value と computation の束縛を保つ。
+Sequencing inside blocks preserves Program value and computation bindings.
 
 ```toml case
 id = "accept-general-recursion.block-syntax"
@@ -111,7 +111,7 @@ name = "Blocks"
 
 ## continue
 
-continue の状態を遷移に渡して実行を継続できる。
+Execution can continue by passing the continue state to the transition.
 
 ```toml case
 id = "accept-general-recursion.continue"
@@ -152,7 +152,7 @@ name = "RunContinue"
 
 ## finish
 
-finish が持つ結果を run の結果として取り出せる。
+The result carried by finish can be extracted as the run result.
 
 ```toml case
 id = "accept-general-recursion.finish"
@@ -185,7 +185,7 @@ parameters = '''A: \VType,
 
 ## forms
 
-Program の value と computation の各構文を対応する型で使える。
+Program value and computation syntax can each be used with corresponding types.
 
 ```toml case
 id = "accept-general-recursion.forms"
@@ -214,7 +214,7 @@ parameters = '''A: \VType,
 
 ## ill typed evaluation
 
-Set/Prop の型が合わない適用も、評価用の query では簡約できる。
+Even applications with mismatched Set/Prop types can be reduced in evaluation queries.
 
 ```toml case
 id = "accept-general-recursion.ill-typed-evaluation"
@@ -230,7 +230,7 @@ name = "IllTypedEvaluation"
 
 ## mccarthy 91
 
-停止証明を持つ McCarthy 91 の再帰的実行を記述できる。
+Recursive execution of McCarthy 91 can be expressed with a termination proof.
 
 ```toml case
 id = "accept-general-recursion.mccarthy-91"
@@ -376,9 +376,9 @@ expect = "accept"
 }
 ```
 
-## 型が合わない Program application の評価
+## Evaluating an ill-typed Program application
 
-Program の return を関数として適用した式も、評価用の query では簡約不能な式として保持できる。
+An expression applying Program return as a function can be retained as an irreducible expression in evaluation queries.
 
 ```toml case
 id = "accept-general-recursion.raw-ill-typed-program-application-evaluation"
@@ -396,7 +396,7 @@ parameters = '''A: \VType,
 
 ## rose map
 
-再帰的な木を停止証明付きの Program で写せる。
+Recursive trees can be mapped by a Program with a termination proof.
 
 ```toml case
 id = "accept-general-recursion.rose-map"
@@ -493,7 +493,7 @@ expect = "accept"
 
 ## run case
 
-runCase は実行中の遷移 computation と対応する証明を使える。
+runCase can use the active transition computation and its corresponding proof.
 
 ```toml case
 id = "accept-general-recursion.run-case"
@@ -520,7 +520,7 @@ parameters = '''A: \VType,
 
 ## step match
 
-parameter を持つ遷移の結果を case で分解できる。
+The result of a parameterized transition can be decomposed with case.
 
 ```toml case
 id = "accept-general-recursion.step-match"
@@ -576,7 +576,7 @@ expect = "accept"
 
 ## stuck
 
-開いた thunk の force は簡約できない computation として保持される。
+Forcing an open thunk is retained as an irreducible computation.
 
 ```toml case
 id = "accept-general-recursion.stuck"
@@ -592,9 +592,9 @@ parameters = '''A: \VType,
 ```
 
 
-## branch と結果の異なる universe
+## Different universes for branches and results
 
-高い universe の RunStep を消去し、低い universe の固定した値を返せる。
+A RunStep in a higher universe can be eliminated to return a fixed value in a lower universe.
 
 ```toml case
 id = "step_match_distinguishes_branch_and_result_sorts"

@@ -1,8 +1,8 @@
 # macros / inference
 
-## 等式消去の capture に渡す穴
+## Holes passed to equality-elimination captures
 
-等式の両端、束縛下の motive、基底に現れる同じ capture の穴を、等式の証明から推論する。
+Holes in the same capture at equality endpoints, in a motive under binders, and in the base case are inferred from the equality proof.
 
 ```toml case
 id = "accept-macros.captured_hole_equality_elimination"
@@ -19,9 +19,9 @@ parameters = '''A, B: \Set'''
   map_eq!{f _ _ same};
 ```
 
-## 再帰的なマクロ展開での等式消去
+## Equality elimination through recursive macro expansion
 
-列の capture と token match を通じて渡した穴も、motive と基底の間で共有する。
+Holes passed through sequence captures and token matches are also shared between the motive and base case.
 
 ```toml case
 id = "accept-macros.forwarded_captured_hole"
@@ -41,9 +41,9 @@ parameters = '''A, B: \Set'''
   forward!{f _ _ same};
 ```
 
-## 一つの穴に対する矛盾した制約
+## Conflicting constraints on one hole
 
-同じ capture の穴を二つの異なる局所変数として解くことはできない。
+A hole in the same capture cannot be solved as two different local variables.
 
 ```toml case
 id = "reject-macros.captured_hole_inconsistent_constraints"
@@ -57,9 +57,9 @@ parameters = '''A: \Set, a, b: A'''
 \definition impossible: (a = a) -> b = b := duplicate!{_};
 ```
 
-## 別の呼び出しと名前付き穴
+## Separate calls and named holes
 
-一つの宣言内で別々に呼び出すマクロの穴と、明示した名前付き穴は、それぞれの期待型から解く。
+Holes from separate macro calls within a declaration and explicit named holes are each solved from their expected types.
 
 ```toml case
 id = "accept-macros.captured_hole_independent_calls"
@@ -82,9 +82,9 @@ parameters = '''A: \Set, a, b: A'''
 };
 ```
 
-## capture 内部の束縛変数
+## Bound variables inside captures
 
-複製された lambda は内部の変数名の同一性ではなく、束縛の下で式全体を比較する。
+Duplicated lambdas compare their entire expressions under binders rather than requiring identical internal variable names.
 
 ```toml case
 id = "accept-macros.captured_lambda_body_hole"
@@ -100,9 +100,9 @@ parameters = '''A: \Set'''
   copy!{{\fun (x: A) => _}};
 ```
 
-## 複数の内部束縛と転送
+## Multiple internal binders and forwarding
 
-型注釈と本体の穴を持つ lambda を転送しても、複製した関数の値が一致する。
+Forwarding a lambda with holes in its annotation and body still gives matching duplicated function values.
 
 ```toml case
 id = "accept-macros.forwarded_captured_nested_lambda"
@@ -119,9 +119,9 @@ parameters = '''A: \Set'''
   forward!{{\fun (x: _) => \fun (y: _) => _}};
 ```
 
-## Program の capture と期待型
+## Program captures and expected types
 
-capture の共有によって、Program 関数の型注釈に期待型を伝える推論を妨げない。
+Capture sharing does not prevent inference from propagating expected types into Program function annotations.
 
 ```toml case
 id = "accept-macros.program_capture_expected_function"
@@ -136,9 +136,9 @@ expect = "accept"
 \definition value: Bool := keep!{{Bool::true \of _}};
 ```
 
-## Program の application head
+## Program application heads
 
-capture を共有しても、lambda と型注釈を付けた computation は明示的な force を要求する value に変わらない。
+Capture sharing does not turn lambdas or ascribed computations into values requiring an explicit force.
 
 ```toml case
 id = "accept-macros.program_capture_application_head"
@@ -156,9 +156,9 @@ parameters = '''A: \VType, a: A'''
 \definition forced: \F(A) := call!{{\force(\thunk(\fun (x: _) => \return(x)))}};
 ```
 
-## Program の型と値の capture
+## Program type and value captures
 
-型・computation type・value・computation の各位置で期待型と共有値を照合する。
+Expected types and shared values are matched in type, computation-type, value, and computation positions.
 
 ```toml case
 id = "accept-macros.program_capture_categories"
@@ -175,9 +175,9 @@ parameters = '''A: \VType, a: A'''
 \definition computation: \F(A) := keep!{{\return(a \of _)}};
 ```
 
-## 入れ子の等式計算と証明の型
+## Nested equational reasoning and proof types
 
-入れ子の合同則を経た中間式と交換則の引数を、等式計算の前後から推論する。
+Intermediate expressions through nested congruence and commutativity arguments are inferred from the surrounding equational reasoning.
 
 ```toml case
 id = "accept-macros.captured_proof_type_constraints"

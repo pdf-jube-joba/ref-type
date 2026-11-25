@@ -2,7 +2,7 @@
 
 ## ambiguous implicit value
 
-implicit value を一意に決める制約が足りない。
+There are insufficient constraints to determine the implicit value uniquely.
 
 ```toml case
 id = "reject-metavariables.ambiguous_implicit_value"
@@ -19,7 +19,7 @@ parameters = '''A: \Set(0), candidate: A'''
 
 ## ambiguous inductive argument
 
-帰納型の引数を一意に決める制約が足りない。
+There are insufficient constraints to determine the inductive argument uniquely.
 
 ```toml case
 id = "reject-metavariables.ambiguous_inductive_argument"
@@ -39,7 +39,7 @@ name = "AmbiguousInductiveArgument"
 
 ## ambiguous module parameter
 
-module parameter の型を確定できない。
+A module parameter's type cannot be determined.
 
 ```toml case
 id = "reject-metavariables.ambiguous_module_parameter"
@@ -55,7 +55,7 @@ parameters = '''A: _'''
 
 ## ambiguous program value
 
-Program value の型を一意に決める制約が足りない。
+There are insufficient constraints to determine the Program value's type uniquely.
 
 ```toml case
 id = "reject-metavariables.ambiguous_program_value"
@@ -71,7 +71,7 @@ parameters = '''A: \VType'''
 
 ## application inference
 
-application の期待型と引数から穴を推論できる。
+Holes can be inferred from an application's expected type and arguments.
 
 ```toml case
 id = "accept-metavariables.application_inference"
@@ -105,7 +105,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## bidirectional inference
 
-期待型から項へ、項から型への制約を組み合わせられる。
+Constraints from expected types to terms and from terms to types can be combined.
 
 ```toml case
 id = "accept-metavariables.bidirectional_inference"
@@ -129,7 +129,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## contextual inference
 
-穴の解がその局所文脈で型を持つ。
+A hole's solution is well-typed in its local context.
 
 ```toml case
 id = "accept-metavariables.contextual_inference"
@@ -161,7 +161,7 @@ name = "MetaContextual"
 
 ## declaration scopes
 
-穴の共有範囲が declaration の境界に対応する。
+Hole-sharing scopes follow declaration boundaries.
 
 ```toml case
 id = "accept-metavariables.declaration_scopes"
@@ -184,7 +184,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## equality inference
 
-等号の両辺から carrier と型引数を推論できる。
+The carrier and type arguments can be inferred from both sides of an equality.
 
 ```toml case
 id = "accept-metavariables.equality_inference"
@@ -201,7 +201,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## id elim inferred carrier
 
-等号除去の carrier を等式の両辺から推論できる。
+The carrier for equality elimination can be inferred from both sides of the equality.
 
 ```toml case
 id = "accept-metavariables.id_elim_inferred_carrier"
@@ -221,7 +221,7 @@ parameters = '''A: \Set(1), a, b, c: A, ab: a = b, bc: b = c'''
 
 ## indexed match constraints
 
-index を持つ constructor の branch 制約で穴を推論できる。
+Holes can be inferred from branch constraints of indexed constructors.
 
 ```toml case
 id = "accept-metavariables.indexed_match_constraints"
@@ -260,7 +260,7 @@ parameters = '''A: \Set, x: A'''
 
 ## inductive parameter inference
 
-帰納型の parameter を constructor の引数から推論できる。
+Inductive parameters can be inferred from constructor arguments.
 
 ```toml case
 id = "accept-metavariables.inductive_parameter_inference"
@@ -281,7 +281,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## match constraints
 
-match の scrutinee と branch の制約から穴を推論できる。
+Holes can be inferred from match scrutinee and branch constraints.
 
 ```toml case
 id = "accept-metavariables.match_constraints"
@@ -324,7 +324,7 @@ name = "MatchConstraints"
 
 ## program annotations
 
-Program の注釈と期待型が同じ value と computation の型を示す。
+Program annotations and expected types describe the same value and computation types.
 
 ```toml case
 id = "accept-metavariables.program_annotations"
@@ -351,7 +351,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program constructor inference
 
-Program constructor の parameter を期待型から推論できる。
+Program constructor parameters can be inferred from expected types.
 
 ```toml case
 id = "accept-metavariables.program_constructor_inference"
@@ -374,7 +374,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program type inference
 
-Program の型引数を application の制約から推論できる。
+Program type arguments can be inferred from application constraints.
 
 ```toml case
 id = "accept-metavariables.program_type_inference"
@@ -394,9 +394,9 @@ parameters = '''A: \VType, a: A'''
 ```
 
 
-## 代入した record の型と射影
+## Assigned record types and projections
 
-assign で共有した record の型を binder と射影の期待型として利用できる。
+A record type shared through assign can serve as the expected type for binders and projections.
 
 ```toml case
 id = "explicit_meta_assignment_shares_record_types_before_projection"
@@ -426,9 +426,9 @@ name = "Assignment"
 };
 ```
 
-## Program の let 注釈 / 1
+## Program let annotations / 1
 
-let の型注釈と値の型が異なる。
+The let annotation differs from the value's type.
 
 ```toml case
 id = "wrong-program-let-0"
@@ -442,9 +442,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: B := a \in \return(a));
 ```
 
-## Program の let 注釈 / 2
+## Program let annotations / 2
 
-let の型注釈に value を書いている。
+A value is written in a let type annotation.
 
 ```toml case
 id = "wrong-program-let-1"
@@ -458,9 +458,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: a := a \in \return(a));
 ```
 
-## Program の let 注釈 / 3
+## Program let annotations / 3
 
-let の値とその型を決定する制約がない。
+No constraints determine the let value or its type.
 
 ```toml case
 id = "wrong-program-let-2"
@@ -474,9 +474,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: _ := ? \in \return(a));
 ```
 
-## 推論変数への再代入 / A
+## Reassigning inference variables / A
 
-同じ型を再代入する。
+The same type is assigned again.
 
 ```toml case
 id = "reassign-meta-A"
@@ -490,9 +490,9 @@ parameters = '''A: \Set, B: \Set, a: A'''
 \definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (A \assign _1) := \fun (x: A) => x;
 ```
 
-## 推論変数への再代入 / B
+## Reassigning inference variables / B
 
-既に A と決まった推論変数に異なる型 B を代入する。
+A different type B is assigned to an inference variable already determined to be A.
 
 ```toml case
 id = "reassign-meta-B"
@@ -506,9 +506,9 @@ parameters = '''A: \Set, B: \Set, a: A'''
 \definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (B \assign _1) := \fun (x: A) => x;
 ```
 
-## match の制約 / 1
+## Match constraints / 1
 
-motive の型が scrutinee の型と異なる。
+The motive type differs from the scrutinee type.
 
 ```toml case
 id = "match-constraint-mismatch-0"
@@ -549,9 +549,9 @@ name = "MatchConstraints"
 };
 ```
 
-## match の制約 / 2
+## Match constraints / 2
 
-branch の値が対応する constructor の引数の型と異なる。
+A branch value differs from the corresponding constructor argument's type.
 
 ```toml case
 id = "match-constraint-mismatch-1"

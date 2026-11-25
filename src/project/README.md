@@ -1,30 +1,30 @@
-# Project と source の読み込み
+# Project and source loading
 
-`project` は source snapshot、外部 module、package・workspace と path dependency を読み込み、`syntax` の AST を構築する。
+`project` loads source snapshots, external modules, packages, workspaces, and path dependencies, building the `syntax` AST.
 
 ## Source snapshot
 
-`SourceSnapshot::read` は到達可能なソースと manifest の内容・identity を固定する。
-`with_file` / `without_file` は編集版を作り、`new` / `insert` はメモリ上のソースを構築する。
-`source` は本文、`identity` は別名を解決したファイル identity を返す。
-`package_snapshot` は指定 package とその依存先に範囲を絞る。
+`SourceSnapshot::read` freezes the contents and identities of reachable sources and manifests.
+`with_file` / `without_file` create edited versions; `new` / `insert` construct sources in memory.
+`source` returns the text; `identity` returns the file identity after resolving aliases.
+`package_snapshot` restricts the scope to the specified package and its dependencies.
 
-`SourceCache` は毎回内容を確認し、一致する text と SHA-256 digest を共有する。
-既定64 MiB・16,384ファイル、直近2回の取得世代を保持する。
-`read_with_source_cache` と `read_with_dependency_cache` が取得を集約し、`content_digest` は snapshot ごとの内容 digest を返す。
-キャッシュの回収後も、呼出側が保持する snapshot は有効である。
+`SourceCache` checks contents on every read and shares matching text and SHA-256 digests.
+By default, it retains up to 64 MiB and 16,384 files from the two most recent read generations.
+`read_with_source_cache` and `read_with_dependency_cache` centralize loading; `content_digest` returns a snapshot's content digest.
+Snapshots retained by callers remain valid after cache collection.
 
-## Module と package の読み込み
+## Module and package loading
 
-`SourceProvider` で取得と parse を差し替える。
-`DiskSource` はディスク、[sema](../sema/README.md) は snapshot と parse cache を使う。
-loader は共通依存を一度だけ訪問し、package 名の import を root からの module path に結合する。
+`SourceProvider` allows source loading and parsing to be replaced.
+`DiskSource` reads from disk; [sema](../sema/README.md) uses snapshots and a parse cache.
+The loader visits shared dependencies once and joins package-name imports to module paths from the root.
 
-`PackageGraph` は依存グラフと AST、`entry_packages` は検査入口を持つ。
-`PackageInfo` は正規化した root による `PackageInstanceId`、名前付き直接依存、manifest、source identity を持つ。
-同じ root は同じ instance、別 root は別 instance である。
+`PackageGraph` holds the dependency graph and AST; `entry_packages` holds the checking entry points.
+`PackageInfo` contains a `PackageInstanceId` based on the normalized root, named direct dependencies, the manifest, and source identities.
+The same root yields the same instance; different roots yield different instances.
 
-workspace を入力にすると全 member と依存先を、member を入力にするとその依存閉包を読む。
-両方とも workspace manifest と共通の保存先を保持する。
-`workspace::default_cache_directory` は祖先の manifest から所属を調べ、`SourceSnapshot::default_cache_directory` は保持済みの所属から保存先を返す。
-manifest の例と操作は [利用方法](../USAGE.md) を参照。
+A workspace input loads all members and their dependencies; a member input loads its dependency closure.
+Both retain the workspace manifest and shared storage location.
+`workspace::default_cache_directory` discovers membership from ancestor manifests; `SourceSnapshot::default_cache_directory` uses retained membership to return the storage location.
+See [Usage](../USAGE.md) for manifest examples and commands.

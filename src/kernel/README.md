@@ -1,25 +1,25 @@
 # PTS kernel
 
-sort・型・項・証明を共通の `kernel::syntax` の `Expression` と `Node` で表す。
-`Expression` は `Arena` 内の intern 済み handle であり、子の項と binder の型も同じ arena を使う。
+Sorts, types, terms, and proofs share the `Expression` and `Node` representations in `kernel::syntax`.
+An `Expression` is an interned handle in an `Arena`; child terms and binder types use the same arena.
 
-| モジュール | 担当 |
+| Module | Responsibility |
 | --- | --- |
-| [check](src/check.rs) | 型判断 |
-| [sort](src/sort.rs) | sort の公理と product 関係 |
-| [calculus](src/calculus.rs) | 束縛、shift、代入 |
-| [reduction](src/reduction.rs) | 簡約・評価・conversion |
-| [reflection](src/reflection.rs) | Program の反映 |
-| [metavariables](src/metavariables.rs) | 単一化と保留制約 |
-| [environment](src/environment.rs) | 宣言登録と検証済み環境 |
-| [exports](src/exports.rs) | package が所有する宣言と共有式の再配置 |
-| [node_store](src/node_store.rs) | 安定した式 handle と常駐ページの管理 |
-| [graph_store](src/graph_store.rs) | セッションの不変 object ストアへの接続 |
+| [check](src/check.rs) | Typing judgments |
+| [sort](src/sort.rs) | Sort axioms and product relations |
+| [calculus](src/calculus.rs) | Binding, shifting, and substitution |
+| [reduction](src/reduction.rs) | Reduction, evaluation, and conversion |
+| [reflection](src/reflection.rs) | Program reflection |
+| [metavariables](src/metavariables.rs) | Unification and pending constraints |
+| [environment](src/environment.rs) | Declaration registration and the verified environment |
+| [exports](src/exports.rs) | Relocation of package-owned declarations and shared expressions |
+| [node_store](src/node_store.rs) | Stable expression handles and resident page management |
+| [graph_store](src/graph_store.rs) | Connecting sessions to the immutable object store |
 
-`Context` は `Binding { var, ty }` を外側から並べた telescope で、各型は先行する文脈で解釈する。
-`Bound(0)` は最も内側の変数、`SymbolId` は表示名であり、alpha 等価性は名前に依存しない。
+`Context` is a telescope of `Binding { var, ty }` entries ordered from outermost to innermost; each type is interpreted in the preceding context.
+`Bound(0)` denotes the innermost variable; `SymbolId` is a display name, and alpha equivalence does not depend on names.
 
-## 型推論と登録
+## Type inference and registration
 
 ```rust
 use kernel::{check::Checker, environment::{Definition, Environment},
@@ -45,67 +45,67 @@ assert_eq!(Checker::new(&env, &mut metas, vec![]).infer(reference)?, ty);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-公開 `infer` / `check` は文脈の形成を確認し、未解決メタ変数があれば `Error::Unresolved` を返す。
-`register_definition` は `finish` と厳密な型検査後に `DefinitionId` を返す。
-定義参照は宣言型と本体に文脈引数を同時代入し、Program 定義は反映先も検査して登録する。
-module 名や source location は elaboration が保持する。
+Public `infer` / `check` validate context formation and return `Error::Unresolved` if metavariables remain unsolved.
+`register_definition` returns a `DefinitionId` after `finish` and strict type checking.
+Definition references simultaneously substitute context arguments into the declared type and body; Program definitions also check their reflected counterparts before registration.
+Elaboration retains module names and source locations.
 
-`register_inductive` は arity・constructor の戻り先・sort・strict positivity を検査する。
-`register_datatype` は Program の field と parameter を検査し、Set の鏡像を登録する。
-`IndElim` は motive の telescope と本体を別に保持し、添字・要素・再帰仮定を代入して各枝を検査する。
-消去先の制限と singleton elimination は [check.rs](src/check.rs) を参照。
+`register_inductive` checks arity, constructor result types, sorts, and strict positivity.
+`register_datatype` checks Program fields and parameters and registers their Set mirrors.
+`IndElim` stores the motive telescope and body separately and checks each branch by substituting indices, the element, and recursive hypotheses.
+See [check.rs](src/check.rs) for elimination restrictions and singleton elimination.
 
-`IdElim` は命題値の等式除去と集合値の移送を表し、`family` の sort に応じて結果を検査する。
-集合値の移送は neutral な head を保ち、`TransportEq` が自己移送と元との命題上の等式を証明する。
-等式の certificate は型検査と通常の構造走査に含め、conversion と unification の比較対象からは消去する。
+`IdElim` represents proposition-valued equality elimination and set-valued transport, checking the result according to the sort of `family`.
+Set-valued transport preserves a neutral head; `TransportEq` proves the propositional equality between self-transport and the original value.
+Equality certificates participate in type checking and ordinary structural traversal but are erased from conversion and unification comparisons.
 
-## Refinement とメタ変数
+## Refinements and metavariables
 
-`SubsetIntro` は要素と所属証拠を検査し、refinement 型 `TypeLift` を返す。
-台集合へ弱めても所属証拠を保持する。
-`Environment::erased_head` は値の観測時に導入を透過し、conversion・適用・所属・消去が同じ値の見方を使う。
+`SubsetIntro` checks an element and its membership evidence and returns the refinement type `TypeLift`.
+Membership evidence is retained when weakening to the ambient set.
+`Environment::erased_head` looks through introductions when observing values, giving conversion, application, membership, and elimination a common view of the value.
 
-メタ変数は宣言文脈と期待型を持ち、出現ごとの引数列が宣言文脈からの代入を表す。
+Metavariables have a declaration context and an expected type; arguments at each occurrence represent a substitution from that context.
 
-| 操作 | 役割 |
+| Operation | Role |
 | --- | --- |
-| `fresh` / `restrict` | 穴を作成 / 文脈を共通の接頭辞へ制限 |
-| `infer` / `check` / `unify` | 制約生成・単一化 |
-| `solve_pending` / `finish` | 保留判断の再実行 / 全検査義務の完了確認 |
-| `zonk` | 解決済みメタ変数の代入 |
-| `snapshot` / `rollback` | 試行前の状態を保存・復元 |
+| `fresh` / `restrict` | Create a hole / restrict its context to a shared prefix |
+| `infer` / `check` / `unify` | Generate constraints and unify |
+| `solve_pending` / `finish` | Retry pending judgments / confirm completion of all checking obligations |
+| `zonk` | Substitute solved metavariables |
+| `snapshot` / `rollback` | Save and restore state around a trial |
 
-occurs check は候補・期待型・宣言文脈を通じた循環も検出する。
-`finish` は結果から到達しない穴も確認する。
-`_` や `?` の表面上の区別と位置情報は elaboration が管理する。
+The occurs check also detects cycles through candidates, expected types, and declaration contexts.
+`finish` checks holes that are not reachable from the result as well.
+Elaboration manages the surface distinction between `_` and `?`, along with their locations.
 
-## 共有と調査
+## Sharing and inspection
 
-`Environment::boundary` と `export_since` は package が追加した宣言を `EnvironmentExport` にする。
-依存 package の宣言は参照として共有し、到達する式を子から順に保存する。
-`reserve_definitions`・`reserve_nominals` で ID を予約し、`Arena::import_graph` で raw と共有する `ExpressionGraph` を復元してから宣言を再配置する。
-`Environment::import_export` は参照・反映表を検証し、部分成果物の重複は宣言と式の一致を確認して共有する。
-未解決メタ変数は export 時に検出し、raw の宣言参照にも使う `Meta` の identity は frontend の対応表と `reserve_metas` で再配置する。
-失敗時には追加した式と ID 対応を戻し、既存の宣言表を保持する。
+`Environment::boundary` and `export_since` collect declarations added by a package into an `EnvironmentExport`.
+Dependency declarations are shared as references; reachable expressions are saved in child-first order.
+`reserve_definitions` and `reserve_nominals` reserve IDs; `Arena::import_graph` restores the `ExpressionGraph` shared with the raw layer before declarations are relocated.
+`Environment::import_export` validates references and reflection tables and shares overlapping partial artifacts after checking that declarations and expressions agree.
+Unsolved metavariables are detected during export; `Meta` identities, also used for raw declaration references, are relocated through frontend mappings and `reserve_metas`.
+On failure, added expressions and ID mappings are rolled back, preserving existing declaration tables.
 
-式は2,048スロットのページに保持し、参照と intern の索引は本文の常駐状態から独立させる。
-intern の索引は32 bitの候補キーと32 bitの式参照を持ち、衝突した候補ではノード全体を比較して同一性を確認する。
-`Arena::read` の `Rc<Node>` は読込時の snapshot を pin し、ページの退避後も使える。
-宣言登録中の一時式を整理するときは、公開した snapshot から到達する式も保持し、破棄した handle を通常の割当で再利用しない。
-ページの常駐予算は native の既定128 MiBで、`Arena::set_resident_budget` または `REF_TYPE_GRAPH_RESIDENT_MIB` から変更できる。
-`Arena::store_stats` は保持量・保存読込量・退避回数を返す。
+Expressions occupy pages of 2,048 slots; reference and interning indices are independent of body residency.
+The interning index stores 32-bit candidate keys and 32-bit expression references; collisions compare entire nodes to confirm identity.
+The `Rc<Node>` returned by `Arena::read` pins the snapshot read at that time and remains usable after its page is spilled.
+Temporary-expression cleanup during declaration registration also retains expressions reachable from published snapshots; discarded handles are not reused by ordinary allocation.
+The native resident page budget defaults to 128 MiB and can be changed through `Arena::set_resident_budget` or `REF_TYPE_GRAPH_RESIDENT_MIB`.
+`Arena::store_stats` returns retained sizes, read/write volumes, and spill counts.
 
-セッション保存では `with_graph_store` が供給する `GraphStore` に確定したページを追加し、既存のページは参照を再利用する。
-checkpoint はページ参照、live bitmap、式の性質と intern の索引を保持し、本文は使用時に読み込む。
-一時退避ではセッション専用のファイルを使い、読込・保存バッファを64 KiBに制限する。
-CLI は cache と同じ filesystem に退避ファイルを置き、checkpoint の全ページを不変 object に保存したら一時コピーを解放する。
-`REF_TYPE_GRAPH_SPILL_DIR` で退避先を指定でき、CLI 以外の既定は OS の一時ディレクトリである。
-WebAssembly はファイルへの退避を使わず、メモリ内で保持する。
+Session persistence appends finalized pages to the `GraphStore` supplied by `with_graph_store`, reusing references to existing pages.
+Checkpoints retain page references, live bitmaps, expression properties, and interning indices; bodies are read on demand.
+Temporary spilling uses session-specific files with read/write buffers limited to 64 KiB.
+The CLI places spill files on the cache filesystem and releases temporary copies once all checkpoint pages have been saved as immutable objects.
+`REF_TYPE_GRAPH_SPILL_DIR` selects the spill directory; outside the CLI, the OS temporary directory is the default.
+WebAssembly keeps data in memory without file spilling.
 
-束縛を含む構造走査は `Arena::map_children` に集約する。
-環境は推論・弱頭簡約・conversion・文脈・型の shift・同時代入を共有し、`cache_counts` で件数を取得できる。
-共有表が上限に達すると、再利用されたエントリを優先して最大四分の三を保持する。
-定義登録で生じた一時ノードと共有表は、生存する宣言・メタ変数・診断・read snapshot を保って整理する。
-共有表は直列化せず、復元後に再計算する。
-`reduction::first_difference` は簡約後に異なる部分項とその経路を返す。
-計測方法は [利用方法](../USAGE.md#診断と計測) を参照。
+Structural traversal with binders is centralized in `Arena::map_children`.
+The environment shares inference, weak-head reduction, conversion, contexts, type shifting, and simultaneous substitution; `cache_counts` reports entry counts.
+When sharing tables reach their limits, they retain at most three quarters of entries, preferring reused entries.
+Temporary nodes and sharing tables created during definition registration are collected while preserving live declarations, metavariables, diagnostics, and read snapshots.
+Sharing tables are not serialized and are recomputed after restoration.
+`reduction::first_difference` returns differing subterms after reduction and their paths.
+See [Usage](../USAGE.md#diagnostics-and-profiling) for measurement instructions.

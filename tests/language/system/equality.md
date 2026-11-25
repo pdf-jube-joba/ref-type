@@ -2,7 +2,7 @@
 
 ## equality rejects proofs
 
-集合の要素を比較する等号で証明項を比較している。
+Proof terms are compared with equality intended for set elements.
 
 ```toml case
 id = "reject-system.equality_rejects_proofs"
@@ -19,7 +19,7 @@ parameters = '''P: \Prop,
 
 ## equality requires common set
 
-等号の両辺が共通の集合の要素になっていない。
+The equality's two sides are not elements of a common set.
 
 ```toml case
 id = "reject-system.equality_requires_common_set"
@@ -37,7 +37,7 @@ parameters = '''A, B: \Set(0),
 
 ## funext wrong pointwise
 
-関数外延性に渡した証明が指定された二つの関数の各点等式ではない。
+The proof passed to function extensionality does not establish pointwise equality of the specified functions.
 
 ```toml case
 id = "reject-system.funext_wrong_pointwise"
@@ -56,7 +56,7 @@ parameters = '''X, Y: \Set,
 
 ## id elim wrong base
 
-等号除去の基底証明が motive の反射の場合を示していない。
+The base proof for equality elimination does not establish the motive's reflexive case.
 
 ```toml case
 id = "reject-system.id_elim_wrong_base"
@@ -78,7 +78,7 @@ parameters = '''A: \Set(0),
 
 ## setext wrong inclusion
 
-集合外延性の包含証明が指定された二つの集合を結ばない。
+The inclusion proofs for set extensionality do not relate the specified sets.
 
 ```toml case
 id = "reject-system.setext_wrong_inclusion"
@@ -97,7 +97,7 @@ parameters = '''X: \Set,
 
 ## equality transport
 
-等号に沿って型と証明を移送できる。
+Types and proofs can be transported along equality.
 
 ```toml case
 id = "accept-system.equality_transport"
@@ -120,7 +120,7 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
 
 ## transport families resolve record fields
 
-等式の移送とその反射則の family で、束縛した record の field を参照できる。
+Equality transport and its reflexivity-law family can reference fields of bound records.
 
 ```toml case
 id = "transport_families_resolve_record_fields"
@@ -160,7 +160,7 @@ expect = "accept"
 
 ## transport specialization and macro binders
 
-Set(1) の family に対する transport の等式を、macro と module の特殊化を経ても利用できる。
+Transport equalities for Set(1) families remain usable through macros and module specialization.
 
 ```toml case
 id = "transport_specialization_and_macro_binders"
@@ -183,7 +183,7 @@ expect = "accept"
 
 ## neutral transport supports subsets functions projections and induction
 
-仮定した等式による transport の結果を、関数適用、field の射影、induction と subset の値として利用できる。
+Transport along an assumed equality can be used in function application, field projection, induction, and as a subset value.
 
 ```toml case
 id = "neutral_transport_supports_subsets_functions_projections_and_induction"
@@ -216,7 +216,7 @@ parameters = '''A: \Set, a, b: A'''
 
 ## transport substitutes through nested family binders
 
-family 内の binder を保ちながら、外側の等式に従って型を移し替えられる。
+Types can be transported along an outer equality while preserving binders within the family.
 
 ```toml case
 id = "transport_substitutes_through_nested_family_binders"
@@ -236,7 +236,7 @@ parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
 
 ## transport checks base and equality certificates
 
-移し替える前の型に合わない base を渡す。
+The supplied base does not match the type before transport.
 
 ```toml case
 id = "transport_checks_base_and_equality_certificates"
@@ -252,7 +252,7 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F b, e: a = b'''
 
 ## transport checks base and equality certificates 1
 
-移し替えの向きと等式の証明の向きが逆な。
+The transport direction is opposite to the equality proof's direction.
 
 ```toml case
 id = "transport_checks_base_and_equality_certificates-1"
@@ -268,7 +268,7 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F a, e: b = a'''
 
 ## transport substitutes through nested family binders 1
 
-transporteq の family に命題を指定している。
+A proposition is specified as the family for transporteq.
 
 ```toml case
 id = "transport_substitutes_through_nested_family_binders-1"

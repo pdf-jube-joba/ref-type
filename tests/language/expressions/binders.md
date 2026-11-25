@@ -1,8 +1,8 @@
-# binder と局所定義
+# Binders and local definitions
 
-## structure 引数と局所 scope
+## Structure arguments and local scopes
 
-structure の field を局所 binder と subset の定義から使い、同じ値に簡約できる。
+Structure fields can be used from local binders and subset definitions and reduce to the same values.
 
 ```toml case
 id = "shared_definitions_preserve_subset_and_local_scopes"
@@ -24,9 +24,9 @@ name = "Sharing"
 \definition localLaw[B: Bundle][x: B.Carrier]: local B x (\refl(x)) = x := \refl(x);
 ```
 
-## block 内の関数
+## Functions inside blocks
 
-保存した値は後続の同名 binder に捕捉されず、直接書いた関数と一致する。
+A stored value is not captured by a later binder with the same name and agrees with a directly written function.
 
 ```toml case
 id = "logical_block_fun_preserves_binder_order_and_scope"
@@ -48,9 +48,9 @@ parameters = '''A: \Set, P: A -> \Set'''
 \definition same: blocked = direct := \refl(direct);
 ```
 
-## let の展開と shadowing
+## Let expansion and shadowing
 
-let の値と型 alias は透過的に展開され、入れ子や同名 binder を経ても元の参照を保つ。
+Let values and type aliases expand transparently and retain original references through nesting and same-named binders.
 
 ```toml case
 id = "logical_let_definitions_are_transparent_and_capture_avoiding"
@@ -111,9 +111,9 @@ parameters = '''A: \Set, a: A'''
 };
 ```
 
-## enough の後の目標
+## Goals after enough
 
-P から Q への含意を渡した後は P を証明すれば Q の証明になる。
+After supplying an implication from P to Q, proving P yields a proof of Q.
 
 ```toml case
 id = "logical_enough_changes_the_remaining_goal"
@@ -130,9 +130,9 @@ parameters = '''P, Q: \Prop, p: P, implication: P -> Q'''
 };
 ```
 
-## let の型注釈
+## Let type annotations
 
-let の型注釈によって x は基底型 A の値になるため、membership の証明なしに subset の値として返すと拒否される。
+A let annotation makes x a value of the base type A, so returning it as a subset value without a membership proof is rejected.
 
 ```toml case
 id = "logical_let_preserves_the_declared_type"
@@ -149,9 +149,9 @@ parameters = '''A: \Set, S: \Pow (A), s: \Cast[A] (S)'''
 };
 ```
 
-## まとめた product binder
+## Grouped product binders
 
-p、q、r はいずれも外側の P の証明として束縛される。
+The variables p, q, and r are all bound as proofs of the outer P.
 
 ```toml case
 id = "grouped_product_binders_keep_the_outer_type"
@@ -165,9 +165,9 @@ name = "Grouped"
   \fun (P: \Prop) => \fun (p: P) => \fun (q: P) => \fun (r: P) => r;
 ```
 
-## まとめた lambda binder
+## Grouped lambda binders
 
-同じ宣言の binder 群は、同名の P を束縛する前の型注釈を共有する。
+A declaration's grouped binders share the type annotation from before a same-named P is bound.
 
 ```toml case
 id = "grouped_lambda_binders_keep_the_outer_type"
@@ -183,9 +183,9 @@ name = "Grouped"
   \fun (P: \Prop) => \fun (P, p: P) => p;
 ```
 
-## まとめた宣言引数
+## Grouped declaration arguments
 
-帰納型の x、y、z の型は、同じ外側の A である。
+The inductive type's x, y, and z all have the same outer type A.
 
 ```toml case
 id = "grouped_declaration_binders_keep_the_outer_type"
@@ -200,9 +200,9 @@ name = "Grouped"
 ;
 ```
 
-## membership と Cast の関数値
+## Membership and Cast as function values
 
-membership と Cast を関数として名前に束縛し、subset に適用できる。
+Membership and Cast can be bound to names as functions and applied to subsets.
 
 ```toml case
 id = "membership_and_cast_are_first_class_functions"
@@ -218,9 +218,9 @@ parameters = '''A: \Set, subset: \Pow A'''
 \definition Specialized: \Set := cast subset;
 ```
 
-## 使用しない let / 1
+## Unused let / 1
 
-集合の値を要求する位置に命題の証明を渡している。結果で使わない定義も検査する。
+A proposition proof is passed where a set value is required; definitions unused in the result are also checked.
 
 ```toml case
 id = "unused-let-0"
@@ -234,9 +234,9 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: A := p \then \return \refl(a) };
 ```
 
-## 使用しない let / 2
+## Unused let / 2
 
-命題の証明を要求する位置に集合の値を渡している。結果で使わない定義も検査する。
+A set value is passed where a proposition proof is required; definitions unused in the result are also checked.
 
 ```toml case
 id = "unused-let-1"
@@ -250,9 +250,9 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: P := a \then \return \refl(a) };
 ```
 
-## 使用しない let / 3
+## Unused let / 3
 
-型と値を決める制約がない。結果で使わない定義も検査する。
+No constraints determine the type or value; definitions unused in the result are also checked.
 
 ```toml case
 id = "unused-let-2"
@@ -266,9 +266,9 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: _ := _ \then \return \refl(a) };
 ```
 
-## 使用しない let / 4
+## Unused let / 4
 
-まだ束縛されていない自分自身を参照している。結果で使わない定義も検査する。
+The definition references itself before being bound; definitions unused in the result are also checked.
 
 ```toml case
 id = "unused-let-3"

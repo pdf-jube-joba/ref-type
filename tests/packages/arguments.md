@@ -1,8 +1,8 @@
-# module の引数と record の射影
+# Module arguments and record projections
 
 ## forward value context
 
-親の値引数で定まる subset を import 先へ渡し、再び外側から利用できる。
+A subset determined by a parent's value argument can be passed to an import and used again from outside.
 
 ```toml case
 id = "module_arguments_and_projections.forward-value-context"
@@ -26,7 +26,7 @@ expect = "accept"
 
 ## forward type context
 
-親の型引数と子の帰納型を import 先へ渡し、外側の特殊化に対応する型を返せる。
+A parent's type argument and a child's inductive type can be passed to an import, returning a type matching the outer specialization.
 
 ```toml case
 id = "module_arguments_and_projections.forward-type-context"
@@ -50,7 +50,7 @@ expect = "accept"
 
 ## dependent quotient
 
-親の値引数に依存する subset から quotient の要素を作り、外側から同じ型として利用できる。
+A quotient element can be constructed from a subset depending on a parent's value argument and used as the same type from outside.
 
 ```toml case
 id = "module_arguments_and_projections.dependent-quotient"
@@ -86,7 +86,7 @@ expect = "accept"
 
 ## flattened argument
 
-structure 引数を構成する Carrier を直接渡しても、型の展開後に同じ field 型を持つ。
+Passing the Carrier used to construct a structure argument directly yields the same field type after type expansion.
 
 ```toml case
 id = "module_arguments_and_projections.flattened-argument"
@@ -103,7 +103,7 @@ name = "Repro"
 
 ## block hash projection
 
-block 内の関数引数から field を型に従って射影できる。
+Fields can be projected from function arguments inside a block according to their types.
 
 ```toml case
 id = "module_arguments_and_projections.block-hash-projection"
@@ -123,7 +123,7 @@ parameters = '''A: \Set'''
 
 ## block let
 
-block 内の let で保存した record から field を射影できる。
+Fields can be projected from a record stored with let inside a block.
 
 ```toml case
 id = "module_arguments_and_projections.block-let"
@@ -143,7 +143,7 @@ parameters = '''A: \Set'''
 
 ## dependent structure indices expand whole arguments
 
-前の structure 引数の field に依存する index を、構成した値から展開できる。
+An index depending on a previous structure argument's field can be expanded from the constructed value.
 
 ```toml case
 id = "dependent_structure_indices_expand_whole_arguments"
@@ -176,7 +176,7 @@ name = "Algebra"
 
 ## imported definitions use remapped types through aliases and import chains
 
-同じ引数の import を重ねても、帰納型と関数の型は一致する。
+Repeated imports with the same arguments preserve agreement between inductive types and function types.
 
 ```toml case
 id = "imported_definitions_use_remapped_types_through_aliases_and_import_chains"
@@ -206,7 +206,7 @@ expect = "accept"
 
 ## different outer arguments keep distinct nominal types
 
-親 module の引数が異なる特殊化の帰納型を混用する。
+Inductive types from specializations with different parent module arguments are mixed.
 
 ```toml case
 id = "different_outer_arguments_keep_distinct_nominal_types"
@@ -231,7 +231,7 @@ expect = "reject"
 
 ## block projection obeys shadowing and sequential let bindings
 
-module と同名の局所変数でも、let の順序に従って record の field を射影できる。
+A local variable sharing a module's name still supports record field projection according to let order.
 
 ```toml case
 id = "block_projection_obeys_shadowing_and_sequential_let_bindings"
@@ -257,7 +257,7 @@ expect = "accept"
 
 ## signature indices apply to records inductives and nested structures
 
-signature の field を、record、帰納型と入れ子の structure の index から利用できる。
+Signature fields can be used through records, inductive types, and nested structure indices.
 
 ```toml case
 id = "signature_indices_apply_to_records_inductives_and_nested_structures"
@@ -280,7 +280,7 @@ name = "Repro"
 
 ## expanded structure arguments preserve index type checks
 
-Unit を要求する index に Bit の structure を渡す。
+A Bit structure is passed to an index requiring Unit.
 
 ```toml case
 id = "expanded_structure_arguments_preserve_index_type_checks"
@@ -300,7 +300,7 @@ name = "Repro"
 
 ## imported nominal types share convertible arguments after remapping
 
-型 alias とその元の型を引数にした import は、同じ nominal type として利用できる。
+Imports taking a type alias or its original type can be used as the same nominal type.
 
 ```toml case
 id = "imported_nominal_types_share_convertible_arguments_after_remapping"
@@ -325,9 +325,9 @@ expect = "accept"
 }
 ```
 
-## structure 引数の個数 / few
+## Structure argument count / few
 
-structure の宣言と渡した引数の個数が違う。
+The argument count differs from the structure declaration.
 
 ```toml case
 id = "structure-arity-few"
@@ -340,9 +340,9 @@ name = "Algebra"
 \structure A[Carrier: \Set] := { unit: Carrier }; \structure ALaw[Carrier: \Set, data: A[Carrier]] := {}; \structure Bad[Carrier: \Set] := { data: A[Carrier], law: ALaw[Carrier] };
 ```
 
-## structure 引数の個数 / many
+## Structure argument count / many
 
-structure の宣言と渡した引数の個数が違う。
+The argument count differs from the structure declaration.
 
 ```toml case
 id = "structure-arity-many"

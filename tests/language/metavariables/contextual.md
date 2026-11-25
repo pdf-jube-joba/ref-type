@@ -1,8 +1,8 @@
-# 局所文脈を持つ関数の推論
+# Inferring functions with local contexts
 
 ## contextual argument
 
-definition 内部の lambda 注釈を推論してから、関数を module 引数として渡せる。
+A function can be passed as a module argument after inferring a lambda annotation inside a definition.
 
 ```toml case
 id = "contextual_inference.contextual-argument"
@@ -24,7 +24,7 @@ expect = "accept"
 
 ## bound argument
 
-型を付けて束縛した関数値も、module の引数として渡せる。
+A function value bound with a type can also be passed as a module argument.
 
 ```toml case
 id = "contextual_inference.bound-argument"
@@ -47,7 +47,7 @@ expect = "accept"
 
 ## contextual inference
 
-関数を引数に取る application の期待型から、内側の lambda の型を推論できる。
+The type of an inner lambda can be inferred from the expected type of an application taking a function argument.
 
 ```toml case
 id = "contextual_inference.contextual-inference"
@@ -72,7 +72,7 @@ parameters = '''A: \Set'''
 
 ## infer projection
 
-期待する record の型から binder の穴を埋め、その field を射影できる。
+An expected record type can fill a binder hole and allow field projection.
 
 ```toml case
 id = "inference_and_constructor_aliases.infer-projection"
@@ -89,7 +89,7 @@ name = "Repro"
 
 ## infer take continuation
 
-exists を除去した witness を使う後続の関数の型も、期待型から推論できる。
+Expected types can also infer the types of later functions using an existentially eliminated witness.
 
 ```toml case
 id = "inference_and_constructor_aliases.infer-take-continuation"
@@ -109,7 +109,7 @@ parameters = '''A: \Set, P: \Prop'''
 
 ## infer subset
 
-subset の期待型から binder を推論し、基底型の関数と membership の証明で利用できる。
+A binder can be inferred from an expected subset type and used with a function over the base type and a membership proof.
 
 ```toml case
 id = "inference_and_constructor_aliases.infer-subset"
@@ -128,7 +128,7 @@ parameters = '''A: \Set, P: A -> \Prop, f: A -> A'''
 
 ## contextual applications refine function types with repeated arguments
 
-同じ引数を繰り返す application でも、期待型から関数引数の型を推論できる。
+Even in an application with repeated arguments, the function argument's type can be inferred from the expected type.
 
 ```toml case
 id = "contextual_applications_refine_function_types_with_repeated_arguments"
@@ -152,7 +152,7 @@ parameters = '''A: \Set'''
 
 ## imported front definitions still check argument types
 
-推論した関数を別の帰納型の関数として渡している。
+The inferred function is passed as a function over a different inductive type.
 
 ```toml case
 id = "imported_front_definitions_still_check_argument_types"
@@ -174,7 +174,7 @@ expect = "reject"
 
 ## wrong inferred proof
 
-P の証明を Q の証明として返している。
+A proof of P is returned as a proof of Q.
 
 ```toml case
 id = "wrong-inferred-proof"
@@ -190,7 +190,7 @@ parameters = '''P, Q: \Prop'''
 
 ## escaping inferred witness
 
-exists から取り出した witness が結果へ逃げる。
+A witness extracted from an existential escapes into the result.
 
 ```toml case
 id = "escaping-inferred-witness"
@@ -206,7 +206,7 @@ parameters = '''A: \Set'''
 
 ## unproved inferred subset
 
-基底型の値を membership の証明なしに subset の値として返す。
+A base-type value is returned as a subset value without a membership proof.
 
 ```toml case
 id = "unproved-inferred-subset"
@@ -220,9 +220,9 @@ parameters = '''A: \Set, P: A -> \Prop'''
 \definition Sub: \Set := \Cast[A] ({ x: A \where P x }); \definition bad: A -> Sub := \fun (x: _) => x;
 ```
 
-## module 引数 / hole
+## Module arguments / hole
 
-module の引数に直接推論の穴を書いている。
+An inference hole appears directly in a module argument.
 
 ```toml case
 id = "module-argument-hole"
@@ -234,9 +234,9 @@ expect = "reject"
 \module Repro { \inductive Unit: \Set := | unit: Unit; \module Pass(f: Unit -> Unit) {} \import \root.Repro[].Pass[f := _] \as P; }
 ```
 
-## module 引数 / lambda-hole
+## Module arguments / lambda-hole
 
-module の引数に直接推論の穴を書いている。
+An inference hole appears directly in a module argument.
 
 ```toml case
 id = "module-argument-lambda-hole"
@@ -248,10 +248,10 @@ expect = "reject"
 \module Repro { \inductive Unit: \Set := | unit: Unit; \module Pass(f: Unit -> Unit) {} \import \root.Repro[].Pass[f := \fun (x: _) => x] \as P; }
 ```
 
-## beta 簡約で application spine が変わる等式
+## Equalities whose application spines change under beta reduction
 
-関数の頭がまだ一致していない段階で、外側の application の引数を等置してはならない。
-簡約後の等式から二つの穴を推論できる。
+Outer application arguments must not be equated before the function heads match.
+Both holes can be inferred from the equality after reduction.
 
 ```toml case
 id = "accept-metavariables.beta_spine_inference"

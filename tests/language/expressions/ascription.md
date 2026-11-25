@@ -1,8 +1,8 @@
-# 型注釈による検査
+# Checking with type ascriptions
 
-## 論理の型注釈
+## Logic type ascriptions
 
-期待型から lambda の引数を推論し、macro 展開と module の特殊化を経ても型注釈を保つ。
+Lambda arguments are inferred from expected types, and type ascriptions survive macro expansion and module specialization.
 
 ```toml case
 id = "ascription_infers_types_and_works_through_macros_and_modules"
@@ -31,9 +31,9 @@ expect = "accept"
 }
 ```
 
-## Program の型注釈
+## Program type ascriptions
 
-value と computation に各 judgement の型注釈を付け、関数適用と reflection で利用できる。
+Values and computations can be ascribed the types of their respective judgments and used in application and reflection.
 
 ```toml case
 id = "ascription_supports_program_values_computations_and_reflection"
@@ -63,9 +63,9 @@ expect = "accept"
 }
 ```
 
-## 論理の異なる型
+## Mismatched Logic types
 
-元の項と型注釈の型が一致しない。
+The original term's type does not match the ascription.
 
 ```toml case
 id = "wrong-ascription-0"
@@ -79,9 +79,9 @@ parameters = '''A: \Set, B: \Set, a: A'''
 \definition value: A := a \of B;
 ```
 
-## Program value の異なる型
+## Mismatched Program value types
 
-元の項と型注釈の型が一致しない。
+The original term's type does not match the ascription.
 
 ```toml case
 id = "wrong-ascription-1"
@@ -95,9 +95,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition value: A := a \of B;
 ```
 
-## Program computation の異なる型
+## Mismatched Program computation types
 
-元の項と型注釈の型が一致しない。
+The original term's type does not match the ascription.
 
 ```toml case
 id = "wrong-ascription-2"
@@ -111,9 +111,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition value: \F A := (\return a) \of \F B;
 ```
 
-## subset から基底型への注釈
+## Ascribing a subset element with its base type
 
-subset の要素を基底型として注釈し、基底型の値として使える。
+A subset element can be ascribed its base type and used as a value of that type.
 
 ```toml case
 id = "subset-ascription-0"
@@ -128,9 +128,9 @@ parameters = '''A: \Set, S: \Pow A, s: \Cast[A] S'''
 \definition equal: value = s := \refl(s);
 ```
 
-## 注釈後に subset へ戻す
+## Returning to a subset after ascription
 
-基底型として注釈した値を、membership の証明なしに subset の値として使う。
+A value ascribed its base type is used as a subset value without a membership proof.
 
 ```toml case
 id = "subset-ascription-1"

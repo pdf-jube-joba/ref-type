@@ -2,7 +2,7 @@
 
 ## expressions
 
-項と binder と application の各構文を対応する型で使える。
+Term, binder, and application syntax can each be used with the corresponding types.
 
 ```toml case
 id = "accept-expressions.expressions"

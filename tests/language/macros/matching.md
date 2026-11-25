@@ -2,7 +2,7 @@
 
 ## duplicate capture
 
-macro の capture 名が重複している。
+Macro capture names are duplicated.
 
 ```toml case
 id = "reject-macros.duplicate_capture"
@@ -17,7 +17,7 @@ name = "DuplicateCapture"
 
 ## math extra expression
 
-math macro の一致後に余分な式が残る。
+Extra expressions remain after a math macro match.
 
 ```toml case
 id = "reject-macros.math_extra_expression"
@@ -37,7 +37,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## math operator chain
 
-演算子列全体に一致する math macro が存在しない。
+No math macro matches the entire operator sequence.
 
 ```toml case
 id = "reject-macros.math_operator_chain"
@@ -57,7 +57,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## named literal mismatch
 
-macro 呼び出しの literal が宣言された template と一致しない。
+A macro call's literal does not match the declared template.
 
 ```toml case
 id = "reject-macros.named_literal_mismatch"
@@ -75,7 +75,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## non tail recursion depth
 
-非末尾再帰の macro 展開が有限の展開上限を超える。
+Non-tail-recursive macro expansion exceeds the finite expansion limit.
 
 ```toml case
 id = "reject-macros.non_tail_recursion_depth"
@@ -93,7 +93,7 @@ parameters = '''A: \Set(0), x: A'''
 
 ## reserved macro token
 
-macro が構文の予約 token を独自の token として使う。
+A macro uses a reserved syntax token as its own token.
 
 ```toml case
 id = "reject-macros.reserved_macro_token"
@@ -108,7 +108,7 @@ name = "ReservedMacroToken"
 
 ## rest must be last
 
-rest capture の後にさらに capture を置いている。
+Another capture follows a rest capture.
 
 ```toml case
 id = "reject-macros.rest_must_be_last"
@@ -124,7 +124,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## self recursion depth
 
-自分自身を展開し続ける macro が有限の展開上限を超える。
+A macro that continually expands itself exceeds the finite expansion limit.
 
 ```toml case
 id = "reject-macros.self_recursion_depth"
@@ -141,7 +141,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token capture requires token
 
-token capture に通常の項として解釈する value を渡している。
+A value interpreted as an ordinary term is passed to a token capture.
 
 ```toml case
 id = "reject-macros.token_capture_requires_token"
@@ -158,7 +158,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match no branch
 
-入力 token に一致する token match の分岐がない。
+No token-match branch matches the input token.
 
 ```toml case
 id = "reject-macros.token_match_no_branch"
@@ -175,7 +175,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## local expansion
 
-局所文脈の式を macro の capture に渡せる。
+Expressions in local contexts can be passed to macro captures.
 
 ```toml case
 id = "accept-macros.local_expansion"
@@ -202,7 +202,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## variadic token match
 
-可変長 capture と token match を組み合わせて展開できる。
+Variadic captures and token matching can be combined during expansion.
 
 ```toml case
 id = "accept-macros.variadic_token_match"
@@ -280,9 +280,9 @@ parameters = '''A: \Set(0), x: A, y: A'''
 ```
 
 
-## math macro の優先順位
+## Math macro precedence
 
-同じ pattern に合う macro が二つあるとき、先に定義された A を返す macro が選ばれる。
+When two macros match the same pattern, the earlier macro returning A is selected.
 
 ```toml case
 id = "earlier_math_macro_wins_when_patterns_are_equally_applicable"
@@ -300,9 +300,9 @@ parameters = '''A: \Set(0), B: \Set(0), a: A, b: B'''
 \definition selected: A := \(a + a \);
 ```
 
-## macro の裸の推論穴
+## Bare inference holes in macros
 
-macro の式引数として裸の穴を渡し、後続の引数から型を推論できる。
+A bare hole can be passed as a macro expression argument, with its type inferred from later arguments.
 
 ```toml case
 id = "bare_underscore_is_a_macro_expression_argument"
@@ -319,9 +319,9 @@ parameters = '''A: \Set(0), f: A, y: A'''
 \definition bare_hole_with_next_argument: A := two!{_ f};
 ```
 
-## capture の分類 / 5
+## Capture classification / 5
 
-宣言していない sequence capture を展開している。
+An undeclared sequence capture is expanded.
 
 ```toml case
 id = "capture-judgement-4"
@@ -335,9 +335,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := last!{..missing};
 ```
 
-## capture の分類 / 6
+## Capture classification / 6
 
-expression capture を sequence として展開している。
+An expression capture is expanded as a sequence.
 
 ```toml case
 id = "capture-judgement-5"
@@ -351,9 +351,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad($x) := last!{..x};
 ```
 
-## capture の分類 / 7
+## Capture classification / 7
 
-token capture を expression として参照している。
+A token capture is referenced as an expression.
 
 ```toml case
 id = "capture-judgement-6"
@@ -367,9 +367,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(tk) := $tk;
 ```
 
-## capture の分類 / 8
+## Capture classification / 8
 
-sequence capture を expression として参照している。
+A sequence capture is referenced as an expression.
 
 ```toml case
 id = "capture-judgement-7"
@@ -383,9 +383,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := $r;
 ```
 
-## capture の分類 / 9
+## Capture classification / 9
 
-expression capture を token match の対象にしている。
+An expression capture is used as a token-match subject.
 
 ```toml case
 id = "capture-judgement-8"
@@ -399,9 +399,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad($x) := \tmatch x {};
 ```
 
-## capture の分類 / 11
+## Capture classification / 11
 
-token capture に sequence の match pattern を書いている。
+A sequence match pattern is written for a token capture.
 
 ```toml case
 id = "capture-judgement-10"
@@ -415,9 +415,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(tk) := \tmatch tk { | () => value };
 ```
 
-## capture の分類 / 12
+## Capture classification / 12
 
-sequence capture に token の match pattern を書いている。
+A token match pattern is written for a sequence capture.
 
 ```toml case
 id = "capture-judgement-11"
@@ -431,9 +431,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := \tmatch r { | \+ => value };
 ```
 
-## capture の分類 / 16
+## Capture classification / 16
 
-token match の分岐の外で分岐内の capture を参照している。
+A capture bound inside a token-match branch is referenced outside the branch.
 
 ```toml case
 id = "capture-judgement-15"
@@ -447,9 +447,9 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := \tmatch r { | ($x) => $x } $x;
 ```
 
-## capture の分類 / 18
+## Capture classification / 18
 
-math macro の pattern に named macro 用の token capture を書いている。
+A token capture intended for named macros is written in a math macro pattern.
 
 ```toml case
 id = "capture-judgement-17"
@@ -463,9 +463,9 @@ parameters = '''A: \Set(0), value: A'''
 \math-macro bad(tk, \+) := value;
 ```
 
-## operator のない math macro
+## Math macros without operators
 
-math macro の pattern に operator token がない。
+A math macro pattern has no operator token.
 
 ```toml case
 id = "macro-template-4"
@@ -478,9 +478,9 @@ name = "NoToken"
 \math-macro bad($value) := $value;
 ```
 
-## 未宣言の expression capture
+## Undeclared expression captures
 
-template が宣言されていない capture を使っている。
+A template uses an undeclared capture.
 
 ```toml case
 id = "macro-template-5"
@@ -495,7 +495,7 @@ name = "UnknownCapture"
 
 ## token match / string-for-symbol
 
-文字列 token は記号 token の pattern に一致しない。
+String tokens do not match symbol-token patterns.
 
 ```toml case
 id = "token-match-string-for-symbol"
@@ -511,7 +511,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match / symbol-for-string
 
-記号 token は文字列 token の pattern に一致しない。
+Symbol tokens do not match string-token patterns.
 
 ```toml case
 id = "token-match-symbol-for-string"
@@ -527,7 +527,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match / group-for-token
 
-括弧で囲った sequence を単独の token capture に渡している。
+A parenthesized sequence is passed to a single token capture.
 
 ```toml case
 id = "token-match-group-for-token"

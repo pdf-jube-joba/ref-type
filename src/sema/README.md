@@ -1,7 +1,7 @@
-# Semantic API とキャッシュ
+# Semantic API and caching
 
-CLI と LSP は `sema::Database` で immutable な [SourceSnapshot](../project/README.md#source-snapshot) を検査する。
-CLI の操作は [利用方法](../USAGE.md) を参照。
+The CLI and LSP check immutable [SourceSnapshot](../project/README.md#source-snapshot) values through `sema::Database`.
+See [Usage](../USAGE.md) for CLI commands.
 
 ## API
 
@@ -16,79 +16,79 @@ let edited = source.with_file(path, std::fs::read_to_string(path)?);
 let parsed = db.parse(&edited, path, ParseKind::Module);
 ```
 
-| 問い合わせ | 結果 |
+| Query | Result |
 | --- | --- |
-| `parse` / `parse_project` | ファイル / package の構文と診断 |
-| `module` / `file` / `check` | 指定範囲の semantic result |
-| `Database::declaration` | 宣言を含む semantic result |
-| `SemanticResult::declaration` | `DeclarationId` の宣言 |
-| `definition_at` / `references_to` / `type_at` | 定義・参照・表示型 |
-| `all_diagnostics` / `goals` / `outputs` | 診断・ゴール・query 出力 |
+| `parse` / `parse_project` | File / package syntax and diagnostics |
+| `module` / `file` / `check` | Semantic results for the specified scope |
+| `Database::declaration` | Semantic result containing a declaration |
+| `SemanticResult::declaration` | Declaration for a `DeclarationId` |
+| `definition_at` / `references_to` / `type_at` | Definitions, references, and display types |
+| `all_diagnostics` / `goals` / `outputs` | Diagnostics, goals, and query output |
 
-位置は絶対パスと UTF-8 byte offset の半開区間。
-宣言 ID は module path と名前で、型関連 item は `Type::member` を使う。
-`Verified` は検証完了、`Incomplete` は途中結果である。
+Locations consist of an absolute path and a half-open range of UTF-8 byte offsets.
+Declaration IDs use a module path and name; type-associated items use `Type::member`.
+`Verified` indicates completed verification; `Incomplete` indicates partial results.
 
-## 再利用
+## Reuse
 
-`read_snapshot` は依存先を含む現在の内容を確認する。
-source cache は64 MiB・16,384件、parse・module・query cache は現在と直前の取得世代を保持する。
-未変更の問い合わせは失敗結果も同じ `Arc` で再利用する。
-`memory_cache_stats` は保持量、`clear_memory` は database の保持を解放する。
-呼出側の `Arc` と live arena は別管理である。
+`read_snapshot` checks current contents, including dependencies.
+The source cache is bounded at 64 MiB and 16,384 entries; parse, module, and query caches retain the current and previous read generations.
+Unchanged queries reuse the same `Arc`, including failed results.
+`memory_cache_stats` reports retained sizes; `clear_memory` releases database-owned data.
+Caller-owned `Arc` values and live arenas are managed separately.
 
-package 入力キーは処理系・設定・identity・ソース・manifest・名前付き直接依存から作り、成果物キーに検査範囲を加える。
-依存の訪問順や利用側のパスから独立するため、別の利用側でも同じ package の検証結果を再利用する。
-`force_local` は入口 package または workspace member を再検査し、外部依存は内容の一致する結果を使う。
-LSP の未保存編集も同じ判定を通る。
+Package input keys include the implementation, configuration, identities, sources, manifests, and named direct dependencies; artifact keys additionally include the checking scope.
+Keys are independent of dependency visitation order and consumer paths, allowing different consumers to reuse verification of the same package.
+`force_local` rechecks the entry package or workspace members and uses content-matching results for external dependencies.
+Unsaved LSP edits use the same matching rules.
 
-`artifacts/` の manifest は module ごとの検証結果を `objects/` に参照する。
-結果だけで足りる問い合わせでは型検査環境を展開せずに回答する。
-検査セッションは `Database` が保持する resolver・raw/kernel・完了台帳を所有する。
-ソースの module ID と子の索引を先に予約し、要求された本文を必要時に名前解決する。
-名前解決の引数環境は差分と置換の共有 DAG で保持し、実際の参照で必要な値を展開する。
-検査に渡す名前・import の表も共有し、要求追加時は変更した package の構文木と新しい宣言を追加する。
-検査完了後は kernel 側の型・本体と、今後の構造展開・マクロ展開に必要なテンプレートを残し、完了ステップの検査入力を解放する。
-依存閉包に含まれる宣言をキューへ追加し、完了したステップは後続の package 要求や検査範囲の拡張で省略する。
-参照位置と module ごとの解析結果は共有し、呼出側が保持する結果は過去の snapshot に結び付く。
-入力・処理系・設定・強制検査範囲を照合し、以前のセッションと保存成果物の再利用を判定する。
-`--full-check` の worker は空の保存領域から新しい検証世代を開始し、その実行内で完了した宣言を共有する。
+Manifests in `artifacts/` reference per-module verification results in `objects/`.
+Queries that need only results are answered without expanding the type-checking environment.
+Checking sessions own the resolver, raw/kernel data, and completion ledger retained by the `Database`.
+Source module IDs and child indices are reserved first; requested bodies undergo name resolution on demand.
+Name-resolution argument environments use a shared DAG of deltas and substitutions, expanding values needed by actual references.
+Name and import tables passed to checking are also shared; additional requests append changed packages' syntax trees and new declarations.
+After checking, kernel types and bodies and templates needed for future structure/macro expansion are retained, while checking inputs for completed steps are released.
+Declarations in the dependency closure are queued; completed steps are skipped in later package requests or checking-scope extensions.
+Reference locations and per-module analysis are shared; caller-retained results remain tied to their past snapshots.
+Inputs, implementation, configuration, and forced-checking scopes are matched to decide whether previous sessions and saved artifacts can be reused.
+A `--full-check` worker starts a new verification generation with empty storage and shares declarations completed within that run.
 
-保存したセッションは package 入力・名前解決したソース範囲・検査済み範囲・追加順を記録する。
-checkpoint は resolver と raw の索引、完了ステップ、式グラフのページ参照を結び付ける。
-resolver の名前表、引数環境、参照経路、名前空間の対応表は共有 DAG として保存し、復元後も共有を維持する。
-セッション情報も16〜128 KiBの内容依存の区切りで保存し、同じ内容の object を再利用する。
-復元は保存オブジェクトを順次読み、直列化データ全体の展開用バッファを持たない。
-kernel の本文は必要なページだけを読み込み、保存時も確定したページの object を再利用する。
-依存全体の本文を一度に展開せず、同じ内部 ID で後続の検査を続ける。
-package 完了時の索引保存は、前回の保存位置から検査ステップ数が倍増した境界と、外部依存の完了境界、要求全体の完了時に行う。
-索引の符号化範囲はその時点のセッション全体だが、package ごとに増大する prefix を毎回保存する累積費用を抑える。
+Saved sessions record package inputs, resolved source scopes, checked scopes, and append order.
+Checkpoints connect resolver and raw indices, completed steps, and expression-graph page references.
+Resolver name tables, argument environments, reference paths, and namespace mappings are saved as shared DAGs and preserve sharing after restoration.
+Session metadata also uses content-defined chunks of 16–128 KiB, reusing objects with identical contents.
+Restoration reads saved objects sequentially without a buffer for the entire expanded serialization.
+Kernel bodies load only the pages needed; persistence also reuses objects for finalized pages.
+Later checking continues with the same internal IDs without expanding all dependency bodies at once.
+Package-completion indices are saved when the step count has doubled since the previous save, at external-dependency completion boundaries, and when the entire request completes.
+Each encoding covers the whole current session, but this schedule limits the cumulative cost of repeatedly saving a growing prefix for every package.
 
-object は postcard データと種類・codec・長さ・checksum を持ち、native は zstd、WebAssembly は deflate を使う。
-prefix の検査ステップと入力を照合し、破損した環境は再構築する。
-環境を保存できない場合も検証結果を保存できる。
+Objects contain postcard data plus kind, codec, length, and checksum; native builds use zstd, while WebAssembly uses deflate.
+Prefix checking steps and inputs are matched, and corrupted environments are rebuilt.
+Verification results can still be saved when the environment cannot be persisted.
 
-`checkpoints/` は検査中の prefix を保持する。
-依存先を検査している間も、checkpoint は実行中の要求のキーで公開し、その要求の復旧で完了台帳を引き継ぐ。
-キーは入力と要求範囲全体から作り、個別 package のキャッシュヒットや訪問順から独立させる。
-完了した環境の保存時も同じ再開先を更新し、より古い中断 checkpoint が選ばれることを防ぐ。
-`checkpoint_interval` は module 完了時の保存間隔で、既定30秒、ゼロは各境界を対象とする。
-保存コストに応じた待ち時間は指定された保存間隔を上限とし、保存成功時にもその指定を維持する。
-検証結果を公開したら checkpoint を回収する。
-メモリ圧迫が続く場合もキャッシュの回収は直ちに行い、checkpoint 保存は module 境界でこの待ち時間を満たしてから行う。
-再開時も強制検査の指定を確認し、検査途中の状態は checkpoint として扱う。
+`checkpoints/` retains prefixes of checks in progress.
+Even while checking dependencies, checkpoints are published under the active request's key, preserving its completion ledger during recovery.
+Keys are derived from the input and entire requested scope, independently of individual package cache hits or visitation order.
+Saving a completed environment also updates the same resume entry, preventing selection of an older interrupted checkpoint.
+`checkpoint_interval` sets the save interval at module completion; the default is 30 seconds, and zero considers every boundary.
+Save-cost-based waiting is capped by the configured interval, which remains unchanged after successful saves.
+Checkpoints are collected after verification results are published.
+Under sustained memory pressure, cache collection runs immediately, while checkpoint saving waits for a module boundary after this interval.
+Resumption also checks forced-verification settings and treats partially checked states as checkpoints.
 
-公開・pin・GC は store lock と lease で調停し、利用中の成果物と依存閉包を保護する。
-supervisor は worker 間で lease を共有し、終了プロセスの lease は OS lock で判定する。
-保存量は既定では制限せず、必要な場合は `set_cache_budget` で上限を指定できる。
-古い未使用 manifest・checkpoint と参照のない object を回収する。
+Publication, pinning, and GC use store locks and leases, protecting artifacts in use and their dependency closures.
+The supervisor shares a lease across workers; OS locks identify leases belonging to exited processes.
+Storage is unlimited by default; `set_cache_budget` can impose a limit when needed.
+Old unused manifests and checkpoints and unreferenced objects are collected.
 
-`cache_store_stats` は I/O、再利用・再開、保存失敗、圧縮・展開、回収量を返す。
-`retained_bytes_is_upper_bound` の間は保持量が保守的な累積値で、GC が実サイズへ更新する。
-supervisor の source snapshot と一時的な通信ファイルは容量集計から除く。
-処理系 fingerprint は関連ソース・build script・依存解決・toolchain・target・feature・cfg を追跡し、テスト専用部分を除く。
+`cache_store_stats` reports I/O, reuse, resumption, save failures, compression/decompression, and collection sizes.
+While `retained_bytes_is_upper_bound` is set, retained size is a conservative cumulative value; GC updates it to the actual size.
+Supervisor source snapshots and temporary communication files are excluded from storage accounting.
+The implementation fingerprint tracks relevant sources, build scripts, dependency resolution, toolchain, target, features, and cfg, excluding test-only code.
 
-`progress` は終了時の module 別時間、`progress_events` は依存グラフ・処理段階・宣言と module の完了・checkpoint 保存と保存失敗・保存統計を通知する。
-`QueryStats::session` は具体化件数、名前空間・置換表・宣言セルの件数と、式ストアの保持量を返す。
-生成スコープは元のソース module にまとめ、再利用した module も完了数に含める。
-実装は [artifact_store.rs](src/artifact_store.rs)、[memory.rs](src/memory.rs)、[build.rs](build.rs)、検証は [tests](tests) を参照。
+`progress` reports per-module timings at completion; `progress_events` reports dependency graphs, phases, declaration/module completion, checkpoint saves and failures, and storage statistics.
+`QueryStats::session` reports instantiation counts, namespace/substitution-table/declaration-cell counts, and expression-store retention.
+Generated scopes are grouped under their original source modules; reused modules also count as complete.
+See [artifact_store.rs](src/artifact_store.rs), [memory.rs](src/memory.rs), and [build.rs](build.rs) for implementation, and [tests](tests) for validation.

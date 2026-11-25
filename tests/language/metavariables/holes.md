@@ -2,7 +2,7 @@
 
 ## conflicting named constraints
 
-同じ名前の穴に両立しない制約を与えている。
+Holes with the same name receive incompatible constraints.
 
 ```toml case
 id = "reject-metavariables.conflicting_named_constraints"
@@ -26,7 +26,7 @@ parameters = '''A: \Set(0),
 
 ## contextual unsolved goal
 
-局所文脈を持つ inspection hole が残っている。
+An inspection hole with a local context remains.
 
 ```toml case
 id = "reject-metavariables.contextual_unsolved_goal"
@@ -42,7 +42,7 @@ parameters = '''A: \Set(0)'''
 
 ## named goal captures sibling binder
 
-名前付き穴が別の binder の局所変数を捕捉しようとする。
+A named hole attempts to capture a local variable from a different binder.
 
 ```toml case
 id = "reject-metavariables.named_goal_captures_sibling_binder"
@@ -65,7 +65,7 @@ parameters = '''A: \Set(0),
 
 ## occurs check
 
-穴の解がその穴自身に依存する。
+A hole's solution depends on the hole itself.
 
 ```toml case
 id = "reject-metavariables.occurs_check"
@@ -81,7 +81,7 @@ name = "MetaOccursCheck"
 
 ## shared unsolved goal
 
-共有する名前付き穴の制約を解決できない。
+Constraints on a shared named hole cannot be solved.
 
 ```toml case
 id = "reject-metavariables.shared_unsolved_goal"
@@ -97,7 +97,7 @@ name = "SharedUnsolvedGoal"
 
 ## solved inspection argument
 
-解が求まっていても引数位置の inspection hole は確認を要求する。
+An inspection hole in argument position requires inspection even when solved.
 
 ```toml case
 id = "reject-metavariables.solved_inspection_argument"
@@ -115,7 +115,7 @@ parameters = '''A: \Set, a: A'''
 
 ## solved inspection program
 
-解が求まっていても Program の inspection hole は確認を要求する。
+A Program inspection hole requires inspection even when solved.
 
 ```toml case
 id = "reject-metavariables.solved_inspection_program"
@@ -132,7 +132,7 @@ parameters = '''A: \VType, a: A'''
 
 ## solved inspection proof
 
-解が求まっていても証明位置の inspection hole は確認を要求する。
+An inspection hole in proof position requires inspection even when solved.
 
 ```toml case
 id = "reject-metavariables.solved_inspection_proof"
@@ -148,7 +148,7 @@ parameters = '''A: \Set, a: A'''
 
 ## two fresh unsolved goals
 
-二つの独立した inspection hole が残っている。
+Two independent inspection holes remain.
 
 ```toml case
 id = "reject-metavariables.two_fresh_unsolved_goals"
@@ -164,7 +164,7 @@ name = "TwoFreshUnsolvedGoals"
 
 ## unsolved goal
 
-inspection hole が残っている。
+An inspection hole remains.
 
 ```toml case
 id = "reject-metavariables.unsolved_goal"
@@ -180,7 +180,7 @@ parameters = '''A: \Set(0)'''
 
 ## unsolved named goal
 
-名前付き穴を確定できない。
+A named hole cannot be resolved.
 
 ```toml case
 id = "reject-metavariables.unsolved_named_goal"

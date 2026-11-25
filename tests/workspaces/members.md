@@ -1,9 +1,9 @@
 # workspaces / members
 
-## workspace の member
+## Workspace members
 
-manifest に列挙した member を検査する。
-列挙していない package は対象に含めない。
+Check the members listed in the manifest.
+Packages not listed are excluded from the scope.
 
 ```toml scenario
 id = "members"
@@ -42,18 +42,18 @@ name = 'unlisted'
 \module Broken { \definition bad: \Prop := \Set; }
 ```
 
-### 列挙した member
+### Listed members
 
-列挙した member のソースは正しい。
+The listed members' sources are valid.
 
 ```toml step
 id = "valid"
 expect = "accept"
 ```
 
-### member の型エラー
+### Member type error
 
-列挙した member の型エラーは拒否される。
+A type error in a listed member is rejected.
 
 ```toml step
 id = "broken"
@@ -64,9 +64,9 @@ expect = "reject"
 \module Main { \definition bad: \Prop := \Set; }
 ```
 
-### member の欠落
+### Missing member
 
-manifest に列挙した package のファイルがない。
+Files for a package listed in the manifest are missing.
 
 ```toml step
 id = "missing-file"
@@ -74,9 +74,9 @@ expect = "reject"
 remove = ["right/ref.toml"]
 ```
 
-## ルート自身も package である workspace
+## Workspace whose root is also a package
 
-ルートの package と子の member を同じ workspace として検査できる。
+The root package and child members can be checked as one workspace.
 
 ```toml case
 id = "root-package"

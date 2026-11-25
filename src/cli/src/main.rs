@@ -50,20 +50,20 @@ thread_local! {
 #[derive(Parser, Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[command(author, version, about)]
 struct Args {
-    /// パッケージ・workspace のディレクトリ、または .ref ファイル
+    /// Package or workspace directory, or a .ref file
     path: PathBuf,
-    /// 保存済みのソース snapshot JSON を入力とし、元のファイルを読み直さない
+    /// Use a saved source snapshot JSON without rereading the original files
     #[arg(long)]
     #[serde(default)]
     source_snapshot: Option<PathBuf>,
-    /// 読み込んだソースと元のファイル識別子を snapshot JSON に保存する
+    /// Save loaded sources and their original file identities as snapshot JSON
     #[arg(long)]
     #[serde(default)]
     save_source_snapshot: Option<PathBuf>,
-    /// 自動退避を始める常駐メモリ量の目安 MiB（Linux の既定3072、0はOSに回収を任せる）
+    /// Resident memory target in MiB for automatic paging (Linux default: 3072; 0 leaves reclamation to the OS)
     #[arg(long)]
     memory_mib: Option<u64>,
-    /// 検査全体の時間上限（秒、省略時は制限なし）
+    /// Time limit for the entire check in seconds (unlimited if omitted)
     #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
     time_limit_seconds: Option<u64>,
     #[arg(long, hide = true)]
@@ -71,58 +71,58 @@ struct Args {
     #[arg(skip)]
     #[serde(default)]
     worker_progress: bool,
-    /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
+    /// Check only the specified module, its children, and their references (e.g. std.Data.Nat)
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
-    /// 指定 module 自身と参照先を検証し、無関係な子 module を対象に含めない
+    /// Check the specified module itself and its references, excluding unrelated children
     #[arg(long, requires = "module")]
     module_only: bool,
-    /// ソースにある module の検査用パスを一行ずつ表示する
+    /// Print source module checking paths, one per line
     #[arg(long, conflicts_with_all = ["module", "parse_only"])]
     list_modules: bool,
-    /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
+    /// Print kernel type checking, definition registration, and evaluation logs as a tree on stderr
     #[arg(long)]
     trace: bool,
-    /// 処理後に raw / kernel の構文ノード数を標準エラーへ表示する
+    /// Print raw / kernel syntax node counts on stderr after processing
     #[arg(long, conflicts_with = "parse_only")]
     stats: bool,
-    /// 構文解析と module 読み込みだけを行う
+    /// Only parse sources and load modules
     #[arg(long)]
     parse_only: bool,
-    /// 永続キャッシュを使わず source から検証する
+    /// Check from source without using the persistent cache
     #[arg(long)]
     no_cache: bool,
-    /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
+    /// Recheck everything without reusing cached results, then save verified results
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
-    /// 入力 package・workspace の member を再検証し、外部依存のキャッシュを再利用する
+    /// Recheck the input package or workspace members while reusing cached external dependencies
     #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
     full_check_local: bool,
-    /// 進捗バーと module ごとの所要時間を表示しない
+    /// Hide the progress bar and per-module timings
     #[arg(long)]
     no_progress: bool,
-    /// 詳細ログをリダイレクトしたまま、進捗バーを制御端末 (/dev/tty) に表示する
+    /// Show progress on the controlling terminal (/dev/tty) while detailed logs remain redirected
     #[arg(long, conflicts_with_all = ["no_progress", "parse_only"])]
     progress_tty: bool,
-    /// キャッシュ保存先の中身を削除してから処理する
+    /// Clear the cache directory before processing
     #[arg(long)]
     clear_cache: bool,
-    /// チェック済み semantic result の保存先（既定: workspace または入力先の refcache/）
+    /// Directory for checked semantic results (default: refcache/ in the workspace or input directory)
     #[arg(long)]
     cache_dir: Option<PathBuf>,
-    /// ディスクキャッシュの容量上限 MiB（省略時は無制限、利用中の成果物は保護する）
+    /// Disk cache budget in MiB (unlimited if omitted; artifacts in use are protected)
     #[arg(long)]
     cache_budget_mib: Option<u64>,
-    /// parse・チェック・キャッシュ再利用の件数を表示する
+    /// Print parse, check, and cache reuse counts
     #[arg(long)]
     cache_stats: bool,
-    /// 合否と永続的な検証結果の再利用を JSON で保存する
+    /// Save acceptance and persistent verification reuse results as JSON
     #[arg(long)]
     report_json: Option<PathBuf>,
-    /// package途中のcheckpoint保存間隔（秒、既定30）。module完了時に保存する
+    /// Mid-package checkpoint interval in seconds (default: 30); save at module completion
     #[arg(long)]
     checkpoint_seconds: Option<u64>,
-    /// 簡潔な診断（compact）か制約を含む詳細診断（detailed）を選ぶ
+    /// Select compact diagnostics or detailed diagnostics with constraints
     #[arg(long, value_enum)]
     diagnostics: Option<DiagnosticMode>,
 }
@@ -248,7 +248,7 @@ fn main() -> anyhow::Result<()> {
     }
     if summary.storage.corrupt > 0 {
         eprintln!(
-            "破損したキャッシュを {} 件検出しました。該当結果は通常検査で再構築します。",
+            "Detected {} corrupt cache entries. Affected results will be rebuilt during normal checking.",
             summary.storage.corrupt
         );
     }

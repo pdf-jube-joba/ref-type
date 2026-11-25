@@ -2,7 +2,7 @@
 
 ## certificate for wrong step
 
-証明書が別の遷移関数についての証明になっている。
+The certificate proves a property of a different transition function.
 
 ```toml case
 id = "reject-general-recursion.certificate-for-wrong-step"
@@ -28,7 +28,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## continue wrong state
 
-continue に渡した状態が状態空間の型を持たない。
+The state passed to continue does not have the state-space type.
 
 ```toml case
 id = "reject-general-recursion.continue-wrong-state"
@@ -44,7 +44,7 @@ parameters = '''A: \VType, B: \VType, b: B'''
 
 ## program run wrong proof
 
-run の証明が指定された computation の実行を保証しない。
+The run proof does not guarantee execution of the specified computation.
 
 ```toml case
 id = "reject-general-recursion.program-run-wrong-proof"
@@ -60,7 +60,7 @@ parameters = '''A: \VType, step: \U((A ~> \F(\RunStep[A, A]))), a: A'''
 
 ## program runcase wrong invariant
 
-Program runCase の不変条件が遷移等式と一致しない。
+The Program runCase invariant does not match the transition equality.
 
 ```toml case
 id = "reject-general-recursion.program-runcase-wrong-invariant"
@@ -84,7 +84,7 @@ parameters = '''A: \VType, step: \U((A ~> \F(\RunStep[A, A]))), a: A,
 
 ## runcase wrong invariant
 
-runCase の不変条件が要求される遷移等式を示していない。
+The runCase invariant does not establish the required transition equality.
 
 ```toml case
 id = "reject-general-recursion.runcase-wrong-invariant"
@@ -111,7 +111,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## termination wrong edge
 
-停止証明の辺が指定された状態遷移に対応していない。
+The termination proof's edge does not correspond to the specified state transition.
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-edge"
@@ -135,7 +135,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a, b: A,
 
 ## termination wrong state
 
-停止証明の状態が指定された状態空間に属さない。
+The termination proof's state does not belong to the specified state space.
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-state"
@@ -158,7 +158,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## termination wrong step proof
 
-停止証明が指定された遷移についての証明になっていない。
+The termination proof does not concern the specified transition.
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-step-proof"
@@ -181,7 +181,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a: A'''
 
 ## wrong initial
 
-初期状態が遷移関数の入力型と一致しない。
+The initial state does not match the transition function's input type.
 
 ```toml case
 id = "reject-general-recursion.wrong-initial"
@@ -199,7 +199,7 @@ parameters = '''A: \VType, B: \VType,
 
 ## wrong step
 
-遷移関数の型が指定された状態型と結果型に対応していない。
+The transition function's type does not correspond to the specified state and result types.
 
 ```toml case
 id = "reject-general-recursion.wrong-step"
@@ -214,9 +214,9 @@ parameters = '''A: \VType, a: A'''
 ```
 
 
-## 局所 binder と特殊化を経た停止証明
+## Termination proofs through local binders and specialization
 
-runCase の witness は let の局所変数と同じ状態を証明し、別 module の特殊化後にも利用できる。
+The runCase witness proves the same state as the let-bound local variable and remains usable after specialization in another module.
 
 ```toml case
 id = "program_proofs_follow_local_binders_and_module_instantiation"
@@ -250,9 +250,9 @@ p: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
 }
 ```
 
-## RunStep の universe 推論 / 1
+## RunStep universe inference / 1
 
-State と Output が異なる universe に属するため、型引数を推論しても拒否される。
+State and Output belong to different universes, so the expression is rejected even with inferred type arguments.
 
 ```toml case
 id = "mixed-inferred-step-0"
@@ -266,9 +266,9 @@ parameters = '''A: \Set(0), B: \Set(2), a: A, b: B'''
 \definition bad: _ := \continue[_, B](a);
 ```
 
-## RunStep の universe 推論 / 2
+## RunStep universe inference / 2
 
-State と Output が異なる universe に属するため、型引数を推論しても拒否される。
+State and Output belong to different universes, so the expression is rejected even with inferred type arguments.
 
 ```toml case
 id = "mixed-inferred-step-1"

@@ -1,8 +1,8 @@
-# 字句と共通構文
+# Lexing and common syntax
 
-## 空白と入れ子のコメント
+## Whitespace and nested comments
 
-空白は区切りとして扱い、入れ子のコメントは項に含めない。
+Whitespace separates tokens, and nested comments are excluded from terms.
 
 ```toml case
 id = "comments"
@@ -11,17 +11,17 @@ expect = "accept"
 ```
 
 ```ref
-/* 外側 /* 内側 */ 外側 */
+/* outer /* inner */ outer */
 \definition identity
   [P: \Prop]
   [p: P]
   : P
-  := /* コメントの中の { [ ; */ p;
+  := /* comment containing { [ ; */ p;
 ```
 
-## 対応する開始がないコメントの終端
+## Comment terminator without an opener
 
-コメントを開始していない位置で終端が現れる。
+A terminator appears where no comment has been opened.
 
 ```toml case
 id = "unmatched-comment-end"
@@ -34,9 +34,9 @@ expect = "reject"
 \definition P: \Prop := \forall (P: \Prop) -> P -> P;
 ```
 
-## 括弧による grouping
+## Parenthesized grouping
 
-括弧は式を grouping し、恒等関数に渡した証明は結果の命題を証明する。
+Parentheses group expressions, and a proof passed to the identity function proves the resulting proposition.
 
 ```toml case
 id = "grouping"
@@ -50,9 +50,9 @@ parameters = '''P: \Prop, p: P'''
 \definition applied: P := ((identity P) p);
 ```
 
-## 閉じていない括弧
+## Unclosed parentheses
 
-式の括弧が閉じていないため、構文の検査で拒否される。
+The expression's parentheses are unclosed, so syntax checking rejects it.
 
 ```toml case
 id = "unclosed-parenthesis"
@@ -64,18 +64,18 @@ expect = "reject"
 \definition P: \Prop := (\forall (P: \Prop) -> P -> P;
 ```
 
-## definition の本体と終端
+## Definition bodies and terminators
 
-本体を持つ definition は構文として成立するが、本体または終端の区切りが欠けていると成立しない。
+A definition with a body is syntactically valid, but omitting the body or terminating delimiter makes it invalid.
 
 ```toml scenario
 id = "definition-boundaries"
 scope = "module"
 ```
 
-### 本体と区切りがある
+### Body and delimiter present
 
-definition の必要な要素がそろっている。
+All required definition elements are present.
 
 ```toml step
 id = "complete"
@@ -86,9 +86,9 @@ expect = "accept"
 \definition P: \Prop := \forall (P: \Prop) -> P -> P;
 ```
 
-### 本体が欠けている
+### Missing body
 
-代入記号の後に式がない。
+No expression follows the assignment symbol.
 
 ```toml step
 id = "missing-body"
@@ -99,9 +99,9 @@ expect = "reject"
 \definition P: \Prop := ;
 ```
 
-### 区切りが欠けている
+### Missing delimiter
 
-definition の終端がない。
+The definition has no terminator.
 
 ```toml step
 id = "missing-semicolon"

@@ -405,7 +405,7 @@ def run_cache(args):
         storage = (row.get("checker") or {}).get("storage", {})
         if not storage.get("save_failures") or not storage.get("last_save_error"):
             raise ValueError("checkpoint publication failure was not reported")
-        if "保存に失敗しました" not in Path(row["log"]).read_text(encoding="utf-8"):
+        if "Failed to save checking results" not in Path(row["log"]).read_text(encoding="utf-8"):
             raise ValueError("checkpoint publication failure was hidden by --no-progress")
         if row["exit"] != 2 or row["checker"]["outcome"] != "storage-failure":
             raise ValueError("checkpoint save failure must fail separately from type rejection")

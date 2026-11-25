@@ -1342,7 +1342,7 @@ mod source_location_tests {
 
     #[test]
     fn long_unicode_lines_keep_the_error_column_and_a_bounded_excerpt() {
-        let text = format!("{}?{}", "あ".repeat(20_000), "い".repeat(20_000));
+        let text = format!("{}?{}", "€".repeat(20_000), "₤".repeat(20_000));
         let location = SourceLocation {
             source: std::sync::Arc::new(SourceFile {
                 id: SourceId("long.ref".into()),

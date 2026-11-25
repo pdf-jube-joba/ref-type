@@ -1,12 +1,12 @@
-# ベンチマーク
+# Benchmarks
 
-Python の入口は `bench.py` で、Linux と Python 3.11 以降の標準ライブラリを使う。
-計測するバイナリは事前にビルドし、計測は順番に実行する。
+The Python entry point is `bench.py`, using Linux and the Python 3.11+ standard library.
+Build measured binaries beforehand; measurements run sequentially.
 
-## ケースを選ぶ
+## Selecting cases
 
-[cases.toml](cases.toml) に各ケースの目的、入力、計測対象と既定の資源制限をまとめている。
-資源制限は CLI オプションで上書きできる。
+[cases.toml](cases.toml) lists each case's purpose, input, measurement target, and default resource limits.
+CLI options can override resource limits.
 
 ```sh
 python3 benchmarks/bench.py list
@@ -18,14 +18,14 @@ python3 benchmarks/bench.py case nested-projections
 python3 benchmarks/tests.py
 ```
 
-## その他の入力と生成 workload
+## Other inputs and generated workloads
 
-| サブコマンド | 用途 |
+| Subcommand | Purpose |
 | --- | --- |
-| `run PATH...` | 指定した入力の繰り返し計測 |
-| `libraries PATH...` | package または workspace の依存先を先に計測 |
-| `cache` | chain・diamond・編集・依存順の変更を含む生成 workload |
-| `analyze LOG` | 完了したログと中断したログの分析 |
+| `run PATH...` | Repeated measurements of specified inputs |
+| `libraries PATH...` | Measure package or workspace dependencies first |
+| `cache` | Generated workloads covering chains, diamonds, edits, and dependency-order changes |
+| `analyze LOG` | Analyze completed and interrupted logs |
 
 ```sh
 python3 benchmarks/bench.py cache --binary target/release/cli --depth 8
@@ -36,76 +36,76 @@ python3 benchmarks/large_scale.py --binary target/release/cli --sizes 16 32 64 -
 python3 benchmarks/heap_spill.py --binary target/release/cli --memory-mib 32
 ```
 
-`libraries` の入力を省略すると、`libs/ref.toml` の package とその依存先を列挙する。
-同じ package に複数の経路から依存していても一度だけ計測する。
+Without inputs, `libraries` enumerates packages in `libs/ref.toml` and their dependencies.
+Packages reached through multiple dependency paths are measured only once.
 
-`cache` は無変更検査、別の利用側、入口編集、推移依存編集、依存順変更、独立した依存の追加を順に計測する。
-checkpointの保存先を使用不能にした場合の診断と、保存先を修復した後の検査も確認する。
-`--checkpoint` は保存報告後の中断・再開・無変更検査と、worker の強制終了からの自動復旧を追加する。
+`cache` measures unchanged checks, a different consumer, entry edits, transitive dependency edits, dependency-order changes, and independent dependency additions in sequence.
+It also checks diagnostics for an unusable checkpoint destination and checking after the destination is repaired.
+`--checkpoint` adds interruption after a save report, resumption, unchanged checks, and automatic recovery from forced worker termination.
 
-`scaling.py` は各 package の宣言数を固定し、依存チェーンの深さだけを変えて空のキャッシュから計測する。
-`--width` は各 package の宣言数、`--force` は `--full-check` を指定する。
+`scaling.py` varies only dependency-chain depth while keeping declarations per package fixed, measuring from an empty cache.
+`--width` selects declarations per package; `--force` passes `--full-check`.
 
-`large_scale.py` は依存チェーン、共通依存の利用側、namespace の幅、import 数、局所文脈での import、独立した宣言群を個別に増やす。
-`--axes` で対象を選び、`--resident-mib` で式ページの常駐予算を指定する。
+`large_scale.py` independently scales dependency chains, consumers of shared dependencies, namespace width, import counts, imports in local contexts, and independent declaration groups.
+`--axes` selects dimensions; `--resident-mib` sets the resident expression-page budget.
 
-`large_scale_suite.py` は個別選択の3回計測、3072 / 8192 MiBでの全体検査、再利用、規模変更、復旧を順番に実行する。
-`--baseline` を指定すると同じ個別選択と、600秒を上限にした旧方式の全体検査を追加する。
-ビルド済みのバイナリを指定し、実行する項目は `--stages`、全体検査と再利用の入力は `--packages` で選べる。
+`large_scale_suite.py` runs three individual-selection measurements, full checks at 3072 / 8192 MiB, reuse, scaling, and recovery in sequence.
+`--baseline` adds the same individual selections and full checks of the old approach with a 600-second limit.
+Provide prebuilt binaries; `--stages` selects stages, and `--packages` selects inputs for full checks and reuse.
 
 ```sh
 python3 benchmarks/large_scale_suite.py --binary target/debug/cli --baseline benchmarks/runs/baseline-cli
 ```
 
-`resolve-bench PATH --retention` はpackageごとに名前解決し、検査済み入力の解放を模擬してresolverの保持量を測る。
-ソース構文木を保持した状態と解放した状態を分け、LinuxではRSSと仮想メモリを出力する。
-system allocatorを使い、GNU環境では未使用ページを返してから観測する。
-このモードは型検査を行わず、CLIの完走計測とは分けて使う。
+`resolve-bench PATH --retention` resolves names per package and simulates releasing checked inputs to measure resolver retention.
+It separates measurements with source syntax trees retained and released, reporting RSS and virtual memory on Linux.
+It uses the system allocator and returns unused pages before observation on GNU systems.
+This mode does not type-check; use it separately from end-to-end CLI measurements.
 
-## 出力とキャッシュ
+## Output and caches
 
-レポートの既定の保存先は、名前付きケースでは `runs/<ケース名>/report.json`、その他の計測では `runs/<サブコマンド>/report.json` である。
-`--output` でレポートの保存先を指定でき、各実行のログと CLI レポートは、その隣の `<名前>-logs/` に保存する。
-比較結果の JSON・実行条件・考察も `runs/` に保存する。
+Reports default to `runs/<case-name>/report.json` for named cases and `runs/<subcommand>/report.json` for other measurements.
+`--output` selects the report path; run logs and CLI reports are stored in an adjacent `<name>-logs/` directory.
+Comparison JSON, run conditions, and analysis also belong in `runs/`.
 
-`run` と `case` の既定は `--cache-mode off` で、checker の計測では CLI に `--no-cache` を渡す。
-`--cache-mode cold` は各実行に空の一時キャッシュを用意し、保存処理も計測する。
-`--cache-mode shared` はレポートの隣の `cache/` を実行間で共有し、`--cache-dir` で別の保存先を指定できる。
-`libraries` は既定で共有キャッシュを使う。
-一時ソースと一時キャッシュは `runs/scratch/` に作り、終了時に削除する。
-`--work-dir` で一時領域を指定できる。
+`run` and `case` default to `--cache-mode off`, passing `--no-cache` to the CLI for checker measurements.
+`--cache-mode cold` creates an empty temporary cache per run and includes persistence in the measurement.
+`--cache-mode shared` shares `cache/` beside the report across runs; `--cache-dir` selects another location.
+`libraries` uses a shared cache by default.
+Temporary sources and caches are created in `runs/scratch/` and removed on exit.
+`--work-dir` selects the temporary directory.
 
-JSON は各実行の終了後に原子的に更新し、中断までの結果を残す。
-wall time、user time、system time、最大 RSS、終了状態、ソースの digest、保存量、公開レポートの合否と再利用を記録する。
-成功した計測から入力ごとの中央値と最大 RSS を集計する。
-ソースやバイナリが途中で変わった計測は、完了した計測として扱わない。
+JSON is updated atomically after each run, preserving results up to interruption.
+It records wall time, user time, system time, peak RSS, exit status, source digests, storage size, and acceptance/reuse from public reports.
+Successful measurements are summarized by input with median times and peak RSS.
+Measurements whose sources or binaries change during execution are not considered complete.
 
-## 資源制限と詳細分析
+## Resource limits and detailed analysis
 
-| オプション | 名前付きケース以外の既定値と用途 |
+| Option | Default and purpose outside named cases |
 | --- | --- |
-| `--seconds` | 300秒。各実行の時間上限 |
-| `--memory-mib` | 3072 MiB。checker の常駐メモリの退避目標 |
-| `--cache-mib` | 省略時は無制限。CLI のキャッシュ容量設定 |
-| `--output-mib` | 8 MiB。各実行のログ容量上限 |
-| `--batch-seconds` | 比較用の旧 CLI に渡す、検査範囲を分割するまでの秒数 |
-| `--progress-seconds` | 30秒。実行中の経過時間を表示する間隔 |
+| `--seconds` | 300 seconds; time limit per run |
+| `--memory-mib` | 3072 MiB; checker resident-memory paging target |
+| `--cache-mib` | Unlimited if omitted; CLI cache budget |
+| `--output-mib` | 8 MiB; log size limit per run |
+| `--batch-seconds` | Seconds before splitting the checking scope, passed to an old CLI for comparison |
+| `--progress-seconds` | 30 seconds; elapsed-time reporting interval |
 
-中断や上限到達では supervisor に終了を通知し、子プロセスの回収を待ってから必要なら強制終了する。
-メモリはCLIの退避目標を指定し、管理はCLIとOSによる自動退避に任せる。
-最大 RSS は `wait4` が返す、子孫を含む個々のプロセスの最大値である。
-同時点のプロセス全体のメモリ合計ではない。
+On interruption or limit exhaustion, the supervisor is notified to exit; child processes are awaited and forcibly terminated if necessary.
+The memory setting specifies the CLI paging target; automatic paging is managed by the CLI and OS.
+Peak RSS is the largest individual-process value returned by `wait4`, including descendants.
+It is not the sum of memory across all processes at a single instant.
 
 ```sh
 python3 benchmarks/bench.py case shared-bodies --profile-costs --profile-phases
 python3 benchmarks/bench.py analyze benchmarks/runs/shared-bodies/report-logs/000-shared-bodies.log
 ```
 
-`--profile-costs` と `--profile-phases` は、複数の worker の呼び出し回数と時間を集計し、phase の順序も記録する。
-環境変数で指定した `REF_TYPE_PROFILE_*` も使える。
-`analyze` は処理中の宣言、完了した宣言と module の時間、phase の経過時間、cost の集計を返す。
-詳細計測には追加の処理時間がかかるため、通常の繰り返しと別に計測する。
+`--profile-costs` and `--profile-phases` aggregate call counts and timings across workers and record phase order.
+`REF_TYPE_PROFILE_*` environment variables are also supported.
+`analyze` reports active declarations, completed declaration/module timings, phase elapsed times, and cost summaries.
+Detailed profiling adds overhead, so measure it separately from ordinary repetitions.
 
-別のプログラムは `--command` で指定する。
-入力パスだけをコマンドに追加し、追加の引数は末尾の `--extra` に続けて指定する。
-大きな割当の追跡には [alloc_trace.c](tools/alloc_trace.c) を使える。
+Use `--command` for another program.
+Only input paths are appended to the command; supply additional arguments after the final `--extra` option.
+Use [alloc_trace.c](tools/alloc_trace.c) to trace large allocations.

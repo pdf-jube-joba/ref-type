@@ -2,7 +2,7 @@
 
 ## macro name collision
 
-同じ scope で macro 名が重複している。
+Macro names are duplicated in the same scope.
 
 ```toml case
 id = "reject-macros.macro_name_collision"
@@ -19,7 +19,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match branch scope
 
-token match の別の分岐で束縛された capture を参照している。
+A capture bound in a different token-match branch is referenced.
 
 ```toml case
 id = "reject-macros.token_match_branch_scope"
@@ -35,7 +35,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## use requires import
 
-macro の使用元となる module が import されていない。
+The module providing the macro has not been imported.
 
 ```toml case
 id = "reject-macros.use_requires_import"
@@ -50,7 +50,7 @@ name = "UseRequiresImport"
 
 ## definition scope hygiene
 
-macro 展開が定義位置の名前と使用位置の binder を区別する。
+Macro expansion distinguishes definition-site names from use-site binders.
 
 ```toml case
 id = "accept-macros.definition_scope_hygiene"
@@ -74,7 +74,7 @@ parameters = '''A: \Set(0), x: A'''
 
 ## forward math template
 
-後で定義された math template も module 本体から利用できる。
+Math templates defined later are also available in the module body.
 
 ```toml case
 id = "accept-macros.forward_math_template"
@@ -95,7 +95,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## import forward scope
 
-macro の import が module 本体全体に有効である。
+Macro imports are effective throughout the module body.
 
 ```toml case
 id = "accept-macros.import_forward_scope"
@@ -114,7 +114,7 @@ expect = "accept"
 
 ## import inherited
 
-子 module が親の macro import を引き継ぐ。
+Child modules inherit parent macro imports.
 
 ```toml case
 id = "accept-macros.import_inherited"
@@ -135,7 +135,7 @@ expect = "accept"
 
 ## import repeated in child
 
-子 module で同じ macro を再度 import できる。
+A child module can import the same macro again.
 
 ```toml case
 id = "accept-macros.import_repeated_in_child"
@@ -157,7 +157,7 @@ expect = "accept"
 
 ## module visibility
 
-import した module の macro を宣言された scope から利用できる。
+Imported module macros can be used from their declared scopes.
 
 ```toml case
 id = "accept-macros.module_visibility"
@@ -189,7 +189,7 @@ expect = "accept"
 
 ## named forward reference
 
-名前付き macro を宣言位置より前で使える。
+Named macros can be used before their declaration.
 
 ```toml case
 id = "accept-macros.named_forward_reference"
@@ -205,7 +205,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## recursive hygiene
 
-再帰的な macro 展開でも binder の capture を避ける。
+Recursive macro expansion also avoids variable capture by binders.
 
 ```toml case
 id = "accept-macros.recursive_hygiene"
@@ -254,9 +254,9 @@ expect = "accept"
 ```
 
 
-## import した macro の入れ子
+## Nested imported macros
 
-Wrapper の macro を別 module で使っても、定義元が import した macro とその引数を参照できる。
+Using Wrapper's macro in another module can still reference macros and arguments imported at the definition site.
 
 ```toml case
 id = "instantiated_macro_keeps_macros_used_by_its_definition_module"
@@ -280,9 +280,9 @@ expect = "accept"
 }
 ```
 
-## 使用位置の同名変数
+## Same-named variables at the use site
 
-使用位置に別の型の provided があっても、macro は定義位置で渡された provided を参照する。
+Even if a different-typed provided exists at the use site, the macro references the provided passed at its definition site.
 
 ```toml case
 id = "imported_macro_resolves_free_names_at_its_definition_site"
@@ -303,7 +303,7 @@ expect = "accept"
 
 ## lexical shadowing and definition site internal references
 
-子の macro は同名の親の macro を隠すが、親で定義した template 内の参照は親の macro を指す。
+A child macro shadows a same-named parent macro, but references in templates defined in the parent still target the parent macro.
 
 ```toml case
 id = "lexical_shadowing_and_definition_site_internal_references"
@@ -328,7 +328,7 @@ expect = "accept"
 
 ## forward mutual recursion and aliased self recursion
 
-互いに呼ぶ macro でも入力 sequence が短くなるため停止し、alias を経て呼び出せる。
+Mutually calling macros terminate as the input sequence shrinks and can be invoked through aliases.
 
 ```toml case
 id = "forward_mutual_recursion_and_aliased_self_recursion"
@@ -349,7 +349,7 @@ expect = "accept"
 
 ## direct use flattens structure arguments
 
-structure の値を module の引数に渡し、直接 use した macro からその field を利用できる。
+A structure value can be passed as a module argument, making its fields available to a directly used macro.
 
 ```toml case
 id = "direct_use_flattens_structure_arguments"
@@ -368,7 +368,7 @@ expect = "accept"
 
 ## math in use arguments can use independent local templates
 
-use の引数の math template は独立した局所定義から展開できる。
+A math template in a use argument can expand from an independent local definition.
 
 ```toml case
 id = "math_in_use_arguments_can_use_independent_local_templates"
@@ -387,7 +387,7 @@ expect = "accept"
 
 ## math use arguments report their own instantiation cycle
 
-use しようとする math macro 自身が use の引数の計算に必要なので、循環する依存として拒否される。
+The math macro being used is itself needed to compute its use arguments, so the cyclic dependency is rejected.
 
 ```toml case
 id = "math_use_arguments_report_their_own_instantiation_cycle"

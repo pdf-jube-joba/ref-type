@@ -1,35 +1,35 @@
-# 保存用 identity と再配置
+# Persistent identities and relocation
 
-この crate は resolver・raw・kernel が共通に使う identity の対応表と、保存形式の決定的な直列化を提供する。
-言語上の package identity と、現在の arena の割当番号を分離するための基盤である。
+This crate provides identity mappings shared by the resolver, raw layer, and kernel, together with deterministic serialization for persistent storage.
+It separates language-level package identities from allocation indices in the current arena.
 
-`Identity` はテーブルの名前と、そのテーブルが使う整数または arena と整数の組である。
-`Relocation` は古い identity から新しい identity への対応を保持する。
-`Relocation::collecting()` では、同じ訪問処理を使って到達する identity を収集する。
-予約されていない参照、異なるテーブル間の対応、矛盾する再予約はエラーになる。
+An `Identity` consists of a table name and either an integer or an arena/integer pair used by that table.
+`Relocation` maps old identities to new ones.
+`Relocation::collecting()` collects reachable identities using the same traversal.
+Unreserved references, mappings between different tables, and conflicting reservations are errors.
 
-`Relocate` derive は保存対象のフィールドをたどる。
-`serde(skip)` と `relocate(skip)` のフィールドは再構築される作業用データとして扱う。
-束縛変数の index や宣言の位置は通常の整数のまま保存し、大域参照だけに明示的な identity 実装を付ける。
-生成された名前に埋め込まれた identity も同じ対応表を使う。
+The `Relocate` derive traverses fields to be persisted.
+Fields marked `serde(skip)` or `relocate(skip)` are treated as working data to be reconstructed.
+Bound-variable indices and declaration positions remain ordinary integers; only global references have explicit identity implementations.
+Identities embedded in generated names use the same mapping.
 
-`Arc` と `Rc` の訪問は型と元のアドレスで共有を追跡する。
-対応表が元の値と再配置後の値を保持するので、アドレスの再利用による取り違えを防ぎ、共有 DAG の各ノードを一度だけ処理する。
-実際に利用中の環境は変更せず、export または import の作業用データを再配置する。
+Traversal of `Arc` and `Rc` tracks sharing by type and original address.
+The mapping retains both original and relocated values, preventing confusion from address reuse and processing each node of a shared DAG only once.
+Relocation operates on export or import working data without modifying the active environment.
 
-`canonical::to_vec` は postcard と互換のバイナリ表現を生成し、map のキーをエンコードした byte 列で整列する。
-出力サイズと構造の深さに上限を設ける。
-集合には `canonical::serialize_set` を使い、意味上順序を持つ配列はその順序を保つ。
-共有する配列や namespace の合成表は elaboration 側の専用テーブル形式と組み合わせる。
+`canonical::to_vec` produces a postcard-compatible binary representation, sorting map keys by their encoded bytes.
+Output size and structural depth are bounded.
+Use `canonical::serialize_set` for sets; arrays with meaningful ordering retain their order.
+Shared arrays and namespace composition tables use dedicated table formats in elaboration.
 
-検査セッションの永続化は [sema の artifact store](../sema/src/artifact_store.rs) が担う。
-manifest の `graph` は kernel の不変ページとセッション情報の分割 object を列挙し、完了台帳と resolver・raw の索引を保持する checkpoint と結び付ける。
-同じストアへ保存済みのページは再符号化せず、次の manifest から参照する。
-ページの checksum と入力を復元前に照合し、読込後も kernel の identity を同じセッション内で保持する。
-これらの参照は既存の lease・store lock・GC に含まれ、利用中のページと checkpoint を保護する。
+The [sema artifact store](../sema/src/artifact_store.rs) persists checking sessions.
+A manifest's `graph` lists immutable kernel pages and chunked session metadata objects, linking them to a checkpoint containing the completion ledger and resolver/raw indices.
+Pages already stored in the same store are referenced by subsequent manifests without being encoded again.
+Page checksums and inputs are checked before restoration, and kernel identities remain valid within the same session after loading.
+These references participate in the existing lease, store-lock, and GC mechanisms, protecting pages and checkpoints in use.
 
-セッション情報の区切りは内容から決め、前方に情報を追加した場合も後続の共通部分を共有する。
-公開先への転送は object の digest ごとに一度行い、同じ filesystem では不変 object を hard link で共有する。
-別の filesystem では圧縮済みの内容を一時ファイルへコピーして原子的に公開する。
-転送前に長さと digest を照合し、manifest の公開と object の pin は共通の store lock で調停する。
-作成中の object は lease の追記式 journal に登録し、manifest の公開前も GC から保護する。
+Session metadata is chunked by content, allowing common suffixes to remain shared when information is prepended.
+Transfers to the publication destination process each object digest once and share immutable objects through hard links on the same filesystem.
+Across filesystems, compressed contents are copied into a temporary file and published atomically.
+Length and digest are checked before transfer; manifest publication and object pinning use a shared store lock.
+Objects under construction are registered in an append-only lease journal, protecting them from GC even before manifest publication.

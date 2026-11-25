@@ -2,7 +2,7 @@
 
 ## body type
 
-alias の本体が宣言された型を持たない。
+The alias body does not have its declared type.
 
 ```toml case
 id = "reject-aliases.body_type"
@@ -17,7 +17,7 @@ name = "Bad"
 
 ## dependent argument type
 
-後続の alias 引数が先行する引数から決まる型を持たない。
+A later alias argument does not have the type determined by an earlier argument.
 
 ```toml case
 id = "reject-aliases.dependent_argument_type"
@@ -35,7 +35,7 @@ name = "Bad"
 
 ## parameter count
 
-alias の引数が不足しており、残った上位 sort を項の型として使えない。
+The alias lacks arguments, and the remaining higher sort cannot be used as a term's type.
 
 ```toml case
 id = "reject-aliases.parameter_count"
@@ -51,7 +51,7 @@ name = "Bad"
 
 ## unused argument type
 
-本体で使わない alias 引数にも型の不一致がある。
+An alias argument unused in the body also has a type mismatch.
 
 ```toml case
 id = "reject-aliases.unused_argument_type"
@@ -68,7 +68,7 @@ name = "Bad"
 
 ## aliases
 
-alias の本体を引数で置換すると宣言された型を持つ。
+Substituting arguments into the alias body yields the declared type.
 
 ```toml case
 id = "accept-aliases"
@@ -125,7 +125,7 @@ expect = "accept"
 
 ## expected types reach grouped dependent local and record bodies
 
-外側の期待型を、まとめた binder、依存する結果型、let、record の body に伝えられる。
+The outer expected type propagates into grouped binders, dependent result types, lets, and record bodies.
 
 ```toml case
 id = "expected_types_reach_grouped_dependent_local_and_record_bodies"
@@ -161,7 +161,7 @@ parameters = '''A: \Set, P: A -> \Prop'''
 
 ## chained and instantiated aliases keep parameters and reduce
 
-帰納型の alias を重ねて特殊化しても、constructor と induction の引数が対応して簡約できる。
+Repeated specialization through inductive-type aliases preserves matching constructor and induction arguments and supports reduction.
 
 ```toml case
 id = "chained_and_instantiated_aliases_keep_parameters_and_reduce"
@@ -195,7 +195,7 @@ expect = "accept"
 
 ## indexed alias induction preserves its motive telescope
 
-index を取る帰納型の alias に対して、同じ index を返す induction を定義できる。
+Induction returning the same index can be defined for an alias of an indexed inductive type.
 
 ```toml case
 id = "indexed_alias_induction_preserves_its_motive_telescope"
@@ -218,7 +218,7 @@ parameters = '''A: \Set'''
 
 ## take accepts a codomain independent after reduction
 
-結果型は簡約後には witness に依存しないため、exists の除去後にも証明を返せる。
+After reduction, the result type does not depend on the witness, so a proof can be returned after existential elimination.
 
 ```toml case
 id = "take_accepts_a_codomain_independent_after_reduction"
@@ -236,9 +236,9 @@ parameters = '''A: \Set, y: A'''
 };
 ```
 
-## alias の型検査 / 1
+## Alias type checking / 1
 
-constructor の field に違う型の値を渡している。alias を経ても拒否される。
+A value of the wrong type is passed to a constructor field; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-0"
@@ -251,9 +251,9 @@ name = "Negative"
 \inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::cons Unit::unit Alias::nil;
 ```
 
-## alias の型検査 / 2
+## Alias type checking / 2
 
-指定した associated item が存在しない。alias を経ても拒否される。
+The specified associated item does not exist; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-1"
@@ -266,9 +266,9 @@ name = "Negative"
 \inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::missing;
 ```
 
-## alias の型検査 / 3
+## Alias type checking / 3
 
-induction の branch が不足している。alias を経ても拒否される。
+Induction branches are missing; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-2"
@@ -282,9 +282,9 @@ name = "Negative"
   \induction (xs: Alias) \return Alias \with { | nil: Alias::nil };
 ```
 
-## alias の型検査 / 4
+## Alias type checking / 4
 
-同じ constructor の branch を重複している。alias を経ても拒否される。
+Branches for the same constructor are duplicated; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-3"
@@ -300,9 +300,9 @@ name = "Negative"
 };
 ```
 
-## alias の型検査 / 5
+## Alias type checking / 5
 
-induction の結果の型と branch の項の型が異なる。alias を経ても拒否される。
+The induction result type differs from the branch term's type; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-4"
@@ -319,9 +319,9 @@ name = "Negative"
 };
 ```
 
-## alias の型検査 / 6
+## Alias type checking / 6
 
-subset は帰納型そのものではない。alias を経ても拒否される。
+A subset is not itself an inductive type; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-5"
@@ -335,9 +335,9 @@ name = "Negative"
 \definition bad: Refined := Refined::nil;
 ```
 
-## alias の型検査 / 7
+## Alias type checking / 7
 
-関数型は帰納型ではない。alias を経ても拒否される。
+A function type is not inductive; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-6"
@@ -351,9 +351,9 @@ name = "Negative"
 \definition bad: Function := Function::unit;
 ```
 
-## alias の型検査 / 8
+## Alias type checking / 8
 
-alias の型引数に違う帰納型の値を渡している。alias を経ても拒否される。
+A value of a different inductive type is passed as an alias type argument; it is rejected even through an alias.
 
 ```toml case
 id = "alias-check-7"
@@ -367,9 +367,9 @@ name = "Negative"
 \definition bad: Alias := Discard[Bit::zero]::nil;
 ```
 
-## 命題の alias からの大きな除去
+## Large elimination from a proposition alias
 
-複数の constructor を持つ命題を消去して sort を返している。
+A proposition with multiple constructors is eliminated to return a sort.
 
 ```toml case
 id = "alias-large-elimination"

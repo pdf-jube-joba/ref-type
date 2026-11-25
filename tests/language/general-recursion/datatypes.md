@@ -2,7 +2,7 @@
 
 ## double negative program inductive
 
-Program 帰納型が二重の負の位置に現れ、strict positivity を満たさない。
+A Program inductive type occurs in a doubly negative position and fails strict positivity.
 
 ```toml case
 id = "reject-general-recursion.double-negative-program-inductive"
@@ -19,7 +19,7 @@ name = "DoubleNegativeProgramInductive"
 
 ## duplicate program constructor
 
-Program constructor の名前が重複している。
+Program constructor names are duplicated.
 
 ```toml case
 id = "reject-general-recursion.duplicate-program-constructor"
@@ -37,7 +37,7 @@ name = "DuplicateProgramConstructor"
 
 ## non positive program inductive
 
-Program 帰納型が負の位置に現れる。
+A Program inductive type occurs in a negative position.
 
 ```toml case
 id = "reject-general-recursion.non-positive-program-inductive"
@@ -54,7 +54,7 @@ name = "NonPositiveProgramInductive"
 
 ## reflected constructor wrong parameter
 
-反映された constructor の型引数が元の帰納型の引数と一致しない。
+A reflected constructor's type arguments do not match the original inductive type's arguments.
 
 ```toml case
 id = "reject-general-recursion.reflected-constructor-wrong-parameter"
@@ -72,7 +72,7 @@ name = "WrongReflectedParameter"
 
 ## wrong program constructor result
 
-Program constructor の返り値が宣言対象の帰納型になっていない。
+A Program constructor does not return the inductive type being declared.
 
 ```toml case
 id = "reject-general-recursion.wrong-program-constructor-result"
@@ -89,7 +89,7 @@ name = "WrongProgramConstructorResult"
 
 ## compute inductive
 
-Program 帰納型の constructor と case が対応する型を持つ。
+Program inductive constructors and cases have corresponding types.
 
 ```toml case
 id = "accept-general-recursion.compute-inductive"
@@ -117,7 +117,7 @@ name = "ProgramInductive"
 
 ## parameterized reflection
 
-Program 帰納型の parameter を Set 側への反映でも保持する。
+Program inductive parameters are retained in reflection to Set.
 
 ```toml case
 id = "accept-general-recursion.parameterized-reflection"
@@ -145,7 +145,7 @@ name = "ParameterizedReflection"
 
 ## program case fields
 
-Program case の branch が constructor の field を value として束縛する。
+Program case branches bind constructor fields as values.
 
 ```toml case
 id = "accept-general-recursion.program-case-fields"
@@ -170,7 +170,7 @@ parameters = '''A: \VType, a: A, b: A'''
 
 ## recursive program inductive
 
-strict positivity を満たす再帰的 Program 帰納型を定義できる。
+Recursive Program inductive types satisfying strict positivity can be defined.
 
 ```toml case
 id = "accept-general-recursion.recursive-program-inductive"
@@ -198,7 +198,7 @@ name = "RecursiveProgramInductive"
 
 ## reflected names
 
-反映した Program 帰納型と constructor を生成された名前で参照できる。
+Reflected Program inductive types and constructors can be referenced by their generated names.
 
 ```toml case
 id = "accept-general-recursion.reflected-names"
@@ -267,7 +267,7 @@ expect = "accept"
 
 ## reflection conversion
 
-反映と簡約の結果が定義的に等しい。
+Reflection and reduction produce definitionally equal results.
 
 ```toml case
 id = "accept-general-recursion.reflection-conversion"
@@ -302,7 +302,7 @@ name = "ReflectionConversion"
 
 ## reflection nested recursive
 
-U と F を通る再帰的な field を反映できる。
+Recursive fields through U and F can be reflected.
 
 ```toml case
 id = "accept-general-recursion.reflection-nested-recursive"
@@ -328,7 +328,7 @@ name = "NestedRecursiveReflection"
 
 ## reflection
 
-Program の型と value を対応する Set と要素に反映できる。
+Program types and values can be reflected into corresponding Sets and elements.
 
 ```toml case
 id = "accept-general-recursion.reflection"

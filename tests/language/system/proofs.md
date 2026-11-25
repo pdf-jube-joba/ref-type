@@ -2,7 +2,7 @@
 
 ## exists intro wrong witness
 
-存在の witness が指定された集合の要素ではない。
+The existential witness is not an element of the specified set.
 
 ```toml case
 id = "reject-system.exists_intro_wrong_witness"
@@ -19,7 +19,7 @@ parameters = '''A, B: \Set(0),
 
 ## exists requires set
 
-存在量化の対象が集合ではない。
+The subject of existential quantification is not a set.
 
 ```toml case
 id = "reject-system.exists_requires_set"
@@ -35,7 +35,7 @@ parameters = '''P: \Prop,'''
 
 ## take prop wrong existence
 
-take の存在証明が要求される命題についての証明ではない。
+The existence proof for take does not concern the required proposition.
 
 ```toml case
 id = "reject-system.take_prop_wrong_existence"
@@ -55,7 +55,7 @@ parameters = '''X, Y: \Set(0),
 
 ## wrong proof block
 
-proof block の最終項が要求された命題を証明しない。
+The final term of a proof block does not prove the required proposition.
 
 ```toml case
 id = "reject-system.wrong-proof-block"
@@ -74,7 +74,7 @@ parameters = '''A: \Set,
 
 ## local take
 
-存在証明の witness を局所的に使って結論を証明できる。
+An existential witness can be used locally to prove the conclusion.
 
 ```toml case
 id = "accept-system.local_take"
@@ -116,7 +116,7 @@ expect = "accept"
 
 ## nested proofs
 
-application の内部や部分集合の導入で証明項を使える。
+Proof terms can be used inside applications and subset introductions.
 
 ```toml case
 id = "accept-system.nested_proofs"
@@ -160,7 +160,7 @@ parameters = '''A: \Set(0),
 
 ## proof block
 
-proof block の最終項が要求される命題を証明する。
+The final term of a proof block proves the required proposition.
 
 ```toml case
 id = "accept-system.proof-block"

@@ -2,7 +2,7 @@
 
 ## boxed value
 
-Box の引数が Program の computation type になっていない。
+The Box argument is not a Program computation type.
 
 ```toml case
 id = "reject-boxed-value"
@@ -18,7 +18,7 @@ name = "BoxedValue"
 
 ## program cbv ambiguous application
 
-Program の関数 value を force せずに application している。
+A Program function value is applied without being forced.
 
 ```toml case
 id = "reject-program-cbv-ambiguous-application"
@@ -34,7 +34,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program cbv computation argument
 
-value を要求する引数位置に computation を渡している。
+A computation is passed in an argument position requiring a value.
 
 ```toml case
 id = "reject-program-cbv-computation-argument"
@@ -51,7 +51,7 @@ name = "ProgramCbvComputationArgument"
 
 ## program cbv computation codomain
 
-Program の関数の codomain が computation type になっていない。
+A Program function's codomain is not a computation type.
 
 ```toml case
 id = "reject-program-cbv-computation-codomain"
@@ -68,7 +68,7 @@ name = "ProgramCbvComputationCodomain"
 
 ## program cbv dependent arrow
 
-Program の arrow の codomain が値に依存している。
+A Program arrow's codomain depends on a value.
 
 ```toml case
 id = "reject-program-cbv-dependent-arrow"
@@ -85,7 +85,7 @@ name = "ProgramCbvDependentArrow"
 
 ## program cbv non function application
 
-Program の関数ではない value を application している。
+A non-function Program value is applied.
 
 ```toml case
 id = "reject-program-cbv-non-function-application"
@@ -102,7 +102,7 @@ name = "ProgramCbvNonFunctionApplication"
 
 ## program implicit bind
 
-computation の結果を bind せず value として使っている。
+A computation result is used as a value without being bound.
 
 ```toml case
 id = "reject-program-implicit-bind"
@@ -120,7 +120,7 @@ name = "ProgramImplicitBind"
 
 ## program implicit force
 
-thunk を force せず computation として使っている。
+A thunk is used as a computation without being forced.
 
 ```toml case
 id = "reject-program-implicit-force"
@@ -136,7 +136,7 @@ name = "ProgramImplicitForce"
 
 ## program module parameter wrong category
 
-module parameter の value と computation の分類が一致しない。
+A module parameter's value/computation classification does not match.
 
 ```toml case
 id = "reject-program-module-parameter-wrong-category"
@@ -154,7 +154,7 @@ expect = "reject"
 
 ## program module parameter wrong value
 
-module parameter に渡した Program value の型が一致しない。
+A Program value passed as a module parameter has a mismatched type.
 
 ```toml case
 id = "reject-program-module-parameter-wrong-value"
@@ -173,7 +173,7 @@ expect = "reject"
 
 ## program cbv syntax sugar
 
-Program の surface syntax を value と computation の型に従って展開できる。
+Program surface syntax can be expanded according to value and computation types.
 
 ```toml case
 id = "accept-program-cbv-syntax-sugar"

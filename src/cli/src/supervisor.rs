@@ -620,7 +620,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     let mut storage_errors = 0;
     loop {
         if interrupted() {
-            bail!("検査を中断しました");
+            bail!("Checking interrupted");
         }
         workers += 1;
         let mut request = args.clone();
@@ -670,7 +670,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                             .map_or(u64::MAX, |budget| budget.saturating_mul(1024 * 1024)),
                     )
                 {
-                    eprintln!("中断前の checkpoint の公開に失敗しました: {save:#}");
+                    eprintln!("Failed to publish the checkpoint before interruption: {save:#}");
                 }
                 return Err(error);
             }
@@ -709,25 +709,25 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             resources.lost_steps += outcome.events.completed.range(checkpoint..).count() as u64;
             storage.merge(&outcome.events.storage);
             last_checkpoint = checkpoint;
-            display.message(&format!("検査を checkpoint {checkpoint} から再開します。"));
+            display.message(&format!("Resuming checking from checkpoint {checkpoint}."));
             continue;
         }
         if !outcome.status.success() {
             success = false;
             if outcome.cancelled {
                 incomplete = Some(report::Outcome::Interrupted);
-                display.message("検査を中断しました。");
+                display.message("Checking interrupted.");
             } else if outcome.timeout_hit {
                 incomplete = Some(report::Outcome::TimeLimit);
-                display.message("指定された総時間制限に達しました。検査は未完了です。");
+                display.message("The total time limit was reached. Checking is incomplete.");
             } else if outcome.storage_failed {
                 incomplete = Some(report::Outcome::StorageFailure);
-                display.message("ヒープの退避領域を確保できませんでした。退避先の空き容量と filesystem を確認してください。検査は未完了です。");
+                display.message("Could not reserve heap spill storage. Check free space and the spill filesystem. Checking is incomplete.");
             } else if outcome.limited {
                 incomplete = Some(report::Outcome::MemoryLimit);
-                display.message("検査プロセスがメモリ不足または外部のSIGKILLで終了しました。新しい checkpoint がないため再起動を停止します。検査は未完了です。");
+                display.message("The checking process exited due to insufficient memory or an external SIGKILL. No new checkpoint is available, so restarting has stopped. Checking is incomplete.");
             } else {
-                display.message(&format!("検査失敗: {} ({})", label, outcome.status));
+                display.message(&format!("Checking failed: {} ({})", label, outcome.status));
             }
         }
         let summary = match fs::read(workspace.path("report.json")) {
@@ -786,10 +786,10 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     {
         if args.source_snapshot.is_some() {
             bail!(
-                "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
+                "The input snapshot changed during checking. Run again to check the current snapshot."
             );
         }
-        bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
+        bail!("Sources changed during checking. Run again to check the current sources.");
     }
     if fresh && !args.no_cache {
         match workspace.publish(
@@ -801,7 +801,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             Err(error) => {
                 storage.save_failures += 1;
                 storage.last_save_error = Some(error.to_string());
-                eprintln!("キャッシュの公開を省略しました: {error:#}");
+                eprintln!("Skipped cache publication: {error:#}");
             }
         }
     }
@@ -817,9 +817,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     crate::PROGRESS.with_borrow_mut(|events| events.extend(timings.into_values()));
     if !args.no_progress {
         display.message(if success {
-            "全検査範囲の型検査が完了しました。"
+            "Type checking completed for the entire checking scope."
         } else {
-            "検査が完了していない範囲があります。"
+            "Some parts of the checking scope are incomplete."
         });
     }
     let mut report = if internal_error {

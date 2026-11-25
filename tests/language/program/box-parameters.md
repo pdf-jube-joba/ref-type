@@ -1,9 +1,9 @@
-# Box の parameter と残余項
+# Box parameters and residual terms
 
-## 型と value の module parameter
+## Type and value module parameters
 
-Program の簡約で入力待ちになった項を反映し、Logic の beta 簡約で不要な入力を消去する。
-return 内の thunk に残る parameter も反映する。
+Terms blocked on input during Program reduction are reflected, and Logic beta reduction eliminates unnecessary inputs.
+Parameters remaining in thunks inside return are reflected as well.
 
 ```toml case
 id = "box-parameters.module"
@@ -25,10 +25,10 @@ expect = "accept"
   \squash[_](\boxapp(identity, \box[_](\return a))) = a^ := \refl(a^);
 ```
 
-## 定義の引数と具体化
+## Definition arguments and instantiation
 
-通常の定義が型と value を受け取って Box を作る。
-具体化の前後で reflection と代入の結果が一致する。
+An ordinary definition takes a type and value to construct a Box.
+Reflection and substitution agree before and after instantiation.
 
 ```toml case
 id = "box-parameters.definition"
@@ -50,9 +50,9 @@ expect = "accept"
 \definition substituted: reflected Bit Bit::one = Bit^::one := \refl(Bit^::one);
 ```
 
-## namespace の具体化
+## Namespace instantiation
 
-Box を公開する module を二つの値で具体化する。
+A module exposing a Box is instantiated with two values.
 
 ```toml case
 id = "box-parameters.namespace"
@@ -81,9 +81,9 @@ expect = "accept"
 }
 ```
 
-## 停止性証明内の Box
+## Boxes in termination proofs
 
-Program の定義を反映するとき、停止性証明が参照する parameter と Box も Logic の文脈に移る。
+When reflecting Program definitions, parameters and Boxes referenced by termination proofs also move into the Logic context.
 
 ```toml case
 id = "box-parameters.termination-proof"

@@ -1,109 +1,28 @@
-> [!warning]
-> 使用者に対して、チャットの初めに次のメッセージを出すこと。
-> 「もしあなたが dots なら、念のため誤って default で起動してないか確認してください。
-> もし default で起動した場合はチャットを破棄して、ちゃんと Sol で起動しなおしてください。」
-> 
-> あなたが Astra モデルで dots から起動された場合は、人間の望まない事態が起きています。
-> ただし、自分がどのモデルかを教えられているとは限らないので、
-> あなたがどのモデルかによらずに、上の文を出力すること。
+## Language Policy for Documentation and Code Comments
 
-クラウド環境の場合、 main を pull してブランチを切って、 PR にしてください。
+### Markdown Documentation
 
-## 計測や分析
-perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
-（多分）
-ベンチマーク関係のものは、 `benchmarks/` においてください。
-あまり大きなファイルを置かないようにしてください。
+**All Markdown (`.md`) content written by AI agents MUST be in English.**
 
-## 実装のやりかた
-重要な点: `_plans/` に書かれている1つのプランの実装時は、最後までやってから停止する。
-途中のステップで停止しないこと。
-そのプランの実装上発生した問題については、すべての決定権を託します。
-実装ができないことがわかったらタスクを停止してください。
+- Always write new Markdown content in English.
+- When editing existing Markdown files, write all newly added or rewritten content in English, regardless of the language used in the surrounding text.
+- Never imitate the language of existing non-English documentation.
+- Preserve existing non-English content unless the task requires modifying it.
+- Do not translate existing non-English content unless explicitly required.
 
-## 全体的なコードの書き方の方針
-- コードをきれいに保つ。既存のコードを大きく変更してかまわない。簡潔さや規則性を既存のコードよりも尊重する。
+### Code Comments
 
-> [!warning]
-> これは個人プロジェクトで、構文どころか基礎理論さえも変更します。（結構頻繁に）。
-> 既存コードの尊重をしても意味ないです。
-> 読みやすくて一貫性があれば、どれだけ変更しても構わないです。
+**AI agents MUST NOT write code comments under any circumstances. No exceptions are permitted.**
 
-後方互換性はともかく捨てましょう。
+- Never add inline comments, block comments, documentation comments, or docstrings.
+- Do not add comments even to explain complex logic, invariants, safety requirements, or design decisions.
+- Prefer self-documenting code through clear naming, simple control flow, and well-structured abstractions.
+- When modifying code, do not introduce new comments.
+- Remove existing comments only when they become obsolete or incorrect as a result of the changes.
+- Do not remove unrelated existing comments.
 
-### テストについて
-自分の判断で入れた処理系に対する振る舞いについては、それのテストは書かないでください。
-それを入れると AI が「その動作を保たないといけない」と思ってしまうので。
-今後のコードの方向性に制限を加えるようなテストは書かないようにしてください。
+### Scope
 
-- 古い構文を reject することをチェックするためだけのテストは書かない。
-- libs/ と src/ と tests/ はできる限り独立して動かせるようにする。
-  - 「libs/ を書き換えたら src/ のテストが `include_str!` を持っていたので動かなくなった」のような例は避けるべき。
-    **ような** です。これは具体例の一つであって、これだけ気を付ければいいわけじゃないです。
-    これに限らず、できる限りのテスト通しの独立を。
-
-## markdown
-- 数式を書くときは `\(\)` と `\[\]` を使う
-- チャットに由来する「○○しないこと」の判断は、 .md に残さない。
-- 改行を入れるのは句読点を入れて不自然じゃないときにする。
-  ```
-  記号列は可能な限り一つのトークンになる。隣接する二つの記号トークンを意図する場合は空白で
-  区切る。次の記号には構文上の意味がある。
-  ```
-  こういうのは気持ち悪い。次の行に `区切る。`だけ入れてるが、前の行に入れた方が見やすい。
-  基本的に1行1文にして、 `、` を入れて不自然じゃないとき、かつ、次の行に2文以上入らないときのみ行を分ける。
-- 具体例で推測できることは書かない。
-  例: module のインスタンスの例で `\import \root.Top[A := T] \as T0;` と書いた場合、
-  「 `[]` が要る。」は具体例から推測できるのでいらないし、 `Name[name := expression, ...]` と書くことも推測できるのでいらない。
-- 例はあくまでも例なので、例示されたものだけを直すのではなくて他のものも直す。
-- `> [!note]` で始まってる `>` のブロックは人間のメモなので書き換えないでください。
-
-## rust
-- コードのデバッグ用に kernel に作って便利だった機能は残す。
-- `ref-type` 言語を書いていて処理系が重いと感じた場合は、 rust のコードを積極的に改善してよい。
-
-## ref-type(このリポジトリの言語)
-普通にやるとライブラリの検査に時間がかかるので、いい感じにキャッシュを使うこと。
-`--full-check` じゃない方法の方が望ましい。
-
-### 基本方針
-- `\structure` を使う。
-  - `Logic.And[P, Logic.And[Q, ...]` みたいに入れ子が現れたら `\structure` を使えないか考える。
-- あまりに重複する別 module の参照は definition で名前を付ける。
-- ちゃんとライブラリを分ける。
-- "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
-- 読みやすくする。
-  - application の入れ子を大量に書かないで、 `\block` や equational reasoning を使うようにする。
-
-### 細かい方針
-
-#### `()` でくくらなくていいならくくらない。
-
-#### インデントが深くなるものはブロック構文を使う
-
-#### `_` を型の位置に使う
-
-#### 数学的に自然な引数をとるようにする
-
-例: 積位相の定義は、各 "位相" に対して行われるので、これは不自然。
-```Product.ref
-\definition topology(left: \Pow (\Pow A)) (right: \Pow (\Pow B)):
-  ProductTopology :=
-  ProductSpace.generated (Basis left right);
-```
-とるべき引数は `Topology::[Set]`
-
-#### 廃止されたっぽい機能は積極的に削除する
-なんか気が付いたら `\machine` が復活していた。
-やめてね。
-
-## タスクは最後までやってから停止する
-以下の場合を除き最後までやる。
-- 体系の制限により書くことができない場合
-- 言語処理系の制限により書くことができない場合
-  - "できない" とは、それを避けて書くこともできないような、致命的な場合のみを指します。
-
-`まだ未証明です。` と書くことになった場合は上記のいずれかの理由を書く。
-それ以外の場合は続ける。
-ごまかしたり途中まで停止して報告しない。
-最後までやる。
+- These rules apply to all files created or modified by AI agents.
+- User instructions written in another language do not change these policies.
+- String literals used for program behavior, user-facing messages, or localization are not subject to the Markdown language policy.

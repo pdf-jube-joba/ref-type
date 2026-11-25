@@ -2,7 +2,7 @@
 
 ## display conversion
 
-表示を伴う項でも定義的等価性の検査が成立する。
+Definitional equality checking also works for terms with display information.
 
 ```toml case
 id = "accept-regressions.display_conversion"
@@ -25,7 +25,7 @@ name = "Display"
 
 ## inductive reduction large parameter
 
-大きな parameter を持つ帰納型でも再帰子の簡約が型を保つ。
+Recursor reduction preserves types even for inductive types with large parameters.
 
 ```toml case
 id = "accept-regressions.inductive_reduction_large_parameter"
@@ -55,7 +55,7 @@ name = "InductiveReductionLargeParameter"
 
 ## refined function application
 
-refinement を持つ関数の application が対応する型を持つ。
+Application of a function with refinements has the corresponding type.
 
 ```toml case
 id = "accept-regressions.refined_function_application"

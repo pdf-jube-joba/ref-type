@@ -1,8 +1,8 @@
-# module の特殊化
+# Module specialization
 
-## 親引数の入れ替え
+## Swapping parent arguments
 
-親 module の型引数を入れ替えても、子の型 alias は対応する引数で一度だけ置換される。
+Swapping parent module type arguments substitutes each child's type alias once with the corresponding arguments.
 
 ```toml case
 id = "child_type_aliases_substitute_overlapping_parent_arguments_once"
@@ -24,9 +24,9 @@ expect = "accept"
 }
 ```
 
-## 依存する signature の guard
+## Dependent signature guard
 
-生成した bundle と元の bundle の Carrier が一致し、親の型引数を保った証明を利用できる。
+The generated and original bundles have matching Carriers, allowing proofs that retain the parent's type arguments.
 
 ```toml case
 id = "explicit_guards_preserve_parent_arguments_in_dependent_signatures"
@@ -68,9 +68,9 @@ expect = "accept"
 }
 ```
 
-## 異なる環境での bundle
+## Bundles in different environments
 
-各 bundle の space は、それぞれを生成した module の環境の型に合っている。
+Each bundle's space matches the type in the module environment that generated it.
 
 ```toml case
 id = "specialized_bundle_arguments_keep_inline_module_checks_in_the_instance"
@@ -104,9 +104,9 @@ expect = "accept"
 }
 ```
 
-## 環境が異なる bundle の混用
+## Mixing bundles from different environments
 
-Unit 上で生成した bundle を Two 上の Maps に渡す。
+A bundle generated over Unit is passed to Maps over Two.
 
 ```toml case
 id = "specialized_bundle_guards_reject_a_different_ambient_type"
@@ -136,9 +136,9 @@ expect = "reject"
 }
 ```
 
-## 子同士の推移的な依存
+## Transitive dependencies between children
 
-Derived から Specification を経て Basic に到達し、返された値を同じ Nat として扱える。
+Derived reaches Basic through Specification, and the returned value can be treated as the same Nat.
 
 ```toml case
 id = "nested_namespaces_follow_module_dependency_order"
@@ -173,9 +173,9 @@ expect = "accept"
 }
 ```
 
-## 親の import に依存する子引数
+## Child arguments depending on parent imports
 
-親が import した record の値を子の引数に渡し、その field を利用できる。
+A record value imported by the parent can be passed as a child argument and its fields used.
 
 ```toml case
 id = "nested_module_arguments_specialize_parent_imported_types"
@@ -198,9 +198,9 @@ expect = "accept"
 }
 ```
 
-## 局所変数を含む特殊化と閉じた import
+## Specialization with local variables and closed imports
 
-局所引数を持つ参照の後でも、閉じた import の恒等関数は局所変数に依存しない。
+After a reference with local arguments, a closed import's identity function remains independent of local variables.
 
 ```toml case
 id = "closed_namespace_does_not_reuse_a_convertible_local_specialization"
@@ -224,9 +224,9 @@ expect = "accept"
 }
 ```
 
-## 入れ子の Carrier alias
+## Nested Carrier aliases
 
-同じ Carrier から特殊化した Source と Target の値は、alias を経ても同じ型として使える。
+Source and Target values specialized from the same Carrier remain usable as the same type through aliases.
 
 ```toml case
 id = "carrier_aliases_keep_their_identity_across_nested_specializations"
@@ -266,9 +266,9 @@ expect = "accept"
 }
 ```
 
-## 再帰 binder の後の型引数
+## Type arguments after recursive binders
 
-successor 分岐の型引数は、その分岐で束縛した n に対応する。
+The successor branch's type argument corresponds to the n bound in that branch.
 
 ```toml case
 id = "indexed_constructors_check_module_types_after_recursive_binders"
@@ -299,9 +299,9 @@ expect = "accept"
 }
 ```
 
-## 依存する family の再公開
+## Re-exporting dependent families
 
-直接参照と Outer を経た参照は、同じ n と point に対する Carrier を返す。
+Direct references and references through Outer return the same Carrier for the same n and point.
 
 ```toml case
 id = "reexported_dependent_families_compose_enclosing_arguments"
@@ -337,7 +337,7 @@ expect = "accept"
 
 ## inline structure / valid
 
-引数 x は指定した A の値なので、生成した structure の field を使える。
+Argument x is a value of the specified A, so the generated structure's fields are available.
 
 ```toml case
 id = "inline-structure-valid"
@@ -367,7 +367,7 @@ expect = "accept"
 
 ## inline structure / invalid
 
-Unit の値を渡す位置に集合の sort を渡している。
+A set sort is passed where a Unit value is required.
 
 ```toml case
 id = "inline-structure-invalid"
@@ -395,9 +395,9 @@ expect = "reject"
 }
 ```
 
-## 異なる型の module 引数
+## Module arguments of different types
 
-A の値を要求する module に B の値を渡す。
+A value of B is passed to a module requiring a value of A.
 
 ```toml case
 id = "direct-argument-0"
@@ -412,9 +412,9 @@ expect = "reject"
 }
 ```
 
-## module 引数に依存する証明
+## Proofs depending on module arguments
 
-y と x の等式を要求する位置に y と y の等式を渡す。
+An equality between y and itself is passed where equality between y and x is required.
 
 ```toml case
 id = "direct-argument-1"
@@ -433,7 +433,7 @@ expect = "reject"
 
 ## temporary program datatypes and reflections agree
 
-局所 module の Program 帰納型の特殊化と reflection は、同じ引数に対応する型と値を返す。
+Specialization and reflection of a local module's Program inductive type return types and values for the same arguments.
 
 ```toml case
 id = "temporary_program_datatypes_and_reflections_agree"
@@ -452,7 +452,7 @@ expect = "accept"
 
 ## temporary modules preserve case branch binders
 
-case branch の binder を引数に使って局所 module を特殊化し、その branch の型に合う値を返せる。
+A local module can be specialized with a case-branch binder, returning a value matching that branch's type.
 
 ```toml case
 id = "temporary_modules_preserve_case_branch_binders"
@@ -473,7 +473,7 @@ expect = "accept"
 
 ## temporary modules follow inferred lambda binders
 
-lambda の binder の型が推論された後でも、その局所変数を module 引数として渡せる。
+A lambda's local variable can be passed as a module argument even after its binder type has been inferred.
 
 ```toml case
 id = "temporary_modules_follow_inferred_lambda_binders"

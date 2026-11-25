@@ -1,8 +1,8 @@
-# structure の family と特殊化
+# Structure families and specialization
 
-## 点に依存する商と関数の外延性
+## Point-dependent quotients and function extensionality
 
-点ごとに特殊化した商を引数型に持つ関数について、型を直接書く場合、関数型の別名を使う場合、局所 module を介す場合に同じ外延性の証明が成立する。
+For functions whose argument types are point-specialized quotients, the same extensionality proof works with an explicit type, a function-type alias, or a local module.
 
 ```toml case
 id = "pointwise-quotient-function-extensionality"
@@ -56,7 +56,7 @@ expect = "accept"
 
 ## temporary field
 
-inline module の引数を特殊化した後、その structure の field を型として使える。
+After specializing inline module arguments, the structure's fields can be used as types.
 
 ```toml case
 id = "module_specialization.temporary-field"
@@ -79,7 +79,7 @@ expect = "accept"
 
 ## named field
 
-名前を付けた import でも、structure の field は同じ特殊化した型を返す。
+Named imports also return the same specialized types through structure fields.
 
 ```toml case
 id = "module_specialization.named-field"
@@ -103,7 +103,7 @@ expect = "accept"
 
 ## named piece
 
-親の子 module を import し、選択した index に対する structure の field を使える。
+A parent's child module can be imported to use structure fields at a selected index.
 
 ```toml case
 id = "module_specialization.named-piece"
@@ -131,7 +131,7 @@ expect = "accept"
 
 ## parameter classifier local namespace
 
-parameter の型に出現する局所 import を、内側の module からも同じ引数で参照できる。
+A local import appearing in a parameter type can be referenced with the same arguments from an inner module.
 
 ```toml case
 id = "module_specialization.parameter-classifier-local-namespace"
@@ -172,7 +172,7 @@ expect = "accept"
 
 ## nested structure alias
 
-structure の中の structure を import の引数に渡し、元の Carrier の値を返せる。
+A structure nested within a structure can be passed as an import argument to return a value of the original Carrier.
 
 ```toml case
 id = "module_specialization.nested-structure-alias"
@@ -205,7 +205,7 @@ expect = "accept"
 
 ## selected namespace classifiers follow carriers and record fields
 
-module の引数に record の Carrier と依存する field を渡し、結果の field 型を利用できる。
+A record's Carrier and dependent fields can be passed as module arguments, making the resulting field type available.
 
 ```toml case
 id = "selected_namespace_classifiers_follow_carriers_and_record_fields"
@@ -241,7 +241,7 @@ expect = "accept"
 
 ## selected namespace functions preserve degree under lambdas
 
-lambda の局所 index で特殊化した関数は、その index の subset を受け取り返す。
+A function specialized at a lambda's local index accepts and returns the subset at that index.
 
 ```toml case
 id = "selected_namespace_functions_preserve_degree_under_lambdas"
@@ -265,7 +265,7 @@ expect = "accept"
 
 ## structure families preserve nested named import arguments
 
-子から親の別の子を import しても、family の index は元の引数に対応する。
+Importing another child of the parent from a child preserves the family's original index arguments.
 
 ```toml case
 id = "structure_families_preserve_nested_named_import_arguments"
@@ -295,7 +295,7 @@ expect = "accept"
 
 ## degree indexed structure results preserve declaration arguments
 
-index を successor に進めた結果の structure を返し、その演算の等式を証明できる。
+A structure at the successor index can be returned and its operation's equality proved.
 
 ```toml case
 id = "degree_indexed_structure_results_preserve_declaration_arguments"
@@ -319,9 +319,9 @@ expect = "accept"
 }
 ```
 
-## 入れ子の family の guard
+## Nested family guards
 
-family の space と Data は、同じ親の型引数と complex を使って構成される。
+A family's space and Data are constructed using the same parent type argument and complex.
 
 ```toml case
 id = "nested-family-guards"
@@ -366,9 +366,9 @@ expect = "accept"
 }
 ```
 
-## 入れ子の family の環境違い
+## Nested families with different environments
 
-R 上の factory に S 上の complex を渡している。
+A complex over S is passed to a factory over R.
 
 ```toml case
 id = "nested-family-ambient-mismatch"
@@ -413,9 +413,9 @@ expect = "reject"
 }
 ```
 
-## 環境と独立した index
+## Environment-independent indices
 
-固定した Index の family にも、親の R に対応した space の guard が適用される。
+A family over a fixed Index also applies the space guard corresponding to the parent's R.
 
 ```toml case
 id = "fixed-family-index"
@@ -461,9 +461,9 @@ expect = "accept"
 }
 ```
 
-## 固定 index の環境違い
+## Fixed indices with different environments
 
-index が同じでも親の space の環境は R と S で異なる。
+Even with the same index, the parent space environments differ between R and S.
 
 ```toml case
 id = "fixed-family-ambient-mismatch"
@@ -511,7 +511,7 @@ expect = "reject"
 
 ## imported factory fields can be projected after specialization
 
-特殊化した sequence の field を、元の complex に依存する Data 型として取り出せる。
+Fields of a specialized sequence can be extracted with the Data type depending on the original complex.
 
 ```toml case
 id = "imported_factory_fields_can_be_projected_after_specialization"
@@ -559,7 +559,7 @@ expect = "accept"
 
 ## imported factory specializes a structure dependent type alias
 
-complex を引数に持つ type alias を、特殊化した factory の field と引数の型に使える。
+A type alias taking a complex can be used in the field and argument types of a specialized factory.
 
 ```toml case
 id = "imported_factory_specializes_a_structure_dependent_type_alias"
@@ -608,9 +608,9 @@ expect = "accept"
 }
 ```
 
-## 依存する type alias の環境違い
+## Dependent type aliases with different environments
 
-別の親引数から作った complex を type alias の引数に渡している。
+A complex created from different parent arguments is passed as a type-alias argument.
 
 ```toml case
 id = "dependent-alias-mismatch"
@@ -661,7 +661,7 @@ expect = "reject"
 
 ## specialized factory fields can be record type arguments
 
-再構成した family を record の型引数に渡し、同じ Carrier の値で構築できる。
+A reconstructed family can be passed as a record type argument and constructed with a value of the same Carrier.
 
 ```toml case
 id = "specialized_factory_fields_can_be_record_type_arguments"
@@ -713,7 +713,7 @@ expect = "accept"
 
 ## specialized factory fields can be module arguments
 
-再構成した family を別 module の引数に渡し、元と同じ Data 型を使える。
+A reconstructed family can be passed to another module, preserving the original Data type.
 
 ```toml case
 id = "specialized_factory_fields_can_be_module_arguments"
@@ -766,9 +766,9 @@ expect = "accept"
 }
 ```
 
-## 異なる family index と局所 binder
+## Different family indices and local binders
 
-j と k の Carrier はそれぞれの index に対応し、局所 binder からも同じ規則で特殊化される。
+The Carriers at j and k correspond to their respective indices and specialize by the same rules under local binders.
 
 ```toml case
 id = "distinct-family-indices"
@@ -801,9 +801,9 @@ expect = "accept"
 }
 ```
 
-## 異なる family index の混用
+## Mixing different family indices
 
-k の Carrier を要求する位置に j の Carrier の値を渡す。
+A value of the Carrier at j is passed where the Carrier at k is required.
 
 ```toml case
 id = "wrong-family-index"

@@ -2,7 +2,7 @@
 
 ## structure result arrows check lambdas and their applications
 
-structure を返す関数の application と field の射影は、関数の引数に対応する値に簡約される。
+Applying a structure-returning function and projecting its fields reduces to values corresponding to the function arguments.
 
 ```toml case
 id = "structure_result_arrows_check_lambdas_and_their_applications"
@@ -40,7 +40,7 @@ parameters = '''Carrier: \Set, x: Carrier'''
 
 ## structure result lambdas check their parameter annotations
 
-structure を返す関数でも、lambda の parameter 注釈が domain と異なる。
+Even for a structure-returning function, a lambda parameter annotation differs from the domain.
 
 ```toml case
 id = "structure_result_lambdas_check_their_parameter_annotations"
@@ -57,7 +57,7 @@ parameters = '''A: \Set, B: \Set'''
 
 ## structure sort
 
-sort を省いた structure は signature として扱う。sort を指定した structure は型として利用できる。
+A structure without an explicit sort is treated as a signature; a structure with an explicit sort can be used as a type.
 
 ```toml scenario
 id = "structure-sort"
@@ -75,7 +75,7 @@ name = "Playground"
 
 ### signature
 
-型として利用できない。
+It cannot be used as a type.
 
 ```toml step
 id = "invalid"
@@ -84,7 +84,7 @@ expect = "reject"
 
 ### value
 
-必要な sort または値を指定すると受理される。
+Specifying the required sort or value makes it accepted.
 
 ```toml step
 id = "fixed"
@@ -101,7 +101,7 @@ expect = "accept"
 
 ## structure value projection
 
-structure の型自体から値の field は取り出せない。structure の値 data から field を取り出すと等式を記述できる。
+Value fields cannot be extracted from a structure type itself; extracting them from a structure value data allows equalities to be stated.
 
 ```toml scenario
 id = "structure-value-projection"
@@ -123,7 +123,7 @@ name = "Playground"
 
 ### signature
 
-型として利用できない。
+It cannot be used as a type.
 
 ```toml step
 id = "invalid"
@@ -132,7 +132,7 @@ expect = "reject"
 
 ### value
 
-必要な sort または値を指定すると受理される。
+Specifying the required sort or value makes it accepted.
 
 ```toml step
 id = "fixed"
@@ -151,9 +151,9 @@ expect = "accept"
 };
 ```
 
-## 生成される projection の sort
+## Sorts of generated projections
 
-projection の積が許可された sort 関係を満たさない。
+The projection's product does not satisfy the permitted sort relation.
 
 ```toml case
 id = "generated-projection"

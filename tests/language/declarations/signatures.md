@@ -2,7 +2,7 @@
 
 ## ambient signature parameter
 
-空の signature でも外側の module を異なる引数で具体化すると同一にはならない。
+Even empty signatures differ when their outer modules are instantiated with different arguments.
 
 ```toml case
 id = "reject-declarations.ambient_signature_parameter"
@@ -24,7 +24,7 @@ expect = "reject"
 
 ## contextual unused argument
 
-contextual definition の未使用引数にも型の不一致がある。
+An unused argument of a contextual definition also has a type mismatch.
 
 ```toml case
 id = "reject-declarations.contextual_unused_argument"
@@ -42,7 +42,7 @@ name = "Guard"
 
 ## empty signature import
 
-import の parameter が Empty[Unit] を要求するのに、Empty[Other] の値を渡している。
+An import parameter requires Empty[Unit], but a value of Empty[Other] is passed.
 
 ```toml case
 id = "reject-declarations.empty_signature_import"
@@ -63,7 +63,7 @@ expect = "reject"
 
 ## existence signature
 
-Tag[Other] の存在証明に Tag[Unit] の witness を渡している。
+A Tag[Unit] witness is passed to an existential proof of Tag[Other].
 
 ```toml case
 id = "reject-declarations.existence_signature"
@@ -81,7 +81,7 @@ name = "ExistentialSignature"
 
 ## forward member
 
-通常の member が宣言位置より後の member を参照する。
+An ordinary member references a member declared later.
 
 ```toml case
 id = "reject-declarations.forward_member"
@@ -97,7 +97,7 @@ name = "Forward"
 
 ## kind field
 
-field の型として classifier を持たない上位 sort `\SetKind` を使っている。
+A field type uses the higher sort `\SetKind`, which has no classifier.
 
 ```toml case
 id = "reject-declarations.kind_field"
@@ -112,7 +112,7 @@ name = "KindField"
 
 ## private helper
 
-子 module の helper を import や修飾なしで親の scope から参照している。
+A child module's helper is referenced from the parent's scope without importing or qualifying it.
 
 ```toml case
 id = "reject-declarations.private_helper"
@@ -132,7 +132,7 @@ expect = "reject"
 
 ## signature parameter
 
-異なる引数で具体化した空の signature の値を同一視している。
+Values of empty signatures instantiated with different arguments are identified.
 
 ```toml case
 id = "reject-declarations.signature_parameter"
@@ -150,7 +150,7 @@ name = "Parameter"
 
 ## contextual definitions
 
-局所文脈を保った definition の引数置換が型を保つ。
+Substituting definition arguments while retaining the local context preserves types.
 
 ```toml case
 id = "accept-declarations.contextual_definitions"
@@ -208,7 +208,7 @@ expect = "accept"
 
 ## signatures
 
-signature の引数と実装の field が一致する。
+Signature arguments and implementation fields agree.
 
 ```toml case
 id = "accept-declarations.signatures"
@@ -309,9 +309,9 @@ expect = "accept"
 }
 ```
 
-## 再公開した複体の異なる台集合
+## Different carriers in re-exported complexes
 
-構造の別名を経由しても、変換前後の写像は始域と終域の型引数をそれぞれ保持する。
+Even through structure aliases, maps before and after conversion retain their respective domain and codomain type arguments.
 
 ```toml case
 id = "signature_reexport_distinct_carriers"

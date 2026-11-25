@@ -1,8 +1,8 @@
 # proofs / cases
 
-## 所属証明を使う部分集合への導入
+## Subset introduction using membership proofs
 
-仮定した所属証明を使い、台集合の要素を部分集合の要素として導入できる。
+An assumed membership proof can introduce an ambient-set element as a subset element.
 
 ```toml case
 id = "accept-proofs.subset-introduction-with-membership-proof"
@@ -21,7 +21,7 @@ parameters = '''A: \Set,
 
 ## explicit proof terms
 
-命題の構成に対応する明示的な証明項を記述できる。
+Explicit proof terms corresponding to proposition constructions can be written.
 
 ```toml case
 id = "accept-proofs.explicit_proof_terms"

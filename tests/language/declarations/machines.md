@@ -2,7 +2,7 @@
 
 ## machine box parameters
 
-Box の computation type と payload に module parameter を使える。
+Module parameters can be used in a Box's computation type and payload.
 
 ```toml case
 id = "accept-declarations.machine_box_parameters"
@@ -56,7 +56,7 @@ expect = "accept"
 
 ## machine step
 
-machine の遷移が要求される型を持たない。
+The machine transition does not have the required type.
 
 ```toml case
 id = "reject-declarations.machine_step"
@@ -106,7 +106,7 @@ expect = "reject"
 
 ## bundles
 
-bundle の実装と仕様と停止証明が対応している。
+The bundle's implementation, specification, and termination proof agree.
 
 ```toml case
 id = "accept-declarations.bundles"
@@ -195,7 +195,7 @@ expect = "accept"
 
 ## closed program namespace
 
-閉じた Program namespace を Box の型に使える。
+A closed Program namespace can be used in a Box type.
 
 ```toml case
 id = "accept-declarations.closed_program_namespace"
@@ -228,7 +228,7 @@ expect = "accept"
 
 ## machines
 
-machine の状態と遷移と停止証明の型が対応している。
+The machine's state, transition, and termination proof have matching types.
 
 ```toml case
 id = "accept-declarations.machines"

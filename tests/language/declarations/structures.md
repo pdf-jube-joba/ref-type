@@ -2,7 +2,7 @@
 
 ## callback product
 
-証明を引数に取って signature を返す callback の積が、許可された sort 関係を満たさない。
+A callback product taking a proof and returning a signature does not satisfy the permitted sort relation.
 
 ```toml case
 id = "reject-declarations.callback_product"
@@ -18,7 +18,7 @@ name = "Callback"
 
 ## coherence
 
-structure の coherence 証明が要求される等式を示していない。
+The structure's coherence proof does not establish the required equality.
 
 ```toml case
 id = "reject-declarations.coherence"
@@ -66,7 +66,7 @@ expect = "reject"
 
 ## default override
 
-copy を a と異なる値に上書きすると、既定の same が copy = a を証明できない。
+Overriding copy with a value different from a prevents the default same from proving copy = a.
 
 ```toml case
 id = "reject-declarations.default_override"
@@ -83,7 +83,7 @@ name = "Override"
 
 ## duplicate field
 
-同じ field 名が重複している。
+The same field name occurs twice.
 
 ```toml case
 id = "reject-declarations.duplicate_field"
@@ -99,7 +99,7 @@ name = "Duplicate"
 
 ## structure law
 
-structure の law が要求される命題の証明になっていない。
+A structure law does not prove the required proposition.
 
 ```toml case
 id = "reject-declarations.structure_law"
@@ -118,7 +118,7 @@ isZero := \refl(Bit::one) };
 
 ## field classification
 
-field の型と sort に応じて値と証明を分類できる。
+Values and proofs can be classified according to field types and sorts.
 
 ```toml case
 id = "accept-declarations.field_classification"
@@ -176,7 +176,7 @@ expect = "accept"
 
 ## law dependency
 
-後続の law が先行する law の証明を利用できる。
+A later law can use a preceding law's proof.
 
 ```toml case
 id = "accept-declarations.law_dependency"
@@ -200,7 +200,7 @@ same := \refl(a), witness := \refl(a) };
 
 ## structure fields
 
-structure の依存 field と projection の型が対応している。
+Dependent structure fields and projection types agree.
 
 ```toml case
 id = "accept-declarations.structure_fields"
@@ -264,7 +264,7 @@ expect = "accept"
 
 ## structures
 
-structure の field と law を満たす値を構築できる。
+A value satisfying the structure's fields and laws can be constructed.
 
 ```toml case
 id = "accept-declarations.structures"
@@ -317,7 +317,7 @@ expect = "accept"
 
 ## structures
 
-structure の field と law を満たす値を構築できる。
+A value satisfying the structure's fields and laws can be constructed.
 
 ```toml case
 id = "accept-structures"
@@ -372,9 +372,9 @@ name = "Structures"
 ```
 
 
-## 型から決まる record の射影
+## Type-directed record projections
 
-generic constructor、入れ子や alias の射影、Program の associated definition と reflection を同じ record の型で使える。
+Generic constructors, nested and alias projections, Program associated definitions, and reflection can all use the same record type.
 
 ```toml case
 id = "records_have_type_directed_projection_and_generic_construction_syntax"
@@ -437,7 +437,7 @@ pair.first.first;
 
 ## proposition structure defaults follow parameters and supplied fields
 
-命題の structure の既定の field は、特殊化した引数と先に指定した field を参照できる。
+Default fields of a propositional structure can reference specialized arguments and previously specified fields.
 
 ```toml case
 id = "proposition_structure_defaults_follow_parameters_and_supplied_fields"
@@ -475,7 +475,7 @@ expect = "accept"
 
 ## proposition structure default is checked when declared
 
-使用時まで待たずに、宣言した既定の field の項と型の不一致を検出して拒否する。
+A mismatch between a declared default field's term and type is detected and rejected at declaration time rather than deferred until use.
 
 ```toml case
 id = "proposition_structure_default_is_checked_when_declared"

@@ -2,7 +2,7 @@
 
 ## choice eq wrong element
 
-choice の等式証明に渡した要素が指定された集合に属さない。
+The element passed to the choice equality proof does not belong to the specified set.
 
 ```toml case
 id = "reject-system.choice_eq_wrong_element"
@@ -19,7 +19,7 @@ parameters = '''A, B: \Set, a: A, b: B, unique: \forall (x, y: A) -> x = y'''
 
 ## choice eq wrong result
 
-choice の等式証明を異なる結論の証明として使っている。
+The choice equality proof is used to prove a different conclusion.
 
 ```toml case
 id = "reject-system.choice_eq_wrong_result"
@@ -36,7 +36,7 @@ parameters = '''A: \Set, a, b: A, unique: \forall (x, y: A) -> x = y'''
 
 ## choice eq wrong uniqueness
 
-choice の等式証明に別の性質の一意性証明を渡している。
+A uniqueness proof for a different property is passed to the choice equality proof.
 
 ```toml case
 id = "reject-system.choice_eq_wrong_uniqueness"
@@ -54,7 +54,7 @@ parameters = '''A: \Set, a: A'''
 
 ## choice wrong existence
 
-choice の存在証明が指定された性質の存在を示していない。
+The choice existence proof does not establish existence for the specified property.
 
 ```toml case
 id = "reject-system.choice_wrong_existence"
@@ -70,7 +70,7 @@ parameters = '''X, Y: \Set, existsY: \exists Y, unique: \forall (x, y: X) -> x =
 
 ## choice wrong uniqueness
 
-choice の一意性証明が指定された性質についての証明ではない。
+The choice uniqueness proof does not concern the specified property.
 
 ```toml case
 id = "reject-system.choice_wrong_uniqueness"
@@ -86,7 +86,7 @@ parameters = '''X: \Set, x: X, unique: \forall (a, b: X) -> a = a'''
 
 ## classical choice wrong inhabited
 
-classical choice の inhabited 証明が別の集合についての証明である。
+The inhabited proof for classical choice concerns a different set.
 
 ```toml case
 id = "reject-system.classical_choice_wrong_inhabited"
@@ -105,7 +105,7 @@ parameters = '''X: \Set,
 
 ## choice
 
-存在と一意性の証明から対応する要素を選べる。
+Corresponding elements can be selected from existence and uniqueness proofs.
 
 ```toml case
 id = "accept-system.choice"
@@ -144,7 +144,7 @@ parameters = '''X: \Set, P: \Prop, predicate: X -> P, x: X,
 
 ## choice eq
 
-choice の選んだ要素と一意な witness の等式を証明できる。
+Equality between the chosen element and the unique witness can be proved.
 
 ```toml case
 id = "accept-system.choice_eq"
@@ -185,7 +185,7 @@ expect = "accept"
 
 ## nested choice
 
-入れ子の choice でも各存在証明と一意性証明が対応する。
+Existence and uniqueness proofs also correspond in nested choices.
 
 ```toml case
 id = "accept-system.nested_choice"

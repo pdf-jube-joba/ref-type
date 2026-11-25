@@ -480,7 +480,7 @@ mod tests {
             ("d".into(), Variant::Unit),
         ];
         Document {
-            tuples: vec![(i32::MIN, None), (i32::MAX, Some("日本語".into()))],
+            tuples: vec![(i32::MIN, None), (i32::MAX, Some("Unicode: €".into()))],
             variants: if reverse {
                 entries.into_iter().rev().collect()
             } else {
@@ -503,7 +503,7 @@ mod tests {
         let primitives = (
             (true, i8::MIN, i16::MIN, i32::MIN, i64::MIN, i128::MIN),
             (u8::MAX, u16::MAX, u32::MAX, u64::MAX, u128::MAX),
-            (f32::MIN, f64::MAX, '界', "é"),
+            (f32::MIN, f64::MAX, '€', "é"),
             (Some(5u16), None::<u16>, (), vec![1u8, 0, 255]),
         );
         assert_eq!(

@@ -1,7 +1,7 @@
-# ソースの受理・拒否テスト
+# Source acceptance and rejection tests
 
-`python3 tests/tests.py` は Markdown に記述したソースを一時ディレクトリに展開し、処理系の受理・拒否を検査する。
-Python 3.11 以降の標準ライブラリを使う。
+`python3 tests/tests.py` extracts sources from Markdown into temporary directories and checks whether the implementation accepts or rejects them.
+It uses the Python 3.11+ standard library.
 
 ```sh
 cargo build -p cli --locked
@@ -12,22 +12,22 @@ python3 tests/tests.py --list
 python3 tests/tests.py --command '/path/to/checker'
 ```
 
-`--command` は引数を含むコマンドを指定できる。
-ランナーはコマンドを引数列として直接起動する。
-テストの文書やディレクトリを位置引数で選択でき、`--filter` はケース名の部分一致または glob で絞り込む。
-`--keep-failed` は失敗した一時ディレクトリを残し、その場所を表示する。
-`logs/` に各手順のコマンド、標準出力、標準エラーが残る。
-実行ごとの制限時間は30秒で、ランナーの `--timeout` で変更できる。
+`--command` accepts a command with arguments.
+The runner starts it directly as an argument list.
+Select test documents or directories with positional arguments; `--filter` narrows cases by name substring or glob.
+`--keep-failed` retains failed temporary directories and prints their paths.
+`logs/` retains each step's command, stdout, and stderr.
+Each invocation has a 30-second timeout, configurable with the runner's `--timeout` option.
 
-## ケース
+## Cases
 
-同じ論点の受理・拒否条件を一つの文書で比較し、本文に理由を書く。
-ケースは独立したソースディレクトリで実行する。
+Compare acceptance and rejection conditions for the same topic in one document and explain the reasons in prose.
+Each case runs in an independent source directory.
 
 ````markdown
-## 恒等関数
+## Identity function
 
-引数の証明が結果の命題を証明する。
+The argument proof proves the resulting proposition.
 
 ```toml case
 id = "identity"
@@ -40,29 +40,29 @@ expect = "accept"
 ```
 ````
 
-`scope = "module"` のソースは module の本文として記述する。
-ランナーは `root.ref` に外部 module の宣言を生成し、その本文を `Test.ref` に保存する。
-module 名と parameter が必要な場合は次のように指定する。
+Sources with `scope = "module"` are written as a module body.
+The runner generates an external module declaration in `root.ref` and saves its body in `Test.ref`.
+Specify a module name and parameters as follows when needed.
 
 ```toml
 name = "Identity"
 parameters = '''A: \Set, a: A'''
 ```
 
-`scope = "package"` と `scope = "workspace"` は、コードブロックに書いたファイルを相対パスに展開する。
-package の manifest を省略した場合は、名前が `test` の package を生成する。
+`scope = "package"` and `scope = "workspace"` extract files from code blocks to relative paths.
+If a package manifest is omitted, the runner generates a package named `test`.
 
-ファイル配置の例は [imports.md](packages/imports.md) を参照。
+See [imports.md](packages/imports.md) for file-layout examples.
 
-manifest は `toml file=ref.toml`、その他の内容は `text file=...` で記述できる。
-`entry` はソースディレクトリからの入力パスで、module では `root.ref`、package と workspace では `.` が既定値である。
+Write manifests as `toml file=ref.toml` and other contents as `text file=...`.
+`entry` is the input path relative to the source directory; it defaults to `root.ref` for modules and `.` for packages and workspaces.
 
-## シナリオ
+## Scenarios
 
-シナリオはソースディレクトリを維持し、各手順を別プロセスで実行する。
-`scenario` の直後に書いたファイルを初期状態とし、各 `step` のファイルはその実行前に置き換える。
-各手順の設定はシナリオの設定を引き継ぎ、その手順で上書きできる。
-前の手順だけに指定した設定は次の手順に引き継がれない。
+Scenarios retain the source directory and run each step in a separate process.
+Files immediately after `scenario` form the initial state; files in each `step` replace them before that step runs.
+Step settings inherit scenario settings and can override them.
+Settings specific to a previous step do not carry over to the next step.
 
 ````markdown
 ```toml scenario
@@ -89,13 +89,13 @@ expect = "accept"
 ```
 ````
 
-`remove = ["src/Base.ref"]` は指定したファイルやディレクトリを実行前に削除する。
+`remove = ["src/Base.ref"]` deletes the specified files or directories before execution.
 
-## 観測する結果
+## Observed results
 
-期待値は `accept` または `reject` で指定する。
-終了コード0を受理、1を拒否として照合する。
-それ以外の終了コード、クラッシュ、タイムアウトはテストの失敗として扱う。
-不明な設定、重複した ID、閉じていないフェンス、ソースのないケースは文書のエラーとして扱う。
+Specify expectations with `accept` or `reject`.
+Exit code 0 means acceptance; 1 means rejection.
+Other exit codes, crashes, and timeouts are test failures.
+Unknown settings, duplicate IDs, unclosed fences, and cases without sources are document errors.
 
-数学の定義・証明は [libs](../libs/README.md) を参照。
+See [libs](https://github.com/pdf-jube-joba/ref-type-libs/tree/main/libs) for mathematical definitions and proofs.

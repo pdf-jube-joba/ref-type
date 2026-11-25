@@ -2,7 +2,7 @@
 
 ## ambiguity
 
-異なる telescope を持つ同名 module の宣言がそれぞれ解析できる。
+Declarations of same-named modules with different telescopes can each be parsed.
 
 ```toml case
 id = "accept-ambiguity"
@@ -26,7 +26,7 @@ expect = "accept"
 
 ## definition
 
-definition は module parameter と先行する definition を参照できる。
+A definition can reference module parameters and preceding definitions.
 
 ```toml case
 id = "accept-definition"
@@ -44,7 +44,7 @@ parameters = '''A: \Set(0),'''
 
 ## eval id
 
-恒等関数の application を評価できる。
+Application of the identity function can be evaluated.
 
 ```toml case
 id = "accept-eval_id"
@@ -59,7 +59,7 @@ name = "Example"
 
 ## hello world
 
-宣言のない空の module も成立する。
+An empty module without declarations is also valid.
 
 ```toml case
 id = "accept-hello_world"

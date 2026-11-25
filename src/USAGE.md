@@ -1,6 +1,6 @@
-# 利用方法
+# Usage
 
-リポジトリのルートで実行する。
+Run commands from the repository root.
 
 ```sh
 cargo run -p cli -- libs/std
@@ -8,8 +8,8 @@ cargo run -p cli -- libs
 cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
 ```
 
-入力は package・workspace のディレクトリ、またはルート module を置いた `.ref` ファイル。
-package の入口は `src/root.ref`、依存先は `ref.toml` で指定する。
+Inputs are package or workspace directories, or `.ref` files containing a root module.
+A package's entry point is `src/root.ref`; dependencies are specified in `ref.toml`.
 
 ```toml
 [package]
@@ -18,121 +18,121 @@ name = "example"
 std = { path = "../std" }
 ```
 
-共通の親ディレクトリに workspace を置ける。
+A shared parent directory can define a workspace.
 
 ```toml
 [workspace]
 packages = ["std", "algebra/basic", "algebra/module_theory"]
 ```
 
-workspace 入力は全 member と依存先を検査し、`[package]` もある場合はルート package を含める。
-一つの member はそのディレクトリを入力にするか、`--module` に package 名を指定する。
-外部 module と import は [表面構文](../doc/book/src/language/syntax.md#2-module)、配置は [libs](../libs/README.md) を参照。
+A workspace input checks all members and their dependencies, including the root package if `[package]` is also present.
+To select one member, pass its directory as input or its package name to `--module`.
+See [surface syntax](../docs/book/src/language/syntax.md#2-module) for external modules and imports, and [libs](https://github.com/pdf-jube-joba/ref-type-libs/tree/main/libs) for library layout.
 
-## 検査とキャッシュ
+## Checking and caching
 
-workspace の member は、ソースファイルからの実行でも workspace 直下の `refcache/` を共有する。
-workspace 外は入力ディレクトリ、単独ファイルは親ディレクトリに保存する。
-`--cache-dir` はこの既定値より優先する。
+Workspace members share `refcache/` directly under the workspace, even when invoked through a source file.
+Outside a workspace, caches are stored in the input directory, or the parent directory for a single file.
+`--cache-dir` overrides these defaults.
 
-| オプション | 動作 |
+| Option | Behavior |
 | --- | --- |
-| `--module NAME` | 指定した module・子 module と、その参照先の宣言を検証 |
-| `--module-only` | `--module` で指定した module 自身と参照先を検証 |
-| `--list-modules` | ソース module の検査用パスを一行ずつ表示 |
-| `--memory-mib N` | Linux の常駐メモリの退避目標。既定3072 MiB、0はOSの回収に任せる |
-| `--time-limit-seconds N` | Linux のパッケージ検査全体の時間上限。省略時は制限なし |
-| `--parse-only` | 構文解析と外部 module・package の読み込み |
-| `--save-source-snapshot PATH` | 読み込んだソースと元のファイル識別子を JSON に保存 |
-| `--source-snapshot PATH` | 保存した JSON のソースを検査 |
-| `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
-| `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
-| `--full-check-local` | 入口パッケージ、または workspace の各パッケージの選択範囲を再検証し、外部依存のキャッシュを再利用 |
-| `--no-progress` | 進捗バーと所要時間の表示を抑制 |
-| `--progress-tty` | ログ出力先と別に、制御端末 (`/dev/tty`) に進捗バーを表示 |
-| `--cache-dir PATH` | キャッシュ保存先を変更 |
-| `--cache-budget-mib N` | ディスクの保持上限 MiB。省略時は無制限、利用中の成果物は保護 |
-| `--clear-cache` | 保存先の中身を削除してから処理 |
-| `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
-| `--report-json PATH` | 合否、検査・保存の統計、worker 数、復旧数、CPU時間、最大RSS・仮想メモリを JSON で保存 |
-| `--checkpoint-seconds N` | package途中のcheckpoint保存間隔。既定30秒、0は毎module完了時 |
-| `--stats` | raw / kernel のノード数などを表示 |
-| `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
-| `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
+| `--module NAME` | Check the specified module, its children, and declarations they reference |
+| `--module-only` | Check the module selected by `--module` itself and its references |
+| `--list-modules` | Print source module checking paths, one per line |
+| `--memory-mib N` | Linux resident memory target for paging; default: 3072 MiB; 0 leaves reclamation to the OS |
+| `--time-limit-seconds N` | Total Linux package-checking time limit; unlimited if omitted |
+| `--parse-only` | Parse sources and load external modules and packages |
+| `--save-source-snapshot PATH` | Save loaded sources and their original file identities as JSON |
+| `--source-snapshot PATH` | Check sources from saved JSON |
+| `--no-cache` | Check the selected scope without reading or writing the persistent cache |
+| `--full-check` | Recheck the selected scope and update the cache with verified results |
+| `--full-check-local` | Recheck the selected scope of the entry package or each workspace package while reusing cached external dependencies |
+| `--no-progress` | Hide the progress bar and timings |
+| `--progress-tty` | Show progress on the controlling terminal (`/dev/tty`) separately from log output |
+| `--cache-dir PATH` | Change the cache directory |
+| `--cache-budget-mib N` | Disk retention budget in MiB; unlimited if omitted; artifacts in use are protected |
+| `--clear-cache` | Clear the cache directory before processing |
+| `--cache-stats` | Print parse, check, reuse, and save counts |
+| `--report-json PATH` | Save acceptance, checking/storage statistics, worker/recovery counts, CPU time, and peak RSS/virtual memory as JSON |
+| `--checkpoint-seconds N` | Mid-package checkpoint interval; default: 30 seconds; 0 saves at every module completion |
+| `--stats` | Print raw / kernel node counts and other statistics |
+| `--trace` | Perform verification and print type-checking, registration, and reduction logs |
+| `--diagnostics compact` / `detailed` | Select diagnostic detail |
 
-JSON の `execution` はソース検査の重複を `duplicate_source_steps`、復旧による再実行を `replayed_source_steps`、未保存の作業を `lost_steps` に分ける。
-中断・時間上限・OSのメモリ不足や外部のSIGKILLによる終了は、それぞれ `interrupted`・`time-limit`・`memory-limit` として記録する。
-`last_module` と `last_checkpoint` は異常終了時の到達位置を示す。
+The JSON `execution` section distinguishes duplicate source checks (`duplicate_source_steps`), recovery replays (`replayed_source_steps`), and unsaved work (`lost_steps`).
+Interruption, time-limit termination, and termination due to OS memory exhaustion or an external SIGKILL are recorded as `interrupted`, `time-limit`, and `memory-limit`, respectively.
+`last_module` and `last_checkpoint` identify the position reached on abnormal exit.
 
-`--module` を省略すると入口と読み込んだ全依存の全 module を検査する。
-指定すると、その module・子 module と参照先に絞る。
-`--module-only` は自身と参照先に絞り、同名 module は `--list-modules` の `Name#2` などで区別する。
-`--full-check-local` は検査範囲を変えず、入口 package または workspace member の再検査を強制する。
-依存の現在の内容は通常検査でも確認する。
+Without `--module`, all modules in the entry point and loaded dependencies are checked.
+With it, checking is limited to that module, its children, and their references.
+`--module-only` limits checking to the module itself and its references; duplicate module names are distinguished by paths such as `Name#2` from `--list-modules`.
+`--full-check-local` does not change the scope; it forces rechecking of the entry package or workspace members.
+Normal checks also verify dependencies' current contents.
 
-Linux の package 検査は、一つの worker が検査セッションを保持し、supervisor が資源使用量と進捗を監視する。
-worker は依存先の検査済み宣言と名前空間を共有し、式グラフをページ単位で保存・退避する。
-Linux の標準ビルドでは、supervisor と worker のヒープも一時ファイルに対応付ける。
-ソース読み込み、名前解決の表、式の索引、checkpoint の保存・復元用データも、アドレスを保ったままOSがディスクへ退避し、使用時に読み戻す。
-常駐メモリ量が退避目標の80%に達すると、キャッシュの回収を要求し、バックグラウンドでヒープのページ回収を進める。
-package の検査中はcheckpointの保存も要求する。
-退避目標は回収開始の目安であり、一時的に超過しても検査を継続する。
-単独の `.ref`、`--parse-only`、`--list-modules`、`--no-cache` でもヒープの退避を使う。
-退避ファイルはcacheと同じfilesystemに作り、cacheがtmpfsの場合は作業ディレクトリまたは実行ファイルのディレクトリにある実ディスクを使う。
-`REF_TYPE_GRAPH_SPILL_DIR` で退避先を指定できる。
-退避領域のディスク容量は割当時に予約し、プロセス終了時にはOSが一時ファイルを回収する。
-ディスク容量不足やfilesystemの障害、OSのOOM Killer、起動元が設定した資源制限によって継続できない場合はある。
-allocatorの計測用featureを有効にしたビルドは、計測対象のallocatorを使う。
-異常終了時は新しく公開された checkpoint があれば、同じ要求を再開する。
-中断時も公開済み checkpoint は通常の保存先へ引き継ぐ。
-指定した総時間制限と利用者の中断は自動再開の対象に含めない。
-source snapshot は実行中に固定され、ソースが変わると再実行を求める。
-report の `source_steps` は完了したソース検査ステップ数、`duplicate_source_steps` は実行内の再検査数、`lost_steps` は復旧時に checkpoint より後へ進んでいたステップ数を表す。
-`checking.session.graph` の索引容量・常駐ページ量・退避量は、OS の RSS・仮想メモリ量とは別に記録する。
-`execution.heap_pageout_requested_bytes` はヒープのページ回収を要求した範囲の累計であり、実際の退避量やディスクI/O量とは異なる。
+On Linux, one worker retains the package-checking session while a supervisor monitors resources and progress.
+The worker shares verified dependency declarations and namespaces and persists or spills expression graphs page by page.
+Standard Linux builds also map supervisor and worker heaps to temporary files.
+The OS can page source loading data, name-resolution tables, expression indices, and checkpoint save/restore data to disk without changing their addresses, reading them back on demand.
+At 80% of the resident memory target, cache collection is requested and background heap page reclamation begins.
+Checkpoint saving is also requested during package checking.
+The paging target is a reclamation threshold; checking continues through temporary overshoots.
+Heap paging also applies to standalone `.ref` inputs, `--parse-only`, `--list-modules`, and `--no-cache`.
+Spill files use the cache filesystem; if the cache is on tmpfs, a real disk under the working or executable directory is used instead.
+`REF_TYPE_GRAPH_SPILL_DIR` selects the spill directory.
+Disk space for spill storage is reserved at allocation time; the OS reclaims temporary files when the process exits.
+Insufficient disk space, filesystem failures, the OS OOM killer, or resource limits set by the launcher can prevent continuation.
+Builds with allocator profiling features use the allocator being measured.
+After abnormal termination, the same request resumes if a new checkpoint has been published.
+Published checkpoints are transferred to normal storage even on interruption.
+Explicit total time limits and user interruptions do not trigger automatic resumption.
+The source snapshot is fixed during execution; source changes require another run.
+The report's `source_steps` counts completed source-checking steps, `duplicate_source_steps` counts repeated checks within the run, and `lost_steps` counts progress beyond the checkpoint lost during recovery.
+Index size, resident page size, and spill volume in `checking.session.graph` are recorded separately from OS RSS and virtual memory.
+`execution.heap_pageout_requested_bytes` is the cumulative range of requested heap page reclamation, not actual spill volume or disk I/O.
 
-ヒープ全体の退避は [再現用ベンチマーク](../benchmarks/heap_spill.py) を参照。
+See the [reproduction benchmark](../benchmarks/heap_spill.py) for whole-heap paging.
 
-編集を続けながら保存時点のソースを検査する場合は、snapshot を明示して実行する。
-保存時のファイル識別子と内容を使うため、別ディレクトリへソースをコピーせずに検査を固定し、変更していない依存のキャッシュを再利用できる。
+To check a saved version while continuing to edit, explicitly use a snapshot.
+Saved file identities and contents fix the check without copying sources to another directory, allowing unchanged dependency caches to be reused.
 
 ```sh
 cargo run -p cli -- libs/std --parse-only --save-source-snapshot work/std.json
 cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.Nat
 ```
 
-入力の位置は保存時と同じものを指定する。
-診断は保存時のソースを指し、検査中に入力 JSON の内容が変わると再実行を求める。
-通常の検査は引き続き実行中のソース変更を検出する。
+Use the same input location as when the snapshot was saved.
+Diagnostics refer to saved sources; if the input JSON changes during checking, another run is required.
+Normal checks continue to detect source changes during execution.
 
-キャッシュは処理系・設定・ソース・manifest・依存入力・検査範囲を照合する。
-無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。
-module 完了境界の checkpoint から途中再開できる。
-保存コストに応じた待ち時間は、`--checkpoint-seconds` の指定間隔を上限とする。
-`--full-check` と入口の `--full-check-local` は、強制検査範囲について過去の検証世代の結果を引き継がずに再検査する。
-同じ実行の障害復旧では、その世代で保存した checkpoint を使う。
-`--full-check` は保存済みの検証結果を再利用しない新しい世代で開始し、その実行内で完了した宣言を後続の要求と共有する。
-budget 超過時は利用中の成果物と依存を保護し、未使用の成果物を回収する。
-保存形式と API は [sema](sema/README.md#再利用) を参照。
+Cache matching includes the implementation, configuration, sources, manifests, dependency inputs, and checking scope.
+Unchanged results are reused; dependency environments are restored for later package checks.
+Checking can resume from checkpoints at module-completion boundaries.
+Save-cost-based waiting is capped by the interval specified by `--checkpoint-seconds`.
+`--full-check` and entry-point `--full-check-local` recheck forced scopes without carrying over results from past verification generations.
+Recovery within the same run uses checkpoints saved in that generation.
+`--full-check` starts a new generation without reusing saved verification results and shares declarations completed in that run with later requests.
+When the budget is exceeded, artifacts in use and their dependencies are protected while unused artifacts are collected.
+See [sema](sema/README.md#reuse) for storage formats and APIs.
 
-`--cache-stats` は query・I/O・圧縮・復元・保存失敗・回収量を表示する。
-`environment_hits` は環境復元数、`restored_modules` はその省略数、`package_hits` は package 成果物の再利用数である。
-`checkpoint_hits`・`checkpoint_writes`・`checkpoint_skips` は途中再開の件数、`budget_excess_bytes` は利用中データによる容量超過を表す。
-`retained_bytes_is_upper_bound` の間は保持量が保守的な累積値で、GC が実サイズへ更新する。
+`--cache-stats` prints query, I/O, compression, restoration, save-failure, and collection statistics.
+`environment_hits` counts environment restorations, `restored_modules` counts modules skipped through restoration, and `package_hits` counts package artifact reuse.
+`checkpoint_hits`, `checkpoint_writes`, and `checkpoint_skips` describe intermediate resumption; `budget_excess_bytes` reports budget excess due to data in use.
+While `retained_bytes_is_upper_bound` is set, retention is a conservative cumulative value; GC updates it to the actual size.
 
-端末には進捗・完了数・現在の module・経過時間と package 別の `check` / `skip` 件数を表示する。
-総数は選択範囲と依存先のソース module 数で、キャッシュ省略も完了に含める。
-リダイレクト時やログ有効時は module 別の所要時間を標準エラーへ出し、`--progress-tty` で制御端末に進捗も表示できる。
-各 module の時間は自身の解析・展開・検査・保存を含み、子と依存は別に計上する。
-`shared = total - 各 module の時間合計` であり、共通準備・checkpoint・解放などを含む。
-`total` は CLI 内の処理時間で、Cargo のビルドと起動時間は含めない。
+The terminal shows progress, completion counts, the current module, elapsed time, and per-package `check` / `skip` counts.
+Totals count source modules in the selected scope and dependencies, including cache-skipped modules as complete.
+When redirected or logging is enabled, per-module timings go to stderr; `--progress-tty` can also show progress on the controlling terminal.
+Each module's time includes its own parsing, expansion, checking, and saving; children and dependencies are counted separately.
+`shared = total - sum of module times` includes shared preparation, checkpointing, cleanup, and similar work.
+`total` measures CLI processing time, excluding Cargo build and startup time.
 
-## 診断と計測
+## Diagnostics and profiling
 
-診断・ログは標準エラー、query 結果は標準出力へ書く。
-診断には位置・局所文脈・要求型・制約を表示し、`#0` は最内の束縛を表す。
-`_` は推論する穴、`_0` などは宣言内で共有する穴、`?` は解決済みでも失敗を返す確認用ゴールである。
-簡潔な診断は最初のエラーで停止する。
+Diagnostics and logs go to stderr; query results go to stdout.
+Diagnostics show locations, local contexts, required types, and constraints; `#0` denotes the innermost binding.
+`_` is an inference hole, names such as `_0` share a hole within a declaration, and `?` is an inspection goal that returns failure even when solved.
+Compact diagnostics stop at the first error.
 
 ```sh
 RUST_LOG=ref_type::typing=debug cargo run -p cli -- libs/std --full-check
@@ -140,44 +140,44 @@ RUST_LOG=ref_type::reduction=trace cargo run -p cli -- libs/std --full-check
 REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-cache
 ```
 
-`RUST_LOG` は `--trace` の既定フィルタより優先する。
+`RUST_LOG` overrides the default `--trace` filter.
 
-| 環境変数 | 計測対象 |
+| Environment variable | Measurement |
 | --- | --- |
-| `REF_TYPE_PROFILE_DECLARATIONS` | 宣言の検査時間 |
-| `REF_TYPE_PROFILE_LOCAL_DEFINITIONS` | 局所定義の検査時間 |
-| `REF_TYPE_PROFILE_LOWERING` | kernel 定義への変換・登録時間 |
-| `REF_TYPE_PROFILE_CONVERSION=1` | 長時間の型同値判定の比較回数・入力と現在の項 |
-| `REF_TYPE_PROFILE_PHASES=1` | 各処理段階の時間と RSS |
-| `REF_TYPE_PROFILE_STORAGE=1` | 検査ステップ、宣言セル、置換表、式ページの保持量と I/O |
-| `REF_TYPE_GRAPH_RESIDENT_MIB=N` | 式ページの常駐予算。native の既定128 MiB、最小1 MiB |
-| `REF_TYPE_PROFILE_MODULES=1` | module の読み込み・具体化・復旧 |
-| `REF_TYPE_PROFILE_PROGRESS=1` | 処理段階、module の開始・完了、完了数と経過秒数を随時出力 |
-| `REF_TYPE_PROFILE_NAMESPACES=1` | import の名前空間と ID 対応表の件数 |
-| `REF_TYPE_DEBUG_HIR_IMPORTS=1` | import 前後の module ID、引数と具体化の対応 |
-| `REF_TYPE_PROFILE_DIAGNOSTICS=1` | 診断生成・表示の時間と RSS |
-| `REF_TYPE_PROFILE_ENVIRONMENTS=1` | checkpoint のキー・復元位置・保存サイズ |
-| `REF_TYPE_PROFILE_COSTS=1` | 入れ子の処理ごとの inclusive / exclusive 時間とキャッシュ統計 |
-| `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | cost 計測中の途中経過を出す間隔 |
-| `REF_TYPE_PROFILE_LARGE_STACK=1` | allocation profiling feature 使用時、128 MiB 以上の確保の backtrace |
+| `REF_TYPE_PROFILE_DECLARATIONS` | Declaration checking time |
+| `REF_TYPE_PROFILE_LOCAL_DEFINITIONS` | Local definition checking time |
+| `REF_TYPE_PROFILE_LOWERING` | Kernel definition conversion and registration time |
+| `REF_TYPE_PROFILE_CONVERSION=1` | Comparison counts, inputs, and current terms for long-running type-convertibility checks |
+| `REF_TYPE_PROFILE_PHASES=1` | Time and RSS for each phase |
+| `REF_TYPE_PROFILE_STORAGE=1` | Retention and I/O for checking steps, declaration cells, substitution tables, and expression pages |
+| `REF_TYPE_GRAPH_RESIDENT_MIB=N` | Resident expression-page budget; native default: 128 MiB; minimum: 1 MiB |
+| `REF_TYPE_PROFILE_MODULES=1` | Module loading, instantiation, and recovery |
+| `REF_TYPE_PROFILE_PROGRESS=1` | Live phases, module start/completion, completion counts, and elapsed seconds |
+| `REF_TYPE_PROFILE_NAMESPACES=1` | Import namespace and ID mapping counts |
+| `REF_TYPE_DEBUG_HIR_IMPORTS=1` | Module IDs, arguments, and instantiation mappings before and after imports |
+| `REF_TYPE_PROFILE_DIAGNOSTICS=1` | Diagnostic generation/display time and RSS |
+| `REF_TYPE_PROFILE_ENVIRONMENTS=1` | Checkpoint keys, restoration positions, and saved sizes |
+| `REF_TYPE_PROFILE_COSTS=1` | Inclusive/exclusive timings and cache statistics for nested operations |
+| `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | Progress reporting interval during cost profiling |
+| `REF_TYPE_PROFILE_LARGE_STACK=1` | Backtraces for allocations of at least 128 MiB with allocation profiling enabled |
 
-先頭の三つは `1` で全件、名前の一部で対象を絞る。
-`REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先する。
-`REF_TYPE_PROFILE_COSTS` は `resolve.,namespace.,kernel.` のような接頭辞でも絞れる。
-`inclusive_us` は子を含み、`exclusive_us` は計測した子の時間を差し引く。
-再帰の内訳は `cost_group` の exclusive 時間で比較する。
-大きな確保の backtrace は `cargo build -p cli --features large-allocation-profile` で有効になる。
-通常の検証には feature を付けずにビルドする。
+For the first three variables, `1` selects all entries; a name substring narrows the selection.
+`REF_TYPE_COMPACT_DIAGNOSTICS=1` also selects compact diagnostics, but CLI settings take precedence.
+`REF_TYPE_PROFILE_COSTS` can also filter by prefixes such as `resolve.,namespace.,kernel.`.
+`inclusive_us` includes children; `exclusive_us` subtracts measured child time.
+Compare recursive work using `cost_group` exclusive time.
+Enable large-allocation backtraces with `cargo build -p cli --features large-allocation-profile`.
+Build without profiling features for normal verification.
 
-`resolve.total` / `resolve.package` は名前解決と展開、`namespace.*` は具体化・再利用判定を測る。
-`namespace.translation-failed.*` は比較用の変換失敗数で、最初の原因を `translation-failure sample=...` に出す。
-`query.environment-plan` は検査順・依存情報から checkpoint キーを作る時間である。
+`resolve.total` / `resolve.package` measure name resolution and expansion; `namespace.*` measures instantiation and reuse decisions.
+`namespace.translation-failed.*` counts conversion failures during comparison; the first cause appears as `translation-failure sample=...`.
+`query.environment-plan` measures checkpoint-key construction from checking order and dependency information.
 
-途中ログの `event=start` は開始、`completed` と `package_completed` は完了数である。
-`event=complete` の `module_seconds` は途中の累積値で、終了時の解析情報収集・保存を含む最終集計とは異なる。
-checkpoint 保存時は `event=checkpoint-saved` を出す。
+In progress logs, `event=start` marks the start; `completed` and `package_completed` are completion counts.
+The `module_seconds` value for `event=complete` is an intermediate cumulative value, unlike final totals that include end-of-run analysis collection and saving.
+Checkpoint saves emit `event=checkpoint-saved`.
 
-詳細計測・資源制限・中断後のログ分析は [benchmarks](../benchmarks/README.md) を使う。
+Use [benchmarks](../benchmarks/README.md) for detailed profiling, resource limits, and interrupted-log analysis.
 
 ```sh
 cargo build -p cli --locked
@@ -187,10 +187,10 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   --output benchmarks/runs/check/report.json
 ```
 
-`--cache-mode cold` は空の専用キャッシュを作り、保存処理も計測する。
-最大 RSS は子孫を含む個々のプロセスの最大値である。
+`--cache-mode cold` creates an empty dedicated cache and includes persistence in the measurement.
+Peak RSS is the maximum for an individual process, including descendants.
 
-## 処理系のテスト
+## Implementation tests
 
 ```sh
 cargo build -p cli --locked
@@ -199,5 +199,5 @@ cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-[受け入れテスト](../tests/README.md) は Markdown のソースと編集手順について、受理・拒否を終了コードで検査する。
-依存取得済みなら Cargo に `--offline` を追加できる。
+The [acceptance tests](../tests/README.md) check Markdown sources and edit sequences for acceptance or rejection through exit codes.
+Add `--offline` to Cargo commands if dependencies have already been downloaded.

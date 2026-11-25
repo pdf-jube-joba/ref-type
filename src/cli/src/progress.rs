@@ -253,7 +253,7 @@ pub fn receive(event: &ProgressEvent) {
 
 pub fn receive_timed(event: &ProgressEvent, elapsed: Duration) {
     if let ProgressEvent::StorageFailed { message } = event {
-        eprintln!("検査結果の保存に失敗しました: {message}");
+        eprintln!("Failed to save checking results: {message}");
     }
     ACTIVE.with_borrow(|active| {
         if let Some(active) = active {
