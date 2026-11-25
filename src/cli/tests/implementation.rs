@@ -141,6 +141,27 @@ fn progress_lines(output: &Output) -> Vec<String> {
 }
 
 #[test]
+fn standalone_timings_follow_module_completion_order() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module Consumer {
+            \import \root.Provider[] \as P;
+            \definition id[T: \Prop][t: T]: T := P.id T t;
+        }
+        \module Provider { \definition id[T: \Prop][t: T]: T := t; }",
+    );
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+    let lines = progress_lines(&output);
+    let actions: Vec<_> = lines
+        .iter()
+        .map(|line| line.split_once(" (").unwrap().0)
+        .collect();
+    assert_eq!(actions, ["check Provider", "check Consumer"]);
+}
+
+#[test]
 fn source_inspection_leaves_existing_semantic_cache_untouched() {
     let fixture = FixtureDirectory::new();
     fixture.write("ref.toml", "[package]\nname = \"inspection\"\n");
