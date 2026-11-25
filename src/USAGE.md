@@ -185,7 +185,7 @@ Peak RSS is the maximum for an individual process, including descendants.
 
 ```sh
 cargo build -p cli --locked
-python3 tests/tests.py
+python3 tests/run.py
 python3 -m unittest discover -s tests -v
 python3 -m unittest discover -s benchmarks -v
 cargo test --workspace --locked

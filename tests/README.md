@@ -1,19 +1,19 @@
 # Source acceptance and rejection tests
 
-`python3 tests/tests.py` extracts sources from Markdown into temporary directories and checks whether the implementation accepts or rejects them.
+`python3 tests/run.py` extracts sources from Markdown into temporary directories and checks whether the implementation accepts or rejects them.
 It uses the Python 3.11+ standard library.
 `documents.py` owns case models, Markdown parsing, validation, and discovery.
-`tests.py` owns temporary sources, checker processes, and result reporting.
+`run.py` owns temporary sources, checker processes, and result reporting.
 The runner invokes a prebuilt CLI independently of the benchmark tools.
 Its default binary is `target/debug/cli`, with `CARGO_TARGET_DIR` honored.
 
 ```sh
 cargo build -p cli --locked
-python3 tests/tests.py
-python3 tests/tests.py tests/language --keep-failed
-python3 tests/tests.py --filter application_inference
-python3 tests/tests.py --list
-python3 tests/tests.py --command '/path/to/checker'
+python3 tests/run.py
+python3 tests/run.py tests/language --keep-failed
+python3 tests/run.py --filter application_inference
+python3 tests/run.py --list
+python3 tests/run.py --command '/path/to/checker'
 python3 -m unittest discover -s tests -v
 ```
 
