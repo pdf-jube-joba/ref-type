@@ -1,4 +1,5 @@
 //! Content addressed package objects, atomic manifests, and session protected collection.
+use self::RecordKind::{Artifact, Checkpoint};
 use crate::{
     cache::{Fingerprint, fingerprint},
     error::{CacheError, CacheOperation},
@@ -66,18 +67,33 @@ impl StoreManifest {
             .chain(self.graph.iter())
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum RecordKind {
+    Artifact = 0,
+    Checkpoint = 1,
+}
+
+impl RecordKind {
+    fn directory(self) -> &'static str {
+        match self {
+            Artifact => "artifacts",
+            Checkpoint => "checkpoints",
+        }
+    }
+}
+
 /// Reference counts preserve the oldest currently eligible eviction order without
 /// rescanning every manifest for each dependency and object being removed.
 struct CollectionIndex {
     dependencies: BTreeMap<Fingerprint, usize>,
     objects: BTreeMap<Fingerprint, usize>,
-    ranks: BTreeMap<(Fingerprint, bool), usize>,
+    ranks: BTreeMap<(Fingerprint, RecordKind), usize>,
     eligible: BTreeSet<usize>,
 }
 impl CollectionIndex {
     fn new(
-        records: &BTreeMap<(Fingerprint, bool), StoreManifest>,
-        candidates: &[(Fingerprint, bool)],
+        records: &BTreeMap<(Fingerprint, RecordKind), StoreManifest>,
+        candidates: &[(Fingerprint, RecordKind)],
     ) -> Self {
         let mut dependencies = BTreeMap::new();
         let mut objects = BTreeMap::new();
@@ -98,8 +114,8 @@ impl CollectionIndex {
         let eligible = candidates
             .iter()
             .enumerate()
-            .filter_map(|(rank, (key, checkpoint))| {
-                (*checkpoint || !dependencies.contains_key(key)).then_some(rank)
+            .filter_map(|(rank, (key, kind))| {
+                (*kind == Checkpoint || !dependencies.contains_key(key)).then_some(rank)
             })
             .collect();
         Self {
@@ -111,7 +127,7 @@ impl CollectionIndex {
     }
     fn remove(
         &mut self,
-        key: (Fingerprint, bool),
+        key: (Fingerprint, RecordKind),
         manifest: &StoreManifest,
     ) -> BTreeSet<Fingerprint> {
         self.ranks.remove(&key);
@@ -119,7 +135,7 @@ impl CollectionIndex {
             let count = self.dependencies.get_mut(dependency).unwrap();
             *count -= 1;
             if *count == 0
-                && let Some(rank) = self.ranks.get(&(*dependency, false))
+                && let Some(rank) = self.ranks.get(&(*dependency, Artifact))
             {
                 self.eligible.insert(*rank);
             }
@@ -212,6 +228,23 @@ struct Pins {
     objects: BTreeSet<Fingerprint>,
     #[serde(default)]
     read_objects: BTreeSet<Fingerprint>,
+}
+
+impl Pins {
+    fn insert_record(&mut self, kind: RecordKind, key: Fingerprint) -> bool {
+        match kind {
+            Artifact => self.artifacts.insert(key),
+            Checkpoint => self.checkpoints.insert(key),
+        }
+    }
+
+    fn pin_read_record(&mut self, kind: RecordKind, manifest: &StoreManifest) -> bool {
+        let mut changed = self.insert_record(kind, manifest.key);
+        for object in manifest.objects() {
+            changed |= self.read_objects.insert(object.digest);
+        }
+        changed
+    }
 }
 
 fn decode_pins(bytes: &[u8]) -> Result<Pins, CacheError> {
@@ -433,19 +466,21 @@ impl ArtifactStore {
         let input = hex(input);
         self.root.join("inputs").join(&input[..2]).join(input)
     }
-    fn manifest_path(&self, key: &Fingerprint, checkpoint: bool) -> PathBuf {
+    fn manifest_path(&self, key: &Fingerprint, kind: RecordKind) -> PathBuf {
         let key = hex(key);
+        let extension = match kind {
+            Artifact => "manifest",
+            Checkpoint => "checkpoint",
+        };
         self.root
-            .join(if checkpoint {
-                "checkpoints"
-            } else {
-                "artifacts"
-            })
+            .join(kind.directory())
             .join(&key[..2])
-            .join(format!(
-                "{key}.{}",
-                if checkpoint { "checkpoint" } else { "manifest" }
-            ))
+            .join(format!("{key}.{extension}"))
+    }
+    fn access_path(&self, key: &Fingerprint, kind: RecordKind) -> PathBuf {
+        self.root
+            .join("access")
+            .join(format!("{}-{}", hex(key), kind as u8))
     }
     // Called under store.lock; the lease's separate advisory lock is its liveness token.
     fn pin(&self, update: impl FnOnce(&mut Pins) -> bool) -> Result<(), CacheError> {
@@ -770,12 +805,12 @@ impl ArtifactStore {
         )
     }
     pub fn publish(&self, manifest: &StoreManifest) -> Result<(), CacheError> {
-        self.publish_record(manifest, false)
+        self.publish_record(manifest, Artifact)
     }
     pub fn publish_checkpoint(&self, manifest: &StoreManifest) -> Result<(), CacheError> {
-        self.publish_record(manifest, true)
+        self.publish_record(manifest, Checkpoint)
     }
-    fn publish_record(&self, manifest: &StoreManifest, checkpoint: bool) -> Result<(), CacheError> {
+    fn publish_record(&self, manifest: &StoreManifest, kind: RecordKind) -> Result<(), CacheError> {
         let mut canonical = manifest.clone();
         canonical.coverage.sort();
         canonical.coverage.dedup();
@@ -823,7 +858,7 @@ impl ArtifactStore {
                     stats.retained_bytes = usage;
                     stats.retained_bytes_is_upper_bound = true;
                 }
-                if !checkpoint {
+                if kind == Artifact {
                     // The lock makes the marker and manifest visible as one publication.
                     // A crash before the manifest leaves a harmless, lazily removed marker.
                     self.atomic_metadata(
@@ -833,19 +868,15 @@ impl ArtifactStore {
                         &[],
                     )?;
                 }
-                self.atomic_write(&self.manifest_path(&manifest.key, checkpoint), &bytes)?;
+                self.atomic_write(&self.manifest_path(&manifest.key, kind), &bytes)?;
                 self.pin(|pins| {
-                    let mut changed = if checkpoint {
-                        pins.checkpoints.insert(manifest.key)
-                    } else {
-                        pins.artifacts.insert(manifest.key)
-                    };
+                    let mut changed = pins.insert_record(kind, manifest.key);
                     for object in manifest.objects() {
                         changed |= pins.objects.remove(&object.digest);
                     }
                     changed
                 })?;
-                self.touch(&manifest.key, checkpoint)?;
+                self.touch(&manifest.key, kind)?;
                 Ok(usage > self.budget.load(Ordering::Relaxed))
             })(),
             true,
@@ -856,19 +887,15 @@ impl ArtifactStore {
             Ok(())
         }
     }
-    fn touch(&self, key: &Fingerprint, checkpoint: bool) -> Result<(), CacheError> {
-        let path = self
-            .root
-            .join("access")
-            .join(format!("{}-{}", hex(key), u8::from(checkpoint)));
-        self.atomic_metadata(&path, &[])
+    fn touch(&self, key: &Fingerprint, kind: RecordKind) -> Result<(), CacheError> {
+        self.atomic_metadata(&self.access_path(key, kind), &[])
     }
     fn load_manifest(
         &self,
         key: &Fingerprint,
-        checkpoint: bool,
+        kind: RecordKind,
     ) -> Result<StoreManifest, CacheError> {
-        let bytes = read_bounded(&self.manifest_path(key, checkpoint), MAX_MANIFEST + 40)?;
+        let bytes = read_bounded(&self.manifest_path(key, kind), MAX_MANIFEST + 40)?;
         if bytes.len() < 40 || &bytes[..8] != b"REFMAN02" {
             return Err(invalid(MissReason::Format));
         }
@@ -882,32 +909,22 @@ impl ArtifactStore {
         Ok(manifest)
     }
     pub fn read_manifest(&self, key: &Fingerprint) -> Result<StoreManifest, CacheError> {
-        self.read_record(key, false)
+        self.read_record(key, Artifact)
     }
     pub fn read_checkpoint(&self, key: &Fingerprint) -> Result<StoreManifest, CacheError> {
-        self.read_record(key, true)
+        self.read_record(key, Checkpoint)
     }
     fn read_record(
         &self,
         key: &Fingerprint,
-        checkpoint: bool,
+        kind: RecordKind,
     ) -> Result<StoreManifest, CacheError> {
         self.failure(
             (|| {
                 let _lock = self.lock()?;
-                let manifest = self.load_manifest(key, checkpoint)?;
-                self.pin(|pins| {
-                    let mut changed = if checkpoint {
-                        pins.checkpoints.insert(*key)
-                    } else {
-                        pins.artifacts.insert(*key)
-                    };
-                    for object in manifest.objects() {
-                        changed |= pins.read_objects.insert(object.digest);
-                    }
-                    changed
-                })?;
-                self.touch(key, checkpoint)?;
+                let manifest = self.load_manifest(key, kind)?;
+                self.pin(|pins| pins.pin_read_record(kind, &manifest))?;
+                self.touch(key, kind)?;
                 Ok(manifest)
             })(),
             false,
@@ -915,7 +932,7 @@ impl ArtifactStore {
     }
     pub fn discard_checkpoint(&self, key: &Fingerprint) -> Result<(), CacheError> {
         let _lock = self.lock()?;
-        remove(&self.manifest_path(key, true))?;
+        remove(&self.manifest_path(key, Checkpoint))?;
         self.pin(|pins| pins.checkpoints.remove(key))
     }
     pub fn list_matching(&self, input: &Fingerprint) -> Result<Vec<StoreManifest>, CacheError> {
@@ -923,7 +940,7 @@ impl ArtifactStore {
         let mut matches = Vec::new();
         for path in files(&self.input_directory(input))? {
             let Some(key) = path_key(&path) else { continue };
-            match self.load_manifest(&key, false) {
+            match self.load_manifest(&key, Artifact) {
                 Ok(manifest) if manifest.input == *input => matches.push(manifest),
                 _ => {
                     remove(&path)?;
@@ -931,14 +948,14 @@ impl ArtifactStore {
             }
         }
         self.pin(|pins| {
-            let before = pins.artifacts.len() + pins.read_objects.len();
-            pins.artifacts.extend(matches.iter().map(|m| m.key));
-            pins.read_objects
-                .extend(matches.iter().flat_map(|m| m.objects().map(|o| o.digest)));
-            before != pins.artifacts.len() + pins.read_objects.len()
+            let mut changed = false;
+            for manifest in &matches {
+                changed |= pins.pin_read_record(Artifact, manifest);
+            }
+            changed
         })?;
         for manifest in &matches {
-            self.touch(&manifest.key, false)?;
+            self.touch(&manifest.key, Artifact)?;
         }
         matches.sort_by_key(|m| m.key);
         Ok(matches)
@@ -1018,31 +1035,27 @@ impl ArtifactStore {
                 }
             }
         }
+        let mut protected: BTreeSet<_> = pinned
+            .artifacts
+            .iter()
+            .map(|k| (*k, Artifact))
+            .chain(pinned.checkpoints.iter().map(|k| (*k, Checkpoint)))
+            .collect();
         let mut records = std::collections::BTreeMap::new();
-        for checkpoint in [false, true] {
-            for path in files(&self.root.join(if checkpoint {
-                "checkpoints"
-            } else {
-                "artifacts"
-            }))? {
+        for kind in [Artifact, Checkpoint] {
+            for path in files(&self.root.join(kind.directory()))? {
                 let Some(key) = path_key(&path) else {
                     if old_temporary(&path) {
                         remove(&path)?;
                     }
                     continue;
                 };
-                match self.load_manifest(&key, checkpoint) {
+                match self.load_manifest(&key, kind) {
                     Ok(manifest) => {
-                        records.insert((key, checkpoint), manifest);
+                        records.insert((key, kind), manifest);
                     }
                     Err(_) => {
-                        if !(if checkpoint {
-                            &pinned.checkpoints
-                        } else {
-                            &pinned.artifacts
-                        })
-                        .contains(&key)
-                        {
+                        if !protected.contains(&(key, kind)) {
                             remove(&path)?;
                         }
                     }
@@ -1050,18 +1063,12 @@ impl ArtifactStore {
             }
         }
         // Preserve the entire dependency closure of every active manifest.
-        let mut protected: BTreeSet<_> = pinned
-            .artifacts
-            .iter()
-            .map(|k| (*k, false))
-            .chain(pinned.checkpoints.iter().map(|k| (*k, true)))
-            .collect();
         let mut pending: Vec<_> = protected.iter().copied().collect();
         while let Some(key) = pending.pop() {
             if let Some(manifest) = records.get(&key) {
                 for dependency in &manifest.dependencies {
-                    if protected.insert((*dependency, false)) {
-                        pending.push((*dependency, false));
+                    if protected.insert((*dependency, Artifact)) {
+                        pending.push((*dependency, Artifact));
                     }
                 }
             }
@@ -1071,14 +1078,10 @@ impl ArtifactStore {
             .filter(|key| !protected.contains(key))
             .copied()
             .collect();
-        candidates.sort_by_cached_key(|(key, checkpoint)| {
-            fs::metadata(self.root.join("access").join(format!(
-                "{}-{}",
-                hex(key),
-                u8::from(*checkpoint)
-            )))
-            .and_then(|m| m.modified())
-            .unwrap_or(SystemTime::UNIX_EPOCH)
+        candidates.sort_by_cached_key(|(key, kind)| {
+            fs::metadata(self.access_path(key, *kind))
+                .and_then(|m| m.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH)
         });
         // Stale leases and damaged records have already been removed above.
         let mut remaining = store_bytes(&self.root)?;
@@ -1097,20 +1100,16 @@ impl ArtifactStore {
             let Some(index) = collection.eligible.pop_first() else {
                 break;
             };
-            let (key, checkpoint) = candidates[index];
-            let manifest = records.remove(&(key, checkpoint)).unwrap();
-            let orphaned = collection.remove((key, checkpoint), &manifest);
-            if !checkpoint {
+            let (key, kind) = candidates[index];
+            let manifest = records.remove(&(key, kind)).unwrap();
+            let orphaned = collection.remove((key, kind), &manifest);
+            if kind == Artifact {
                 remove(&self.input_directory(&manifest.input).join(hex(&key)))?;
             }
-            let path = self.manifest_path(&key, checkpoint);
+            let path = self.manifest_path(&key, kind);
             remaining = remaining.saturating_sub(fs::metadata(&path).map(|m| m.len()).unwrap_or(0));
             remove(&path)?;
-            remove(&self.root.join("access").join(format!(
-                "{}-{}",
-                hex(&key),
-                u8::from(checkpoint)
-            )))?;
+            remove(&self.access_path(&key, kind))?;
             for digest in orphaned {
                 if !pinned.objects.contains(&digest) {
                     let path = self.object_path(&digest);
@@ -1129,7 +1128,7 @@ impl ArtifactStore {
         // that list_matching will never visit again.
         for path in files(&self.root.join("inputs"))? {
             if let Some(key) = path_key(&path) {
-                let retained = records.get(&(key, false)).is_some_and(|manifest| {
+                let retained = records.get(&(key, Artifact)).is_some_and(|manifest| {
                     path.parent() == Some(self.input_directory(&manifest.input).as_path())
                 });
                 if !retained {
@@ -1168,27 +1167,17 @@ impl ArtifactStore {
             // an ever-growing object lease once per manifest makes publication
             // quadratic, even though each immutable object is copied once.
             let _lock = source.lock()?;
-            for checkpoint in [false, true] {
-                for path in files(&source.root.join(if checkpoint {
-                    "checkpoints"
-                } else {
-                    "artifacts"
-                }))? {
+            for kind in [Artifact, Checkpoint] {
+                for path in files(&source.root.join(kind.directory()))? {
                     let Some(key) = path_key(&path) else { continue };
-                    if let Ok(manifest) = source.load_manifest(&key, checkpoint) {
-                        records.push((manifest, checkpoint));
+                    if let Ok(manifest) = source.load_manifest(&key, kind) {
+                        records.push((manifest, kind));
                     }
                 }
             }
             source.pin(|pins| {
-                for (manifest, checkpoint) in &records {
-                    if *checkpoint {
-                        pins.checkpoints.insert(manifest.key);
-                    } else {
-                        pins.artifacts.insert(manifest.key);
-                    }
-                    pins.read_objects
-                        .extend(manifest.objects().map(|object| object.digest));
+                for (manifest, kind) in &records {
+                    pins.pin_read_record(*kind, manifest);
                 }
                 !records.is_empty()
             })?;
@@ -1197,7 +1186,7 @@ impl ArtifactStore {
         // Pin dependencies already in the destination while the source is copied.
         let mut pending: std::collections::BTreeMap<_, _> = records
             .into_iter()
-            .map(|(manifest, checkpoint)| ((manifest.key, checkpoint), manifest))
+            .map(|(manifest, kind)| ((manifest.key, kind), manifest))
             .collect();
         let mut records = Vec::new();
         let mut published = BTreeSet::new();
@@ -1206,22 +1195,22 @@ impl ArtifactStore {
                 manifest
                     .dependencies
                     .iter()
-                    .all(|dependency| !pending.contains_key(&(*dependency, false)))
+                    .all(|dependency| !pending.contains_key(&(*dependency, Artifact)))
                     .then_some(*key)
             });
-            let Some(key) = next else {
+            let Some((key, kind)) = next else {
                 return self.failure(Err(invalid(MissReason::Corrupt)), true);
             };
-            let manifest = pending.remove(&key).unwrap();
+            let manifest = pending.remove(&(key, kind)).unwrap();
             for dependency in &manifest.dependencies {
                 if !published.contains(dependency) {
                     self.read_manifest(dependency)?;
                 }
             }
-            if !key.1 {
-                published.insert(key.0);
+            if kind == Artifact {
+                published.insert(key);
             }
-            records.push((manifest, key.1));
+            records.push((manifest, kind));
         }
         // Pin all copied objects before any publication can trigger collection.
         let objects: BTreeMap<_, _> = records
@@ -1282,8 +1271,8 @@ impl ArtifactStore {
                 .and_then(|file| file.sync_all())
                 .map_err(|error| io_error(CacheOperation::WriteRecord, &directory, error))?;
         }
-        for (manifest, checkpoint) in records {
-            self.publish_record(&manifest, checkpoint)?;
+        for (manifest, kind) in records {
+            self.publish_record(&manifest, kind)?;
         }
         Ok(())
     }
@@ -1348,9 +1337,9 @@ fn store_bytes(root: &Path) -> Result<u64, CacheError> {
     let mut paths = vec![root.join("store.lock"), root.join("usage")];
     // The cache root also hosts supervisor workspaces and batch layouts.
     for directory in [
-        "artifacts",
+        Artifact.directory(),
         "objects",
-        "checkpoints",
+        Checkpoint.directory(),
         "leases",
         "access",
         "tmp",
@@ -1481,16 +1470,16 @@ mod tests {
             if n % 5 == 0 {
                 manifest.results.push((vec!["alias".into()], object));
             }
-            records.insert((manifest.key, false), manifest.clone());
+            records.insert((manifest.key, Artifact), manifest.clone());
             if n % 9 == 0 {
                 manifest.dependencies.push(key(n));
-                records.insert((manifest.key, true), manifest);
+                records.insert((manifest.key, Checkpoint), manifest);
             }
         }
         // Cycles and self references remain ineligible, just as in the full scan.
         for (n, dependency) in [(70, 71), (71, 70), (72, 72)] {
             records.insert(
-                (key(n), false),
+                (key(n), Artifact),
                 StoreManifest {
                     key: key(n),
                     dependencies: vec![key(dependency)],
@@ -1499,7 +1488,7 @@ mod tests {
             );
         }
         // A retained root and its dependency remain outside the candidate set.
-        let protected = BTreeSet::from([(key(0), false), (key(1), false)]);
+        let protected = BTreeSet::from([(key(0), Artifact), (key(1), Artifact)]);
         let mut candidates: Vec<_> = records
             .keys()
             .filter(|key| !protected.contains(key))
@@ -1510,7 +1499,7 @@ mod tests {
         loop {
             let expected = candidates.iter().position(|candidate| {
                 records.contains_key(candidate)
-                    && (candidate.1
+                    && (candidate.1 == Checkpoint
                         || !records
                             .values()
                             .any(|m| m.dependencies.contains(&candidate.0)))
@@ -1630,7 +1619,7 @@ mod tests {
         store.set_budget(retained_size + 512);
 
         let damaged = fingerprint(b"damaged manifest");
-        let damaged_path = store.manifest_path(&damaged, false);
+        let damaged_path = store.manifest_path(&damaged, Artifact);
         fs::create_dir_all(damaged_path.parent().unwrap()).unwrap();
         fs::write(&damaged_path, vec![0; 1024 * 1024]).unwrap();
         let missing = fingerprint(b"missing manifest");
@@ -1646,7 +1635,7 @@ mod tests {
         }
 
         let stats = store.collect().unwrap();
-        assert!(store.manifest_path(&record.key, false).exists());
+        assert!(store.manifest_path(&record.key, Artifact).exists());
         assert!(!damaged_path.exists());
         assert!(stale.iter().all(|path| !path.exists()));
         assert_eq!(stats.budget_excess_bytes, 0);
@@ -1755,9 +1744,9 @@ mod tests {
         collector.set_budget(0);
         let stats = collector.collect().unwrap();
         assert!(stats.budget_excess_bytes > 0);
-        assert!(collector.manifest_path(&dependency.key, false).exists());
-        assert!(collector.manifest_path(&consumer.key, false).exists());
-        assert!(!collector.manifest_path(&unused.key, false).exists());
+        assert!(collector.manifest_path(&dependency.key, Artifact).exists());
+        assert!(collector.manifest_path(&consumer.key, Artifact).exists());
+        assert!(!collector.manifest_path(&unused.key, Artifact).exists());
         assert_eq!(
             reader.read_object(&consumer.results[0].1).unwrap(),
             b"shared result"
@@ -1769,8 +1758,33 @@ mod tests {
                 .object_path(&consumer.results[0].1.digest)
                 .exists()
         );
-        assert!(!collector.manifest_path(&consumer.key, false).exists());
+        assert!(!collector.manifest_path(&consumer.key, Artifact).exists());
     }
+    #[test]
+    fn checkpoint_lease_does_not_protect_an_artifact_with_the_same_key() {
+        let directory = Directory::new();
+        let writer = directory.store();
+        let artifact = manifest(&writer, 1);
+        let checkpoint = StoreManifest {
+            key: artifact.key,
+            ..manifest(&writer, 2)
+        };
+        writer.publish(&artifact).unwrap();
+        writer.publish_checkpoint(&checkpoint).unwrap();
+        drop(writer);
+
+        let reader = directory.store();
+        assert_eq!(reader.read_checkpoint(&artifact.key).unwrap(), checkpoint);
+        let collector = directory.store();
+        collector.set_budget(0);
+        collector.collect().unwrap();
+        assert!(matches!(
+            reader.read_manifest(&artifact.key),
+            Err(CacheError::Invalid(MissReason::Missing))
+        ));
+        assert_eq!(reader.read_checkpoint(&artifact.key).unwrap(), checkpoint);
+    }
+
     #[test]
     fn concurrent_writers_readers_and_collection_publish_complete_records() {
         let directory = Directory::new();
@@ -1952,7 +1966,7 @@ mod tests {
         let record = manifest(&writer, 17);
         writer.publish(&record).unwrap();
         writer.release_pins().unwrap();
-        let manifest_path = writer.manifest_path(&record.key, false);
+        let manifest_path = writer.manifest_path(&record.key, Artifact);
         drop(worker);
         assert!(manifest_path.exists());
         drop(supervisor);
@@ -1987,7 +2001,7 @@ mod tests {
         collector.set_budget(0);
         collector.collect().unwrap();
         let key = fingerprint(&[9]);
-        assert!(collector.manifest_path(&key, false).exists());
+        assert!(collector.manifest_path(&key, Artifact).exists());
         let record = supervisor.read_manifest(&key).unwrap();
         assert_eq!(
             supervisor.read_object(&record.results[0].1).unwrap(),
@@ -1995,7 +2009,7 @@ mod tests {
         );
         drop(supervisor);
         collector.collect().unwrap();
-        assert!(!collector.manifest_path(&key, false).exists());
+        assert!(!collector.manifest_path(&key, Artifact).exists());
     }
 
     #[test]
