@@ -1,4 +1,5 @@
 use crate::graph::ModuleGraph;
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -144,8 +145,7 @@ pub(crate) struct Reporter {
     modules: BTreeMap<usize, State>,
     steps: BTreeMap<usize, usize>,
     last: BTreeMap<usize, usize>,
-    order: Vec<usize>,
-    queued: BTreeSet<usize>,
+    report_order: IndexSet<usize>,
     succeeded: bool,
     active: Option<usize>,
 }
@@ -209,8 +209,7 @@ impl Reporter {
             modules,
             steps: BTreeMap::new(),
             last: BTreeMap::new(),
-            order: Vec::new(),
-            queued: BTreeSet::new(),
+            report_order: IndexSet::new(),
             succeeded: false,
             active: None,
         }
@@ -231,8 +230,7 @@ impl Reporter {
 
     pub fn skip_cached(&mut self) {
         for (&index, state) in &mut self.modules {
-            if state.cached && !self.last.contains_key(&index) && self.queued.insert(index) {
-                self.order.push(index);
+            if state.cached && !self.last.contains_key(&index) && self.report_order.insert(index) {
                 Self::complete(self.events, state, ProgressAction::Skip);
             }
         }
@@ -326,9 +324,7 @@ impl Reporter {
         };
         state.checked = true;
         if self.last.get(&index) == Some(&position) {
-            if self.queued.insert(index) {
-                self.order.push(index);
-            }
+            self.report_order.insert(index);
             if success {
                 Self::complete(self.events, state, ProgressAction::Check);
             }
@@ -337,8 +333,8 @@ impl Reporter {
 
     pub fn finish_batch(&mut self) {
         for (&index, state) in &self.modules {
-            if state.checked && self.queued.insert(index) {
-                self.order.push(index);
+            if state.checked {
+                self.report_order.insert(index);
             }
         }
         self.last.clear();
@@ -386,11 +382,11 @@ impl Drop for Reporter {
             return;
         };
         for (&index, state) in &self.modules {
-            if timing::elapsed(&state.path) > Duration::ZERO && self.queued.insert(index) {
-                self.order.push(index);
+            if timing::elapsed(&state.path) > Duration::ZERO {
+                self.report_order.insert(index);
             }
         }
-        for &index in &self.order {
+        for &index in &self.report_order {
             let state = &self.modules[&index];
             if !state.report_timing {
                 continue;
