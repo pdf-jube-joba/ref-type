@@ -24,6 +24,26 @@ Named checker cases default to disabled caching.
 Use `--cache-mode cold` to include persistence with an empty cache per run, or `--cache-mode shared` to reuse a cache between repetitions.
 See the [shared options](../README.md) for resource limits, profiling, and reports.
 
+## Structure field projections
+
+`shared-bodies` declares `Bundle` without an explicit sort. The resolver expands its `B.Carrier` accesses into references to field parameters.
+Profile the case and inspect the first run from the repository root.
+
+```sh
+python3 benchmarks/bench.py case shared-bodies --binary target/release/cli --runs 9 \
+  --profile-costs projection.,kernel.eliminate
+python3 benchmarks/bench.py analyze benchmarks/runs/shared-bodies/report-logs/000-shared-bodies.log
+```
+
+`projection.resolve-candidate` times the resolver's handling of a possible field access, including receiver resolution.
+Its child `projection.expand-field` times rewriting and normalizing a selected signature field.
+Use the `projection` group's exclusive time to count nested scopes once.
+
+For logical records with an explicit sort, `projection.declare` includes generating, checking and registering the projection definitions.
+`projection.surface` covers receiver inference, weak-head normalization and field selection during elaboration.
+`kernel.eliminate` counts attempts to reduce logical induction and case expressions, including attempts on a neutral scrutinee. These expressions can have several origins.
+Scopes with zero calls are absent from the report.
+
 ## Type conversion
 
 `Direct0 A` is the function type `A -> A`.

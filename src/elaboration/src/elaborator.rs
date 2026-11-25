@@ -555,12 +555,19 @@ impl term_elaborator::Handler for GlobalEnvironment {
         e: Exp,
         field_name: &Identifier,
     ) -> Result<Exp, ElaborationError> {
-        let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
-            crate::error::Error::from(error)
-                .context(crate::error::Context::FailedToInferTypeOfExpressionForFieldProjection)
-        })?;
-        if let ExpNode::IndType { indspec, .. } =
-            self.crate_env.arena().get(whnf(&self.crate_env, e))
+        let _cost = timing::costs::Scope::enter("projection.surface");
+        let infer_type_e = {
+            let _cost = timing::costs::Scope::enter("projection.infer-receiver");
+            self.infer(local_ctx, e).map_err(|error| {
+                crate::error::Error::from(error)
+                    .context(crate::error::Context::FailedToInferTypeOfExpressionForFieldProjection)
+            })?
+        };
+        let receiver = {
+            let _cost = timing::costs::Scope::enter("projection.whnf-receiver");
+            whnf(&self.crate_env, e)
+        };
+        if let ExpNode::IndType { indspec, .. } = self.crate_env.arena().get(receiver)
             && let Some(record) = self
                 .module_manager
                 .get_moditem_record(&self.crate_env, indspec)
@@ -576,7 +583,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let mut found_inductive = false;
         let mut found_record = false;
         while let Some((value, ty)) = candidates.pop() {
-            let ty = whnf(&self.crate_env, ty);
+            let ty = {
+                let _cost = timing::costs::Scope::enter("projection.whnf-type");
+                whnf(&self.crate_env, ty)
+            };
             match self.crate_env.arena().get(ty) {
                 ExpNode::TypeLift { superset, subset } => {
                     let proof = self
@@ -595,6 +605,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     indspec,
                     parameters,
                 } => {
+                    let _cost = timing::costs::Scope::enter("projection.select-field");
                     found_inductive = true;
                     if let Some(record) = self
                         .module_manager
