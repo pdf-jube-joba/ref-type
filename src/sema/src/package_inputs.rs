@@ -4,7 +4,10 @@ use project::{
     SourceSnapshot,
     package_loader::{PackageInfo, PackageInstanceId},
 };
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeSet, HashMap},
+    path::Path,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct PackageDependency {
@@ -44,8 +47,24 @@ pub(crate) fn inputs(
     packages: &[PackageInfo],
     configuration: &str,
 ) -> Vec<PackageInput> {
+    let directories: HashMap<_, _> = packages
+        .iter()
+        .enumerate()
+        .map(|(index, package)| (package.directory.as_path(), index))
+        .collect();
+    let mut paths_by_package = vec![BTreeSet::new(); packages.len()];
+    // Capture additions and removals too. Nested path packages own their tree.
+    for (path, _) in snapshot.files() {
+        if path.extension().is_some_and(|ext| ext == "ref")
+            && let Some(&owner) = path
+                .ancestors()
+                .find_map(|ancestor| directories.get(ancestor))
+        {
+            paths_by_package[owner].insert(path.to_path_buf());
+        }
+    }
     let mut result: Vec<PackageInput> = Vec::with_capacity(packages.len());
-    for (index, package) in packages.iter().enumerate() {
+    for (package, mut paths) in packages.iter().zip(paths_by_package) {
         let mut input = Input::default();
         input.field(0, b"ref-type.package-input");
         input.field(1, env!("REF_SEMA_REVISION").as_bytes());
@@ -58,22 +77,12 @@ pub(crate) fn inputs(
                 .content_digest(package.directory.join("ref.toml"))
                 .unwrap_or_else(|| fingerprint(package.manifest.text.as_bytes())),
         );
-        let mut paths: BTreeSet<_> = package
-            .sources
-            .iter()
-            .map(|source| snapshot.identity(&source.0))
-            .collect();
-        // Capture additions and removals too. Nested path packages own their tree.
-        paths.extend(snapshot.files().filter_map(|(path, _)| {
-            let owner = packages
+        paths.extend(
+            package
+                .sources
                 .iter()
-                .enumerate()
-                .filter(|(_, candidate)| path.starts_with(&candidate.directory))
-                .max_by_key(|(_, candidate)| candidate.directory.components().count())
-                .map(|(owner, _)| owner);
-            (owner == Some(index) && path.extension().is_some_and(|ext| ext == "ref"))
-                .then(|| path.to_path_buf())
-        }));
+                .map(|source| snapshot.identity(&source.0)),
+        );
         for path in paths {
             input.path(6, path.strip_prefix(&package.directory).unwrap_or(&path));
             match snapshot.content_digest(&path) {
@@ -140,8 +149,13 @@ mod tests {
     use std::{path::PathBuf, sync::Arc};
     use syntax::syntax::{SourceFile, SourceId};
 
-    fn package(index: usize, name: &str, dependencies: Vec<(String, PackageId)>) -> PackageInfo {
-        let directory = PathBuf::from(format!("/inputs/{name}"));
+    fn package(
+        index: usize,
+        relative_path: &str,
+        dependencies: Vec<(String, PackageId)>,
+    ) -> PackageInfo {
+        let directory = PathBuf::from("/inputs").join(relative_path);
+        let name = directory.file_name().unwrap().to_str().unwrap();
         let manifest = Arc::new(SourceFile {
             id: SourceId(directory.join("ref.toml")),
             text: format!("[package]\nname = '{name}'\n"),
@@ -203,6 +217,33 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn unlisted_sources_belong_to_the_nearest_package() {
+        let packages = [
+            package(0, "outer", vec![]),
+            package(1, "outer/inner", vec![]),
+        ];
+        let snapshot = snapshot(&packages);
+        let baseline = inputs(&snapshot, &packages, "");
+        for (path, changed) in [
+            ("/inputs/outer/src/extra.ref", [true, false]),
+            ("/inputs/outer/inner/src/extra.ref", [false, true]),
+            ("/inputs/outer/inner-sibling/extra.ref", [true, false]),
+            ("/inputs/outer/inner/src/extra.txt", [false, false]),
+            ("/inputs/other/src/extra.ref", [false, false]),
+        ] {
+            let edited = inputs(&snapshot.with_file(path, "extra"), &packages, "");
+            assert_eq!(
+                [
+                    edited[0].key != baseline[0].key,
+                    edited[1].key != baseline[1].key
+                ],
+                changed,
+                "{path}"
+            );
+        }
+    }
+
     #[test]
     fn coverage_is_canonical_and_components_are_unambiguous() {
         let input = [17; 32];
