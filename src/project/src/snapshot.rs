@@ -209,11 +209,9 @@ impl SourceSnapshot {
                 .canonicalize()
                 .map_err(|e| Error::io(IoOperation::Open, &root, e))?;
             snapshot.aliases.insert(root.clone(), identity.clone());
-            if !visited.insert(identity) {
+            if !visited.insert(identity.clone()) {
                 continue;
             }
-            let mut own = Self::new(&root);
-            own.aliases.insert(root.clone(), snapshot.identity(&root));
             let manifest_path = root.join("ref.toml");
             let workspace_manifest = fs::read_to_string(&manifest_path).ok().filter(|text| {
                 crate::package_loader::parse_manifest(&root, text).is_ok_and(|manifest| {
@@ -221,13 +219,11 @@ impl SourceSnapshot {
                 })
             });
             if let Some(text) = workspace_manifest {
-                own.insert(manifest_path, text);
+                snapshot.insert_text_at_identity(identity.join("ref.toml"), text);
             } else {
-                own.read_tree(&root, &mut BTreeSet::new(), cache)?;
+                snapshot.read_tree(&root, &mut BTreeSet::new(), cache)?;
             }
-            snapshot.files.extend(own.files);
-            snapshot.aliases.extend(own.aliases);
-            if let Some(source) = snapshot.source(root.join("ref.toml"))
+            if let Some(source) = snapshot.source(&manifest_path)
                 && let Ok(manifest) = crate::package_loader::parse_manifest(&root, &source.text)
             {
                 if let Some(package) = &manifest.package {
@@ -275,13 +271,12 @@ impl SourceSnapshot {
             } else if path.extension().is_some_and(|ext| ext == "ref")
                 || entry.file_name() == "ref.toml"
             {
-                self.aliases.insert(
-                    path.clone(),
-                    path.canonicalize()
-                        .map_err(|error| Error::io(IoOperation::Open, &path, error))?,
-                );
-                let identity = self.identity(&path);
-                self.files.insert(identity.clone(), cache.read(&identity)?);
+                let identity = path
+                    .canonicalize()
+                    .map_err(|error| Error::io(IoOperation::Open, &path, error))?;
+                self.aliases.insert(path, identity.clone());
+                let source = cache.read(&identity)?;
+                self.files.insert(identity, source);
             }
         }
         Ok(())
@@ -361,9 +356,10 @@ impl SourceSnapshot {
         next
     }
     pub fn insert(&mut self, path: impl AsRef<Path>, text: impl Into<String>) {
-        let path = self.identity(path.as_ref());
-        self.files
-            .insert(path.clone(), SourceText::new(path, text.into()));
+        self.insert_text_at_identity(self.identity(path.as_ref()), text.into());
+    }
+    fn insert_text_at_identity(&mut self, path: PathBuf, text: String) {
+        self.files.insert(path.clone(), SourceText::new(path, text));
     }
 }
 
