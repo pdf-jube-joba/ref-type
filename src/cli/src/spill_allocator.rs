@@ -2,6 +2,7 @@
 //! object, including frontend tables and graph indices, without moving pointers.
 use std::{
     alloc::{GlobalAlloc, Layout},
+    cell::Cell,
     ffi::c_void,
     fs::File,
     io,
@@ -39,6 +40,7 @@ const MAX_ARENA_SIZE: usize = if usize::BITS >= 64 {
 } else {
     512 * MIB
 };
+const ARENA_OVERHEAD: usize = 32 * MIB + 128 * 1024;
 const PAGEOUT_SIZE: usize = 32 * MIB;
 
 #[derive(Clone, Copy)]
@@ -71,8 +73,11 @@ static BACKING: Mutex<Backing> = Mutex::new(Backing {
 });
 static HEAP: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 const HEAP_CLASSES: usize = usize::BITS as usize * 4;
-static CLASS_HEAPS: [AtomicPtr<c_void>; HEAP_CLASSES] =
-    [const { AtomicPtr::new(std::ptr::null_mut()) }; HEAP_CLASSES];
+thread_local! {
+    static CLASS_MAPPINGS: [Cell<Mapping>; HEAP_CLASSES] = const {
+        [const { Cell::new(Mapping { start: 0, len: 0, heap: 0 }) }; HEAP_CLASSES]
+    };
+}
 static PAGEOUT_BYTES: AtomicU64 = AtomicU64::new(0);
 
 impl Backing {
@@ -81,7 +86,9 @@ impl Backing {
             return Err(io::Error::from_raw_os_error(libc::ENOSPC));
         }
         let size = requested
-            .checked_add(32 * MIB)
+            // The first bitmap chunk contains arena metadata. A request at a
+            // chunk boundary can also need a further slice for its page header.
+            .checked_add(ARENA_OVERHEAD)
             .and_then(usize::checked_next_power_of_two)
             .ok_or_else(|| io::Error::from_raw_os_error(libc::ENOMEM))?
             .max(
@@ -259,7 +266,7 @@ impl SpillAllocator {
         // alignment, retain the allocator's native OS path instead of acquiring
         // an artificial maximum allocation size from this backing strategy.
         if newest.is_null()
-            || layout.size() > MAX_ARENA_SIZE - 32 * MIB
+            || layout.size() > MAX_ARENA_SIZE - ARENA_OVERHEAD
             || layout.align() > 64 * 1024
         {
             return if zeroed {
@@ -273,20 +280,22 @@ impl SpillAllocator {
         // that arena on each miss. Retain a reusable heap per coarse size class;
         // collisions affect reuse only, since every heap accepts every layout.
         let class = Self::class(layout);
-        let cached = CLASS_HEAPS[class].load(Ordering::Acquire);
+        let cached = CLASS_MAPPINGS.with(|hints| hints[class].get().heap as *mut c_void);
         let heap = if cached.is_null() { newest } else { cached };
         let pointer = allocate(heap);
         if !pointer.is_null() {
-            CLASS_HEAPS[class].store(heap, Ordering::Release);
             return pointer;
         }
         let mut backing = BACKING.lock().unwrap_or_else(|error| error.into_inner());
         // Another thread may have grown the store; older arenas may also have
         // space again after the buffers which filled them were freed.
         for mapping in &backing.mappings[..backing.count] {
+            if mapping.heap == heap as usize {
+                continue;
+            }
             let pointer = allocate(mapping.heap as *mut c_void);
             if !pointer.is_null() {
-                CLASS_HEAPS[class].store(mapping.heap as *mut c_void, Ordering::Release);
+                CLASS_MAPPINGS.with(|hints| hints[class].set(*mapping));
                 return pointer;
             }
         }
@@ -313,7 +322,7 @@ impl SpillAllocator {
         let heap = HEAP.load(Ordering::Acquire);
         let pointer = allocate(heap);
         if !pointer.is_null() {
-            CLASS_HEAPS[class].store(heap, Ordering::Release);
+            CLASS_MAPPINGS.with(|hints| hints[class].set(backing.mappings[backing.count - 1]));
         }
         pointer
     }
@@ -333,17 +342,20 @@ unsafe impl GlobalAlloc for SpillAllocator {
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
         let address = pointer as usize;
         unsafe { mimalloc::MiMalloc.dealloc(pointer, layout) };
-        // Checkpoint restoration frees old argument vectors while interning new
-        // ones. Their newly available slots may be in any earlier arena. Use
-        // that arena directly instead of repeatedly collecting full heaps.
-        // This is a hint only; avoid waiting if another allocation owns the lock.
-        if let Ok(backing) = BACKING.try_lock()
-            && let Some(mapping) = backing.mappings[..backing.count]
-                .iter()
-                .find(|mapping| address >= mapping.start && address - mapping.start < mapping.len)
-        {
-            CLASS_HEAPS[Self::class(layout)].store(mapping.heap as *mut c_void, Ordering::Release);
-        }
+        CLASS_MAPPINGS.with(|hints| {
+            let hint = &hints[Self::class(layout)];
+            let contains = |m: &Mapping| address.wrapping_sub(m.start) < m.len;
+            // Most frees replenish the size class's current arena. Only search
+            // for another owner when this particular block is outside it.
+            if !contains(&hint.get())
+                && let Ok(backing) = BACKING.try_lock()
+                && let Some(mapping) = backing.mappings[..backing.count]
+                    .iter()
+                    .find(|m| contains(m))
+            {
+                hint.set(*mapping);
+            }
+        });
     }
 }
 
@@ -378,7 +390,7 @@ pub fn initialize(directory: &Path, target_mib: Option<u64>) -> io::Result<()> {
     }
     let mut backing = BACKING.lock().unwrap_or_else(|error| error.into_inner());
     backing.directory = directory.as_raw_fd();
-    unsafe { ref_type_spill_configure(MAX_ARENA_SIZE - 32 * MIB) };
+    unsafe { ref_type_spill_configure(MAX_ARENA_SIZE - ARENA_OVERHEAD) };
     backing.grow(0)?;
     let _ = directory.into_raw_fd();
     drop(backing);
