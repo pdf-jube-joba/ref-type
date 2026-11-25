@@ -996,9 +996,12 @@ impl Resolver {
                 crate::error::Invalid::ExternalModuleWasNotLoaded,
             )));
         };
-        self.collect_macro_scope(id, items, &module.declaration_spans, module.source.clone())?;
+        let has_macro_items =
+            self.collect_macro_scope(id, items, &module.declaration_spans, module.source.clone())?;
+        let replay_predecessors = has_macro_items || !self.dependency_stack.is_empty();
         for index in 0..items.len() {
-            self.resolve_macro_item(id, index)?;
+            let predecessors = if replay_predecessors { 0..index } else { 0..0 };
+            self.resolve_macro_item(id, index, predecessors)?;
         }
         self.record_macro_template_references(id);
         let work = self.work.remove(&id).expect("module work");
