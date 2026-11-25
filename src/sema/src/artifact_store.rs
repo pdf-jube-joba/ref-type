@@ -993,7 +993,11 @@ impl ArtifactStore {
                     remove(&path)?;
                 }
                 Err(std::fs::TryLockError::WouldBlock) => {
-                    let bytes = read_bounded(&path.with_extension("pins"), MAX_PINS + 8)?;
+                    let bytes = match read_bounded(&path.with_extension("pins"), MAX_PINS + 8) {
+                        Ok(bytes) => bytes,
+                        Err(CacheError::Invalid(MissReason::Missing)) => return Ok(self.stats()),
+                        Err(error) => return Err(error),
+                    };
                     // A live but unreadable lease is conservatively retained with everything.
                     let Ok(pins) = decode_pins(bytes.get(8..).unwrap_or_default()) else {
                         return Ok(self.stats());
@@ -1003,29 +1007,32 @@ impl ArtifactStore {
                     pinned.objects.extend(pins.objects);
                     pinned.objects.extend(pins.read_objects);
                     let journal = path.with_extension("objects");
-                    if journal.exists() {
-                        let file = File::open(&journal)
-                            .map_err(|e| io_error(CacheOperation::ReadRecord, &journal, e))?;
-                        if file
-                            .metadata()
-                            .map_err(|e| io_error(CacheOperation::ReadRecord, &journal, e))?
-                            .len()
-                            % 32
-                            != 0
-                        {
-                            return Ok(self.stats());
+                    let file = match File::open(&journal) {
+                        Ok(file) => file,
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                        Err(error) => {
+                            return Err(io_error(CacheOperation::ReadRecord, &journal, error));
                         }
-                        let mut reader = std::io::BufReader::with_capacity(64 * 1024, file);
-                        loop {
-                            let mut digest = [0; 32];
-                            match reader.read_exact(&mut digest) {
-                                Ok(()) => {
-                                    pinned.objects.insert(digest);
-                                }
-                                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
-                                Err(e) => {
-                                    return Err(io_error(CacheOperation::ReadRecord, &journal, e));
-                                }
+                    };
+                    if file
+                        .metadata()
+                        .map_err(|e| io_error(CacheOperation::ReadRecord, &journal, e))?
+                        .len()
+                        % 32
+                        != 0
+                    {
+                        return Ok(self.stats());
+                    }
+                    let mut reader = std::io::BufReader::with_capacity(64 * 1024, file);
+                    loop {
+                        let mut digest = [0; 32];
+                        match reader.read_exact(&mut digest) {
+                            Ok(()) => {
+                                pinned.objects.insert(digest);
+                            }
+                            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                            Err(e) => {
+                                return Err(io_error(CacheOperation::ReadRecord, &journal, e));
                             }
                         }
                     }
@@ -1783,6 +1790,26 @@ mod tests {
             Err(CacheError::Invalid(MissReason::Missing))
         ));
         assert_eq!(reader.read_checkpoint(&artifact.key).unwrap(), checkpoint);
+    }
+
+    #[test]
+    fn collection_preserves_objects_when_live_lease_pins_disappear() {
+        let directory = Directory::new();
+        let writer = directory.store();
+        let object = writer
+            .write_object(ObjectKind::Result, b"ending session")
+            .unwrap();
+        let lease = writer.lease.lock().unwrap().take().unwrap();
+        fs::remove_file(lease.path.with_extension("pins")).unwrap();
+
+        let collector = directory.store();
+        collector.set_budget(0);
+        assert_eq!(collector.collect().unwrap().collected_bytes, 0);
+        assert!(collector.object_path(&object.digest).exists());
+
+        drop(lease);
+        collector.collect().unwrap();
+        assert!(!collector.object_path(&object.digest).exists());
     }
 
     #[test]
