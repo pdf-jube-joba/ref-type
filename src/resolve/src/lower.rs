@@ -115,23 +115,76 @@ macro_rules! extend_enum {
 impl Extend for Module {
     type Output = hir::Module;
     fn extend(self) -> Self::Output {
-        hir::Module {
-            id: hir::ModuleId::default(),
-            name: extend(self.name),
-            parameters: extend(self.parameters),
-            parameter_checks: Vec::new(),
-            parameter_sources: Default::default(),
-            body: extend(self.body),
-            span: self.span,
-            declaration_spans: self.declaration_spans,
-            source: self.source,
-            header_source: self.header_source,
-        }
+        module_with_items(self, extend)
     }
 }
+
+fn module_with_items(
+    module: Module,
+    lower_items: impl FnOnce(Arc<Vec<ModuleItem>>) -> Arc<Vec<hir::ModuleItem>>,
+) -> hir::Module {
+    hir::Module {
+        id: hir::ModuleId::default(),
+        name: extend(module.name),
+        parameters: extend(module.parameters),
+        parameter_checks: Vec::new(),
+        parameter_sources: Default::default(),
+        body: match module.body {
+            ModuleBody::Inline(items) => hir::ModuleBody::Inline(lower_items(items)),
+            ModuleBody::External => hir::ModuleBody::External,
+        },
+        span: module.span,
+        declaration_spans: module.declaration_spans,
+        source: module.source,
+        header_source: module.header_source,
+    }
+}
+
 pub(crate) fn module(module: Module) -> hir::Module {
     extend(module)
 }
+
+pub(crate) fn module_headers(module: &Module) -> hir::Module {
+    module_with_items(module.clone(), |items| {
+        items
+            .iter()
+            .filter_map(|item| match item {
+                ModuleItem::ChildModule { module } => Some(hir::ModuleItem::ChildModule {
+                    module: Box::new(module_headers(module)),
+                }),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .into()
+    })
+}
+
+pub(crate) fn deferred_module(module: Module, reserved: &hir::ModuleBody) -> hir::Module {
+    let mut children = match reserved {
+        hir::ModuleBody::Inline(headers) => Some(
+            headers
+                .iter()
+                .filter(|item| matches!(item, hir::ModuleItem::ChildModule { .. })),
+        ),
+        hir::ModuleBody::External => None,
+    };
+    module_with_items(module, |items| {
+        Arc::unwrap_or_clone(items)
+            .into_iter()
+            .map(|mut item| {
+                if let ModuleItem::ChildModule { module } = &mut item {
+                    if let Some(children) = &mut children {
+                        return children.next().expect("reserved child header").clone();
+                    }
+                    module.body = ModuleBody::Inline(Default::default());
+                }
+                extend(item)
+            })
+            .collect::<Vec<_>>()
+            .into()
+    })
+}
+
 impl Extend for Identifier {
     type Output = hir::Identifier;
     fn extend(self) -> Self::Output {
@@ -141,11 +194,6 @@ impl Extend for Identifier {
 extend_enum!(InductiveKind { Pts(sort), Program });
 extend_enum!(MacroSeqAtom { Capture(name), TokenCapture(name), Rest(name), Tok(token), Quoted(text), Seq(items) });
 extend_enum!(TokenMatchPattern { Token(atom), Sequence(items), Default });
-
-extend_enum!(ModuleBody {
-    Inline(value0),
-    External,
-});
 
 extend_enum!(ModuleItem {
     Definition { owner, name, binders, ty, body },
