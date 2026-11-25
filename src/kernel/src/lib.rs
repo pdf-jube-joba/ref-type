@@ -11,7 +11,6 @@ pub mod metavariables;
 mod node_store;
 pub mod reduction;
 pub mod reflection;
-pub mod resources;
 pub mod sharing;
 pub mod sort;
 pub mod syntax;

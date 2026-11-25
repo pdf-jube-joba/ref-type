@@ -433,7 +433,7 @@ impl LocalScope {
                     };
                     let var = handler.intern_name(name);
                     telescope.push((var, annotation));
-                    self.push_named_binder(var, annotation, handler);
+                    self.push_binded_var(var, annotation);
                     // An unknown expected type still uses ordinary inference.
                     // The enclosing check will validate the resulting lambda.
                 }
@@ -562,10 +562,6 @@ impl LocalScope {
             value: None,
         });
         self.typing_binds.push(ExpContextEntry { var, ty });
-    }
-
-    fn push_named_binder(&mut self, var: SymbolId, ty: Exp, _handler: &impl Handler) {
-        self.push_binded_var(var, ty);
     }
 
     fn associated_parameters(
@@ -1310,7 +1306,7 @@ impl LocalScope {
                             // same as Anonymous
                             let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
                             let var = SymbolId::ANONYMOUS;
-                            self.push_named_binder(var, ty_elab, handler);
+                            self.push_binded_var(var, ty_elab);
                             let body_elab = self.elab_exp_rec(body, handler)?;
                             self.pop_binded_var();
                             return Ok(if is_prod {
@@ -1336,7 +1332,7 @@ impl LocalScope {
                             // Each preceding variable adds a binder around the annotation.
                             let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
                             telescope.push((var, ty));
-                            self.push_named_binder(var, ty, handler);
+                            self.push_binded_var(var, ty);
                         }
 
                         let body_elab = self.elab_exp_rec(body, handler)?;

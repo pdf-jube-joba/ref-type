@@ -7,11 +7,11 @@ See [Usage](../USAGE.md) for CLI commands.
 
 ```rust
 use sema::{Database, ParseKind, SourceSnapshot};
-let source = SourceSnapshot::read("libs/std")?;
+let source = SourceSnapshot::read("/path/to/package")?;
 let mut db = Database::with_cache(source.default_cache_directory());
 let checked = db.check(&source);
 assert!(checked.is_success());
-let path = "libs/std/src/Data/Nat.ref";
+let path = "/path/to/package/src/Main.ref";
 let edited = source.with_file(path, std::fs::read_to_string(path)?);
 let parsed = db.parse(&edited, path, ParseKind::Module);
 ```
@@ -31,7 +31,7 @@ Declaration IDs use a module path and name; type-associated items use `Type::mem
 
 ## Reuse
 
-`read_snapshot` checks current contents, including dependencies.
+`read_snapshot(entry)` checks current contents, including dependencies, while reusing the database's source cache.
 The source cache is bounded at 64 MiB and 16,384 entries; parse, module, and query caches retain the current and previous read generations.
 Unchanged queries reuse the same `Arc`, including failed results.
 `memory_cache_stats` reports retained sizes; `clear_memory` releases database-owned data.
@@ -59,7 +59,9 @@ Checkpoints connect resolver and raw indices, completed steps, and expression-gr
 Resolver name tables, argument environments, reference paths, and namespace mappings are saved as shared DAGs and preserve sharing after restoration.
 Session metadata also uses content-defined chunks of 16–128 KiB, reusing objects with identical contents.
 Restoration reads saved objects sequentially without a buffer for the entire expanded serialization.
-Kernel bodies load only the pages needed; persistence also reuses objects for finalized pages.
+Kernel bodies load only the pages needed; pages evicted during checking are written directly to `refcache/objects/` and reused by checkpoints.
+Page storage uses the same checksums, leases, and garbage collection as other cache objects.
+In-memory databases retain their pages in RAM.
 Later checking continues with the same internal IDs without expanding all dependency bodies at once.
 Package-completion indices are saved when the step count has doubled since the previous save, at external-dependency completion boundaries, and when the entire request completes.
 Each encoding covers the whole current session, but this schedule limits the cumulative cost of repeatedly saving a growing prefix for every package.
@@ -75,7 +77,6 @@ Saving a completed environment also updates the same resume entry, preventing se
 `checkpoint_interval` sets the save interval at module completion; the default is 30 seconds, and zero considers every boundary.
 Save-cost-based waiting is capped by the configured interval, which remains unchanged after successful saves.
 Checkpoints are collected after verification results are published.
-Under sustained memory pressure, cache collection runs immediately, while checkpoint saving waits for a module boundary after this interval.
 Resumption also checks forced-verification settings and treats partially checked states as checkpoints.
 
 Publication, pinning, and GC use store locks and leases, protecting artifacts in use and their dependency closures.

@@ -7,11 +7,10 @@
 `SourceSnapshot::read` freezes the contents and identities of reachable sources and manifests.
 `with_file` / `without_file` create edited versions; `new` / `insert` construct sources in memory.
 `source` returns the text; `identity` returns the file identity after resolving aliases.
-`package_snapshot` restricts the scope to the specified package and its dependencies.
 
 `SourceCache` checks contents on every read and shares matching text and SHA-256 digests.
 By default, it retains up to 64 MiB and 16,384 files from the two most recent read generations.
-`read_with_source_cache` and `read_with_dependency_cache` centralize loading; `content_digest` returns a snapshot's content digest.
+`read_with_source_cache` uses a caller-owned source cache while loading every reachable dependency; `content_digest` returns a snapshot's content digest.
 Snapshots retained by callers remain valid after cache collection.
 
 ## Module and package loading

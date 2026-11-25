@@ -107,10 +107,6 @@ pub fn send_output(output: sema::QueryOutput) {
     send(Message::Output(output));
 }
 
-extern "C" fn collect(_: libc::c_int) {
-    sema::request_collection();
-}
-
 pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
     let Some(request) = &args.worker else {
         return Ok(args);
@@ -130,12 +126,6 @@ pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
     unsafe {
         libc::setrlimit(libc::RLIMIT_CORE, &limit);
         libc::nice(5);
-        let mut action: libc::sigaction = std::mem::zeroed();
-        action.sa_sigaction = collect as *const () as usize;
-        libc::sigemptyset(&mut action.sa_mask);
-        if libc::sigaction(libc::SIGUSR1, &action, std::ptr::null_mut()) != 0 {
-            return Err(std::io::Error::last_os_error().into());
-        }
     }
     Ok(args)
 }
@@ -328,7 +318,6 @@ struct Outcome {
     status: ExitStatus,
     limited: bool,
     memory_limited: bool,
-    storage_failed: bool,
     timeout_hit: bool,
     cancelled: bool,
     events: Events,
@@ -341,12 +330,8 @@ fn execute(
     plan: &mut ProgressPlan,
     display: &progress::Display,
     quiet: bool,
-    memory_mib: u64,
 ) -> anyhow::Result<Outcome> {
     let mut events = Events::new(&workspace.path("events.jsonl"))?;
-    if std::env::var_os("REF_TYPE_GRAPH_SPILL_DIR").is_none() {
-        command.env("REF_TYPE_GRAPH_SPILL_DIR", &workspace.directory);
-    }
     command
         .stdout(Stdio::from(File::create(workspace.path("stdout"))?))
         .stderr(Stdio::from(File::create(workspace.path("stderr"))?))
@@ -386,9 +371,6 @@ fn execute(
     });
     let started = Instant::now();
     let mut heartbeat = Instant::now();
-    let mut last_pressure = started
-        .checked_sub(Duration::from_secs(5))
-        .unwrap_or(started);
     let mut resources = report::Execution::default();
     let mut cancelled = false;
     let mut timeout_hit = false;
@@ -429,20 +411,8 @@ fn execute(
                     .and_then(|value| value.split_whitespace().next()?.parse::<u64>().ok())
                     .unwrap_or(0)
             };
-            let resident_kib = kib("VmRSS:");
             resources.peak_virtual_kib = resources.peak_virtual_kib.max(kib("VmPeak:"));
             resources.peak_rss_kib = resources.peak_rss_kib.max(kib("VmHWM:"));
-            if memory_mib != 0
-                && resident_kib > memory_mib.saturating_mul(1024).saturating_mul(4) / 5
-                && last_pressure.elapsed() >= Duration::from_secs(5)
-            {
-                // SAFETY: signal only the live child; its handler sets an atomic.
-                unsafe {
-                    libc::kill(worker.child.id() as i32, libc::SIGUSR1);
-                }
-                last_pressure = Instant::now();
-                resources.collection_requests += 1;
-            }
         }
         if !timeout_hit && timeout.is_some_and(|limit| started.elapsed() >= limit) {
             timeout_hit = true;
@@ -477,9 +447,7 @@ fn execute(
     stderr.read_to_end(&mut tail)?;
     // The bounded suffix can start inside a UTF-8 diagnostic character.
     let tail = String::from_utf8_lossy(&tail);
-    let storage_failed = tail.contains("ref-type: cannot extend heap spill storage");
-    let memory_limited = !storage_failed
-        && !timeout_hit
+    let memory_limited = !timeout_hit
         && !cancelled
         && (status.signal() == Some(libc::SIGKILL)
             || (status.signal() == Some(libc::SIGABRT) && tail.contains("memory allocation of")));
@@ -488,7 +456,6 @@ fn execute(
         status,
         limited,
         memory_limited,
-        storage_failed,
         timeout_hit,
         cancelled,
         events,
@@ -657,7 +624,6 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             &mut plan,
             display,
             args.no_progress,
-            args.memory_mib.unwrap_or(3072),
         );
         let outcome = match outcome {
             Ok(outcome) => outcome,
@@ -695,7 +661,6 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             checking.session = outcome.events.session.clone();
         }
         if !outcome.status.success()
-            && !outcome.storage_failed
             && !outcome.cancelled
             && !outcome.timeout_hit
             && storage_errors == 0
@@ -720,9 +685,6 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             } else if outcome.timeout_hit {
                 incomplete = Some(report::Outcome::TimeLimit);
                 display.message("The total time limit was reached. Checking is incomplete.");
-            } else if outcome.storage_failed {
-                incomplete = Some(report::Outcome::StorageFailure);
-                display.message("Could not reserve heap spill storage. Check free space and the spill filesystem. Checking is incomplete.");
             } else if outcome.limited {
                 incomplete = Some(report::Outcome::MemoryLimit);
                 display.message("The checking process exited due to insufficient memory or an external SIGKILL. No new checkpoint is available, so restarting has stopped. Checking is incomplete.");
@@ -746,7 +708,6 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             }
             Err(error) => return Err(error).context("worker did not finish its report"),
         };
-        resources.heap_pageout_requested_bytes += summary.execution.heap_pageout_requested_bytes;
         if summary.outcome == report::Outcome::InternalError {
             bail!("verification worker failed internally");
         }
@@ -946,7 +907,6 @@ mod tests {
                 },
                 &display,
                 true,
-                0,
             )
             .unwrap();
             assert!(!outcome.status.success());

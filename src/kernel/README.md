@@ -97,10 +97,9 @@ The native resident page budget defaults to 128 MiB and can be changed through `
 
 Session persistence appends finalized pages to the `GraphStore` supplied by `with_graph_store`, reusing references to existing pages.
 Checkpoints retain page references, live bitmaps, expression properties, and interning indices; bodies are read on demand.
-Temporary spilling uses session-specific files with read/write buffers limited to 64 KiB.
-The CLI places spill files on the cache filesystem and releases temporary copies once all checkpoint pages have been saved as immutable objects.
-`REF_TYPE_GRAPH_SPILL_DIR` selects the spill directory; outside the CLI, the OS temporary directory is the default.
-WebAssembly keeps data in memory without file spilling.
+Eviction writes pages directly to the supplied `GraphStore`; the semantic database supplies the `refcache` object store.
+The same immutable pages are reused by checkpoints and protected by cache leases and garbage collection.
+Without a graph store, nodes remain in memory.
 
 Structural traversal with binders is centralized in `Arena::map_children`.
 The environment shares inference, weak-head reduction, conversion, contexts, type shifting, and simultaneous substitution; `cache_counts` reports entry counts.

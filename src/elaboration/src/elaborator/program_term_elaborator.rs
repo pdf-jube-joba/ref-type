@@ -53,7 +53,6 @@ struct ProgramMeta {
 
 #[derive(Debug, Clone)]
 enum ProgramConstraint {
-    #[allow(dead_code)] // Retained for explicit solver diagnostics and debug tests.
     Equal(Term, Term),
     HasType(Term, Term),
 }

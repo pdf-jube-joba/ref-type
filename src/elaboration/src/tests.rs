@@ -261,9 +261,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
             state_ty: state_with_hole,
             result_ty: state_ty,
         });
-        let inferred = metas
-            .infer_sort(&env, env.root_module(), &mut context, run_step)
-            .unwrap();
+        let inferred = metas.infer_sort(&env, &mut context, run_step).unwrap();
         assert_eq!(inferred, Sort::Set(level));
         assert!(metas.contains_unsolved(&env, run_step));
     }

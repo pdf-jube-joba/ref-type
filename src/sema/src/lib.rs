@@ -13,6 +13,7 @@ pub mod artifact_store;
 mod cache;
 mod database;
 mod graph;
+mod graph_store;
 mod package_inputs;
 mod parsing;
 mod progress;
@@ -29,5 +30,3 @@ pub use elaboration::DiagnosticMode;
 pub use timing;
 
 pub mod error;
-
-pub use elaboration::{request_collection, set_allocator_collection};

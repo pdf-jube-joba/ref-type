@@ -60,6 +60,6 @@ Imports containing local variables share specialized declarations and namespaces
 `import_artifact` publishes the environment and catalog after ID reservation, relocation, and validation.
 `import_artifact_owned` consumes the checker and catalog and discards both on failure.
 `append_selected_with_checkpoints` processes unchecked steps in selected modules and their parents.
-`export_resume_for_input` / `import_resume` restore the checking position; `import_resume_owned` is the consuming variant.
+`export_resume` / `import_resume` preserve and restore the checking position; `import_resume_owned` is the consuming variant.
 `append_selected_with_artifact_checkpoints` saves package deltas directly from a borrowed environment.
 Before saving large environments, recomputable checking caches are released to make room for encoding buffers.

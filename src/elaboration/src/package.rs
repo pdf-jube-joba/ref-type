@@ -123,17 +123,6 @@ impl PackageChecker {
         self.resolution.contains_package(name)
     }
 
-    /// Resolve declarations without marking any type-checking step complete.
-    pub fn append_resolution(&mut self, module: &Module) -> Result<(), crate::Diagnostic> {
-        self.workspace.release_resolution_tables();
-        let project = self
-            .resolution
-            .append(module)
-            .map_err(crate::Diagnostic::resolution)?;
-        self.steps = project.order.len();
-        Ok(())
-    }
-
     pub fn append_resolution_selected(
         &mut self,
         module: &Module,
@@ -344,7 +333,6 @@ impl PackageChecker {
         };
         let progress = std::cell::RefCell::new(&mut progress);
         let mut saved_at = Instant::now();
-        let mut minimum_save_spacing = Duration::ZERO;
         let mut observed_at = Instant::now();
         let result = checker
             .workspace
@@ -355,7 +343,6 @@ impl PackageChecker {
                 &selected,
                 &mut |steps, workspace| {
                     completed.insert(steps - 1);
-                    let pressure = kernel::resources::take_collection_request();
                     let caches: usize = workspace
                         .crate_env
                         .cache_counts()
@@ -370,13 +357,10 @@ impl PackageChecker {
                             .iter()
                             .map(|(_, count)| count)
                             .sum::<usize>();
-                    if pressure || caches > 262_144 {
+                    if caches > 262_144 {
                         workspace.crate_env.clear_judgements();
                         let _ = workspace.crate_env.arena().core.trim();
                         timing::costs::count("session.collections", || 1);
-                        if pressure {
-                            kernel::resources::collect_allocator();
-                        }
                     }
                     if observed_at.elapsed() >= Duration::from_secs(10)
                         && std::env::var_os("REF_TYPE_PROFILE_STORAGE").is_some()
@@ -395,14 +379,7 @@ impl PackageChecker {
                     if steps == end
                         || !boundaries.contains(&steps)
                         || interval.is_none()
-                        || interval.is_none_or(|period| {
-                            let spacing = if pressure {
-                                minimum_save_spacing
-                            } else {
-                                period
-                            };
-                            saved_at.elapsed() < spacing
-                        })
+                        || interval.is_none_or(|period| saved_at.elapsed() < period)
                     {
                         return;
                     }
@@ -412,7 +389,6 @@ impl PackageChecker {
                         workspace,
                         completed.len(),
                     ))));
-                    let started = Instant::now();
                     if workspace.crate_env.arena().core.len()
                         + workspace.crate_env.namespace_entry_count()
                         > 500_000
@@ -453,13 +429,6 @@ impl PackageChecker {
                         progress.borrow_mut()(PackageProgress::Checkpoint { steps, bytes });
                         failed
                     };
-                    let cost = started.elapsed();
-                    // Persistent pressure also arrives while serializing. Keep
-                    // collection immediate, but do not let these signals cause
-                    // another expensive save at the very next boundary. Honor
-                    // the configured interval even when snapshots are costly.
-                    minimum_save_spacing = interval
-                        .map_or(Duration::ZERO, |period| cost.saturating_mul(10).min(period));
                     // A growing environment will not fit again after hitting the budget.
                     if failed {
                         interval = None;

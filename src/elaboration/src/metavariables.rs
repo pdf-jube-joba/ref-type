@@ -5,7 +5,7 @@ use crate::{
     raw::{
         environment::CrateEnv,
         exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
-        ids::{InductiveId, MetaVarId, ModuleId},
+        ids::{InductiveId, MetaVarId},
         sort::Sort,
         utils::{assoc_apply, decompose_app},
     },
@@ -249,12 +249,11 @@ impl MetaStore {
         expected: Exp,
     ) -> Result<(), crate::error::Error> {
         let context = self.current_context.clone();
-        self.check_pts(env, env.root_module(), &mut context.clone(), term, expected)
+        self.check_pts(env, &mut context.clone(), term, expected)
     }
     pub(crate) fn check_pts(
         &mut self,
         env: &CrateEnv,
-        _module: ModuleId,
         context: &mut ExpContext,
         term: Exp,
         expected: Exp,
@@ -288,7 +287,6 @@ impl MetaStore {
     pub(crate) fn infer_pts(
         &mut self,
         env: &CrateEnv,
-        _module: ModuleId,
         context: &mut ExpContext,
         term: Exp,
     ) -> Result<Exp, crate::error::Error> {
@@ -308,7 +306,6 @@ impl MetaStore {
     pub(crate) fn infer_sort(
         &mut self,
         env: &CrateEnv,
-        module: ModuleId,
         context: &mut ExpContext,
         term: Exp,
     ) -> Result<Sort, crate::error::Error> {
@@ -322,7 +319,7 @@ impl MetaStore {
             });
             Ok(())
         })?;
-        let ty = self.infer_pts(env, module, context, term)?;
+        let ty = self.infer_pts(env, context, term)?;
         match env.arena().get(self.zonk(env, ty)) {
             ExpNode::Sort(sort) => Ok(sort),
             ExpNode::Meta { .. } => Ok(Sort::Set(0)),

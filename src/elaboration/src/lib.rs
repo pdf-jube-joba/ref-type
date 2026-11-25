@@ -48,5 +48,3 @@ pub use package::{
 };
 
 pub use kernel::graph_store::{GraphStore, with_graph_store};
-
-pub use kernel::resources::{request_collection, set_allocator_collection};

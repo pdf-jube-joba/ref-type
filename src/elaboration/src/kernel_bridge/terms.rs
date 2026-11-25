@@ -42,6 +42,7 @@ pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp 
     .expect("valid reindexing"))
 }
 
+#[cfg(test)]
 pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     kernel::calculus::alpha_equal(&env.arena().core, left.0, right.0)
 }
@@ -67,12 +68,11 @@ pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
             .expect("resolved normalization"),
     )
 }
-#[allow(dead_code)] // Retained for kernel debugging and regression tests.
+#[cfg(test)]
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     resolved_convertible(env, left, right).unwrap_or(false)
 }
-/// Only resolved kernel comparisons are stable enough to retain across imports.
-/// An expression that cannot yet be registered must be retried later.
+#[cfg(test)]
 pub(crate) fn resolved_convertible(env: &CrateEnv, left: Exp, right: Exp) -> Option<bool> {
     if exp_is_alpha_eq(env, left, right) {
         return Some(true);
@@ -81,7 +81,8 @@ pub(crate) fn resolved_convertible(env: &CrateEnv, left: Exp, right: Exp) -> Opt
     let right = crate::kernel_bridge::expression(env, Term::Logical(right), |_, e| Ok(e)).ok()?;
     kernel::reduction::convertible(&env.kernel.borrow(), left, right).ok()
 }
-fn conversion(env: &CrateEnv, left: Exp, right: Exp, erase: bool) -> bool {
+#[cfg(test)]
+pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     if exp_is_alpha_eq(env, left, right) {
         return true;
     }
@@ -89,19 +90,11 @@ fn conversion(env: &CrateEnv, left: Exp, right: Exp, erase: bool) -> bool {
     let right = crate::kernel_bridge::expression(env, Term::Logical(right), |_, e| Ok(e));
     match (left, right) {
         (Ok(left), Ok(right)) => {
-            if erase {
-                kernel::reduction::erased_convertible(&env.kernel.borrow(), left, right)
-                    .unwrap_or(false)
-            } else {
-                kernel::reduction::convertible(&env.kernel.borrow(), left, right).unwrap_or(false)
-            }
+            kernel::reduction::erased_convertible(&env.kernel.borrow(), left, right)
+                .unwrap_or(false)
         }
         _ => false,
     }
-}
-#[allow(dead_code)] // Retained for kernel debugging and regression tests.
-pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    conversion(env, left, right, true)
 }
 pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
     whnf(env, ty)

@@ -92,9 +92,6 @@ impl PackageExport {
             })
             .collect()
     }
-    pub fn module_count(&self) -> usize {
-        self.scopes.len()
-    }
     pub fn order(&self) -> &[CheckStep] {
         &self.data.order
     }
@@ -295,9 +292,14 @@ impl Session {
         let mut scopes = Vec::new();
         let mut scope_macros = Vec::new();
         let mut definitions = HashMap::new();
-        for index in boundary.counters[0] as usize..r.scopes.len() {
+        for (index, scope) in r
+            .scopes
+            .iter()
+            .enumerate()
+            .skip(boundary.counters[0] as usize)
+        {
             let id = ModuleId(index as u32);
-            let mut scope = r.scopes[index].clone();
+            let mut scope = scope.clone();
             let macros = std::mem::take(&mut scope.macros);
             let used = std::mem::take(&mut scope.used);
             for binding in macros.iter().chain(&used) {

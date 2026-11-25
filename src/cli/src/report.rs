@@ -28,8 +28,6 @@ pub struct Execution {
     pub peak_virtual_kib: u64,
     pub cpu_micros: u64,
     pub elapsed_micros: u64,
-    pub collection_requests: u64,
-    pub heap_pageout_requested_bytes: u64,
     pub source_steps: u64,
     pub duplicate_source_steps: u64,
     pub replayed_source_steps: u64,
@@ -43,7 +41,6 @@ impl Execution {
         self.peak_rss_kib = self.peak_rss_kib.max(other.peak_rss_kib);
         self.peak_virtual_kib = self.peak_virtual_kib.max(other.peak_virtual_kib);
         self.cpu_micros += other.cpu_micros;
-        self.collection_requests += other.collection_requests;
         if other.last_module.is_some() {
             self.last_module.clone_from(&other.last_module);
         }

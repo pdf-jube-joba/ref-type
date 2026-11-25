@@ -341,11 +341,6 @@ impl ArtifactStore {
     pub fn record_input_mismatch(&self) {
         self.stats.lock().unwrap().input_mismatches += 1;
     }
-    pub fn record_export_failure(&self, message: impl std::fmt::Display) {
-        let mut stats = self.stats.lock().unwrap();
-        stats.save_failures += 1;
-        stats.last_save_error = Some(message.to_string());
-    }
     pub fn record_relocation(&self, elapsed: Duration) {
         self.stats.lock().unwrap().relocation_time += elapsed;
     }

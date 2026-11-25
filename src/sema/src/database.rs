@@ -71,11 +71,7 @@ impl Database {
             ..Self::default()
         }
     }
-    pub fn read_snapshot(
-        &self,
-        entry: impl AsRef<Path>,
-        _reuse_dependency_sources: bool,
-    ) -> Result<SourceSnapshot, project::Error> {
+    pub fn read_snapshot(&self, entry: impl AsRef<Path>) -> Result<SourceSnapshot, project::Error> {
         let _cost = timing::costs::Scope::enter("source.snapshot");
         SourceSnapshot::read_with_source_cache(entry, &mut self.sources.borrow_mut())
     }
@@ -528,6 +524,10 @@ impl Database {
                 misses.insert(index);
             }
         }
+        let pages = self
+            .disk
+            .as_ref()
+            .map(|disk| crate::graph_store::GraphPages::new(disk.shared_store()));
         let mut pending = graph.closure(misses.iter().copied());
         let mut recovering = false;
         let mut recovery_environments = EnvironmentCache::default();
@@ -630,7 +630,14 @@ impl Database {
                                 eprintln!("restoring environment at {position}");
                             }
                             if let Some(restored) =
-                                bytes.as_deref().and_then(Checker::restore_environment)
+                                bytes.as_deref().and_then(|bytes| match &pages {
+                                    Some(pages) => {
+                                        elaboration::with_graph_store(pages.clone(), || {
+                                            Checker::restore_environment(bytes)
+                                        })
+                                    }
+                                    None => Checker::restore_environment(bytes),
+                                })
                             {
                                 workspace = restored;
                                 start = position;
@@ -660,41 +667,47 @@ impl Database {
                     let checkpoints = plan.save_points();
                     progress.begin_batch(&plan.steps, start, end, &selected_steps);
                     progress.phase(ProgressPhase::Checking);
-                    let checked = workspace.check_range_with_progress(
-                        project,
-                        start,
-                        end,
-                        &selected_steps,
-                        &checkpoints,
-                        |position, bytes| match bytes {
-                            Ok(bytes) => {
-                                let key = plan
-                                    .checkpoints
-                                    .iter()
-                                    .find(|(step, _)| *step == position)
-                                    .unwrap()
-                                    .1;
-                                if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
-                                    eprintln!(
-                                        "environment checkpoint {position}: {} bytes",
-                                        bytes.len()
-                                    );
+                    let mut check = || {
+                        workspace.check_range_with_progress(
+                            project,
+                            start,
+                            end,
+                            &selected_steps,
+                            &checkpoints,
+                            |position, bytes| match bytes {
+                                Ok(bytes) => {
+                                    let key = plan
+                                        .checkpoints
+                                        .iter()
+                                        .find(|(step, _)| *step == position)
+                                        .unwrap()
+                                        .1;
+                                    if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
+                                        eprintln!(
+                                            "environment checkpoint {position}: {} bytes",
+                                            bytes.len()
+                                        );
+                                    }
+                                    saved.insert(key, bytes.into());
                                 }
-                                saved.insert(key, bytes.into());
-                            }
-                            Err(_) => self.stats.environment_skips += 1,
-                        },
-                        |event| match event {
-                            elaboration::CheckStepProgress::Started(position) => {
-                                progress.start_step(position)
-                            }
-                            elaboration::CheckStepProgress::Finished {
-                                position,
-                                elapsed,
-                                success,
-                            } => progress.step(position, elapsed, success),
-                        },
-                    );
+                                Err(_) => self.stats.environment_skips += 1,
+                            },
+                            |event| match event {
+                                elaboration::CheckStepProgress::Started(position) => {
+                                    progress.start_step(position)
+                                }
+                                elaboration::CheckStepProgress::Finished {
+                                    position,
+                                    elapsed,
+                                    success,
+                                } => progress.step(position, elapsed, success),
+                            },
+                        )
+                    };
+                    let checked = match &pages {
+                        Some(pages) => elaboration::with_graph_store(pages.clone(), check),
+                        None => check(),
+                    };
                     progress.finish_batch();
                     checked
                 }
@@ -716,7 +729,13 @@ impl Database {
                     && !((options.force || options.collect_statistics) && self.disk.is_none())
                 {
                     if let Some(disk) = &self.disk {
-                        match disk.write_environment(&key, &bytes) {
+                        match disk.write_environment(
+                            &key,
+                            &bytes,
+                            pages
+                                .as_ref()
+                                .map_or_else(Vec::new, |pages| pages.references()),
+                        ) {
                             Ok(()) => self.stats.environment_writes += 1,
                             Err(_) => self.stats.cache_write_failures += 1,
                         }

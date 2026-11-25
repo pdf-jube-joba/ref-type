@@ -110,7 +110,12 @@ impl DiskCache {
         self.store.read_object(manifest.environment.as_ref()?).ok()
     }
 
-    pub fn write_environment(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
+    pub fn write_environment(
+        &self,
+        key: &Fingerprint,
+        payload: &[u8],
+        graph: Vec<crate::artifact_store::ObjectRef>,
+    ) -> Result<(), CacheError> {
         let object = self
             .store
             .write_object(crate::artifact_store::ObjectKind::Environment, payload)?;
@@ -118,6 +123,7 @@ impl DiskCache {
             key: *key,
             input: *key,
             environment: Some(object),
+            graph,
             ..Default::default()
         })
     }

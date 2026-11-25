@@ -3,12 +3,11 @@
 use crate::syntax::{Expression, Node};
 use rustc_hash::FxHashMap;
 use std::{
-    io::{self, Read, Seek, SeekFrom, Write},
+    io,
     rc::{Rc, Weak},
 };
 
 const PAGE_NODES: usize = 2048;
-const IO_BUFFER: usize = 64 * 1024;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StoreStats {
@@ -29,7 +28,6 @@ pub struct StoreStats {
 #[derive(Debug, Default)]
 struct Page {
     nodes: Option<Vec<Option<Node>>>,
-    saved: Option<(u64, u64)>,
     external: Option<(Rc<dyn crate::graph_store::GraphStore>, Vec<u8>)>,
     bytes: usize,
     recent: bool,
@@ -41,8 +39,7 @@ pub(crate) struct NodeStore {
     live: Vec<bool>,
     pins: FxHashMap<Expression, Weak<Node>>,
     hot: crate::sharing::Cache<usize, Rc<Node>, { 1 << 15 }>,
-    file: Option<std::fs::File>,
-    backing_path: Option<std::path::PathBuf>,
+    store: Option<Rc<dyn crate::graph_store::GraphStore>>,
     budget: usize,
     clock: usize,
     stats: StoreStats,
@@ -55,8 +52,7 @@ impl Default for NodeStore {
             live: Vec::new(),
             pins: FxHashMap::default(),
             hot: Default::default(),
-            file: None,
-            backing_path: None,
+            store: crate::graph_store::current(),
             budget: if cfg!(target_arch = "wasm32") {
                 usize::MAX
             } else {
@@ -107,75 +103,19 @@ impl NodeStore {
         self.budget = bytes.max(1024 * 1024);
     }
 
-    fn backing(&mut self) -> io::Result<&mut std::fs::File> {
-        if self.file.is_none() {
-            #[cfg(target_arch = "wasm32")]
-            return Err(io::Error::other(
-                "expression paging requires a native filesystem",
-            ));
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                use std::sync::atomic::{AtomicU64, Ordering};
-                static NEXT: AtomicU64 = AtomicU64::new(0);
-                loop {
-                    let directory = std::env::var_os("REF_TYPE_GRAPH_SPILL_DIR")
-                        .map(std::path::PathBuf::from)
-                        .unwrap_or_else(std::env::temp_dir);
-                    let path = directory.join(format!(
-                        "ref-type-nodes-{}-{}",
-                        std::process::id(),
-                        NEXT.fetch_add(1, Ordering::Relaxed)
-                    ));
-                    match std::fs::OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .create_new(true)
-                        .open(&path)
-                    {
-                        Ok(file) => {
-                            // The live file descriptor owns the temporary store.
-                            #[cfg(unix)]
-                            std::fs::remove_file(&path)?;
-                            #[cfg(not(unix))]
-                            {
-                                self.backing_path = Some(path);
-                            }
-                            self.file = Some(file);
-                            break;
-                        }
-                        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-                        Err(error) => return Err(error),
-                    }
-                }
-            }
-        }
-        Ok(self.file.as_mut().expect("opened expression store"))
-    }
-
     fn load(&mut self, page: usize) -> io::Result<()> {
         if self.pages[page].nodes.is_some() {
             self.pages[page].recent = true;
             return Ok(());
         }
-        let (mut nodes, length): (Vec<Option<Node>>, u64) =
-            if let Some((store, reference)) = &self.pages[page].external {
-                let bytes = store.read(reference)?;
-                let nodes = postcard::from_bytes(&bytes).map_err(io::Error::other)?;
-                (nodes, bytes.len() as u64)
-            } else {
-                let (offset, length) = self.pages[page]
-                    .saved
-                    .ok_or_else(|| io::Error::other("missing expression page"))?;
-                let file = self.backing()?;
-                file.seek(SeekFrom::Start(offset))?;
-                let mut buffer = [0; IO_BUFFER];
-                let (nodes, _): (Vec<Option<Node>>, _) = postcard::from_io((
-                    std::io::BufReader::with_capacity(IO_BUFFER, file.take(length)),
-                    &mut buffer,
-                ))
-                .map_err(io::Error::other)?;
-                (nodes, length)
-            };
+        let (store, reference) = self.pages[page]
+            .external
+            .as_ref()
+            .ok_or_else(|| io::Error::other("missing expression page"))?;
+        let bytes = store.read(reference)?;
+        let length = bytes.len() as u64;
+        let mut nodes: Vec<Option<Node>> =
+            postcard::from_bytes(&bytes).map_err(io::Error::other)?;
         if nodes.len() > PAGE_NODES {
             return Err(io::Error::other("invalid expression page length"));
         }
@@ -206,9 +146,15 @@ impl NodeStore {
     }
 
     pub fn trim(&mut self, protected: Option<usize>) -> io::Result<()> {
+        if let Some(store) = crate::graph_store::current() {
+            self.store = Some(store);
+        }
         if protected.is_none() {
             self.pins.retain(|_, node| node.strong_count() > 0);
         }
+        let Some(store) = self.store.clone() else {
+            return Ok(());
+        };
         let mut attempts = 0;
         while self.stats.resident_bytes > self.budget && attempts < self.pages.len() * 2 {
             let index = self.clock % self.pages.len();
@@ -225,17 +171,12 @@ impl NodeStore {
                 self.pages[index].recent = false;
                 continue;
             }
-            if self.pages[index].saved.is_none() && self.pages[index].external.is_none() {
-                let file = self.backing()?;
-                let offset = file.seek(SeekFrom::End(0))?;
-                let file = self.file.as_mut().unwrap();
-                let mut writer = std::io::BufWriter::with_capacity(IO_BUFFER, file);
-                postcard::to_io(&self.pages[index].nodes.as_ref().unwrap(), &mut writer)
+            if self.pages[index].external.is_none() {
+                let bytes = postcard::to_stdvec(self.pages[index].nodes.as_ref().unwrap())
                     .map_err(io::Error::other)?;
-                writer.flush()?;
-                let end = writer.stream_position()?;
-                self.pages[index].saved = Some((offset, end - offset));
-                self.stats.stored_bytes += end - offset;
+                let reference = store.write(&bytes)?;
+                self.pages[index].external = Some((store.clone(), reference));
+                self.stats.stored_bytes += bytes.len() as u64;
             }
             let page = &mut self.pages[index];
             page.nodes = None;
@@ -262,7 +203,6 @@ impl NodeStore {
         self.live.push(node.is_some());
         let page = &mut self.pages[page];
         page.nodes.as_mut().unwrap().push(node);
-        page.saved = None;
         page.external = None;
         page.bytes += size;
         self.stats.resident_bytes += size;
@@ -347,7 +287,6 @@ impl NodeStore {
                 .as_mut()
                 .unwrap()
                 .truncate(length % PAGE_NODES);
-            self.pages[page].saved = None;
             self.pages[page].external = None;
         }
         Ok(())
@@ -374,6 +313,7 @@ impl NodeStore {
         &mut self,
         store: Rc<dyn crate::graph_store::GraphStore>,
     ) -> io::Result<StoredNodes> {
+        self.store = Some(store.clone());
         let identity = store.identity();
         let mut references = Vec::with_capacity(self.pages.len());
         for index in 0..self.pages.len() {
@@ -395,15 +335,6 @@ impl NodeStore {
             };
             references.push(reference);
         }
-        // Every page now has an immutable object. Retire the temporary copy;
-        // a later append starts a fresh spill file for newly produced pages.
-        drop(self.file.take());
-        if let Some(path) = self.backing_path.take() {
-            std::fs::remove_file(path)?;
-        }
-        for page in &mut self.pages {
-            page.saved = None;
-        }
         Ok(StoredNodes {
             pages: references,
             live: self.live.clone(),
@@ -420,26 +351,19 @@ impl NodeStore {
         for reference in &saved.pages {
             store.retain(reference)?;
         }
-        let mut result = Self::default();
-        result.pages = saved
-            .pages
-            .into_iter()
-            .map(|reference| Page {
-                external: Some((store.clone(), reference)),
-                ..Page::default()
-            })
-            .collect();
-        result.live = saved.live;
-        Ok(result)
-    }
-}
-
-impl Drop for NodeStore {
-    fn drop(&mut self) {
-        if let Some(path) = &self.backing_path {
-            drop(self.file.take());
-            let _ = std::fs::remove_file(path);
-        }
+        Ok(Self {
+            pages: saved
+                .pages
+                .into_iter()
+                .map(|reference| Page {
+                    external: Some((store.clone(), reference)),
+                    ..Page::default()
+                })
+                .collect(),
+            live: saved.live,
+            store: Some(store),
+            ..Self::default()
+        })
     }
 }
 
@@ -469,8 +393,20 @@ mod tests {
     }
 
     #[test]
-    fn eviction_and_incremental_snapshots_preserve_live_handles_and_pins() {
+    fn without_a_store_nodes_remain_in_memory() {
         let mut nodes = NodeStore::default();
+        nodes.set_budget(1024 * 1024);
+        for index in 0..PAGE_NODES * 16 {
+            nodes.push(Some(Node::Bound(index))).unwrap();
+        }
+        assert_eq!(nodes.stats().evictions, 0);
+        assert_eq!(*nodes.get(7).unwrap().unwrap(), Node::Bound(7));
+    }
+
+    #[test]
+    fn eviction_and_incremental_snapshots_preserve_live_handles_and_pins() {
+        let store = Rc::new(MemoryPages::default());
+        let mut nodes = crate::graph_store::with_graph_store(store.clone(), NodeStore::default);
         nodes.set_budget(1024 * 1024);
         for index in 0..PAGE_NODES * 16 {
             nodes.push(Some(Node::Bound(index))).unwrap();
@@ -479,7 +415,6 @@ mod tests {
         assert_eq!(*pinned, Node::Bound(7));
         assert!(nodes.stats().evictions > 0);
         assert!(nodes.stats().resident_bytes < 2 * 1024 * 1024);
-        let store = Rc::new(MemoryPages::default());
         let first = nodes.snapshot(store.clone()).unwrap();
         let writes = store.0.borrow().len();
         nodes.snapshot(store.clone()).unwrap();

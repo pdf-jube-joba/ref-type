@@ -316,13 +316,7 @@ impl GlobalEnvironment {
                             &substitutions,
                         );
                         self.metavariables
-                            .check_pts(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                context,
-                                exp,
-                                expected,
-                            )
+                            .check_pts(&self.crate_env, context, exp, expected)
                             .map_err(|message| {
                                 if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
                                     eprintln!(
@@ -464,12 +458,7 @@ impl GlobalEnvironment {
                     Ok(mut pts_ty) => {
                         if !self.metavariables.is_empty() {
                             self.metavariables
-                                .infer_sort(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    pts_ty,
-                                )
+                                .infer_sort(&self.crate_env, &mut ctx, pts_ty)
                                 .map_err(|message| {
                                     self.metavariables
                                         .constraint_error(&self.crate_env, message)

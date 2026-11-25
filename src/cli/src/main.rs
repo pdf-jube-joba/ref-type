@@ -1,47 +1,11 @@
 mod progress;
 mod report;
-mod resources;
 #[cfg(target_os = "linux")]
 mod supervisor;
 
 use anyhow::Context;
 use clap::Parser;
 use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
-
-#[cfg(not(any(
-    feature = "system-allocator",
-    feature = "large-allocation-profile",
-    feature = "small-allocation-profile"
-)))]
-#[global_allocator]
-#[cfg(not(target_os = "linux"))]
-static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
-#[cfg(all(
-    target_os = "linux",
-    not(any(
-        feature = "system-allocator",
-        feature = "large-allocation-profile",
-        feature = "small-allocation-profile"
-    ))
-))]
-mod spill_allocator;
-#[cfg(all(
-    target_os = "linux",
-    not(any(
-        feature = "system-allocator",
-        feature = "large-allocation-profile",
-        feature = "small-allocation-profile"
-    ))
-))]
-#[global_allocator]
-static ALLOCATOR: spill_allocator::SpillAllocator = spill_allocator::SpillAllocator;
-
-#[cfg(any(
-    feature = "large-allocation-profile",
-    feature = "small-allocation-profile"
-))]
-mod allocation_profile;
 
 thread_local! {
     static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
@@ -60,9 +24,6 @@ struct Args {
     #[arg(long)]
     #[serde(default)]
     save_source_snapshot: Option<PathBuf>,
-    /// Resident memory target in MiB for automatic paging (Linux default: 3072; 0 leaves reclamation to the OS)
-    #[arg(long)]
-    memory_mib: Option<u64>,
     /// Time limit for the entire check in seconds (unlimited if omitted)
     #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
     time_limit_seconds: Option<u64>,
@@ -134,23 +95,10 @@ enum DiagnosticMode {
 }
 
 fn main() -> anyhow::Result<()> {
-    sema::set_allocator_collection(resources::collect_allocator);
     let timing = sema::timing::Session::start(true);
     let args = Args::parse();
     #[cfg(target_os = "linux")]
     let args = supervisor::worker_arguments(args)?;
-    // Resolve a backing location without decoding a potentially large source
-    // snapshot. Paging must already cover loading and supervisor preparation.
-    let spill_directory = args
-        .cache_dir
-        .clone()
-        .map_or_else(|| sema::default_cache_directory(&args.path), Ok)?;
-    resources::initialize(&spill_directory, args.memory_mib).with_context(|| {
-        format!(
-            "initialize heap spill storage near {}",
-            spill_directory.display()
-        )
-    })?;
     let timing = if args.no_progress || args.parse_only {
         drop(timing);
         sema::timing::Session::start(false)
@@ -241,7 +189,6 @@ fn main() -> anyhow::Result<()> {
         .as_ref()
         .cloned()
         .unwrap_or_else(|_| report::Report::internal_error());
-    summary.execution.heap_pageout_requested_bytes += resources::heap_pageout_requested_bytes();
     #[cfg(target_os = "linux")]
     if supervised && supervisor::interrupted() {
         summary.outcome = report::Outcome::Interrupted;
@@ -317,7 +264,7 @@ fn input_snapshot(
         );
         Ok(snapshot)
     } else {
-        Ok(database.read_snapshot(&args.path, args.full_check_local)?)
+        Ok(database.read_snapshot(&args.path)?)
     }
 }
 

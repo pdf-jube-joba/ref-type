@@ -106,6 +106,24 @@ impl FixtureDirectory {
         fs::write(&path, source).unwrap();
         path
     }
+
+    #[cfg(target_os = "linux")]
+    fn check_with_report(&self, entry: &Path, args: &[&str]) -> (Output, serde_json::Value) {
+        let report = self.0.join("report.json");
+        if report.exists() {
+            fs::remove_file(&report).unwrap();
+        }
+        let mut parameters = vec!["--no-progress", "--report-json", report.to_str().unwrap()];
+        parameters.extend_from_slice(args);
+        let output = run_ref_file_with_args(&self.0, entry, &parameters).unwrap();
+        let report = fs::read(&report).unwrap_or_else(|error| {
+            panic!(
+                "cannot read checker report: {error}\n{}",
+                output_details(&output)
+            )
+        });
+        (output, serde_json::from_slice(&report).unwrap())
+    }
 }
 
 impl Drop for FixtureDirectory {
@@ -175,6 +193,150 @@ fn uncached_check_preserves_non_utf8_source_identities() {
     let output =
         run_ref_file_with_args(&fixture.0, &path, &["--no-cache", "--no-progress"]).unwrap();
     assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn checkpoint_save_failures_are_reported_without_progress_and_can_be_repaired() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'storage'\n");
+    fixture.write(
+        "src/root.ref",
+        r"\module Main { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    let blocked = fixture.write("refcache/checkpoints", "blocked checkpoint directory");
+    let (output, report) = fixture.check_with_report(&fixture.0, &["--checkpoint-seconds", "0"]);
+    assert_eq!(output.status.code(), Some(2), "{}", output_details(&output));
+    assert_eq!(report["outcome"], "storage-failure");
+    assert!(report["storage"]["save_failures"].as_u64().unwrap() > 0);
+    assert!(
+        !report["storage"]["last_save_error"]
+            .as_str()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Failed to save checking results"));
+    fs::remove_file(blocked).unwrap();
+    let (output, report) =
+        fixture.check_with_report(&fixture.0, &["--full-check", "--checkpoint-seconds", "0"]);
+    assert!(output.status.success(), "{}", output_details(&output));
+    assert_eq!(report["outcome"], "accepted");
+    assert_eq!(report["storage"]["save_failures"], 0);
+}
+
+#[cfg(target_os = "linux")]
+fn checkpoint_fixture() -> FixtureDirectory {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'recovery'\n");
+    let source: String = (0..160)
+        .map(|index| {
+            format!("\\module M{index} {{ \\definition P: \\Prop := \\forall (P: \\Prop) -> P -> P; }}\n")
+        })
+        .collect();
+    fixture.write("src/root.ref", &source);
+    fixture
+}
+
+#[cfg(target_os = "linux")]
+enum CheckpointSignal {
+    InterruptSupervisor,
+    KillWorker,
+}
+
+#[cfg(target_os = "linux")]
+fn signal_after_checkpoint(
+    fixture: &FixtureDirectory,
+    args: &[&str],
+    signal: CheckpointSignal,
+) -> (std::process::ExitStatus, serde_json::Value) {
+    struct ProcessGuard(std::process::Child);
+    impl Drop for ProcessGuard {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+
+    let log = fixture.0.join("recovery.log");
+    let report = fixture.0.join("report.json");
+    let mut parent = ProcessGuard(
+        Command::new(env!("CARGO_BIN_EXE_cli"))
+            .arg(&fixture.0)
+            .args(["--no-progress", "--checkpoint-seconds", "0"])
+            .args(args)
+            .arg("--report-json")
+            .arg(&report)
+            .env("REF_TYPE_PROFILE_PROGRESS", "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(fs::File::create(&log).unwrap())
+            .spawn()
+            .unwrap(),
+    );
+    let started = Instant::now();
+    let mut signalled = false;
+    let status = loop {
+        let logs = fs::read_to_string(&log).unwrap();
+        if let Some(status) = parent.0.try_wait().unwrap() {
+            break status;
+        }
+        assert!(started.elapsed() < Duration::from_secs(60), "{logs}");
+        if !signalled && logs.contains("event=checkpoint-saved") {
+            let target = match signal {
+                CheckpointSignal::InterruptSupervisor => Some((parent.0.id(), libc::SIGINT)),
+                CheckpointSignal::KillWorker => {
+                    child_process(parent.0.id()).map(|pid| (pid, libc::SIGKILL))
+                }
+            };
+            if let Some((pid, signal)) = target {
+                signalled = unsafe { libc::kill(pid as i32, signal) } == 0;
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    };
+    assert!(
+        signalled,
+        "checker exited before interruption was exercised"
+    );
+    let report = fs::read(report).unwrap_or_else(|error| {
+        panic!(
+            "cannot read interrupted report: {error}\n{}",
+            fs::read_to_string(log).unwrap()
+        )
+    });
+    (status, serde_json::from_slice(&report).unwrap())
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn worker_termination_recovers_from_the_published_checkpoint() {
+    let fixture = checkpoint_fixture();
+    let (status, report) =
+        signal_after_checkpoint(&fixture, &["--full-check"], CheckpointSignal::KillWorker);
+    assert!(status.success(), "{report}");
+    assert_eq!(report["outcome"], "accepted");
+    let execution = &report["execution"];
+    assert!(execution["recoveries"].as_u64().unwrap() >= 1);
+    assert!(
+        execution["replayed_source_steps"].as_u64().unwrap()
+            <= execution["lost_steps"].as_u64().unwrap()
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn interrupted_check_resumes_its_checkpoint_and_reuses_completed_results() {
+    let fixture = checkpoint_fixture();
+    let (status, report) =
+        signal_after_checkpoint(&fixture, &[], CheckpointSignal::InterruptSupervisor);
+    assert_eq!(status.code(), Some(130), "{report}");
+    assert_eq!(report["outcome"], "interrupted");
+    let (output, report) = fixture.check_with_report(&fixture.0, &["--checkpoint-seconds", "0"]);
+    assert!(output.status.success(), "{}", output_details(&output));
+    assert_eq!(report["outcome"], "accepted");
+    assert!(report["checking"]["checkpoint_hits"].as_u64().unwrap() > 0);
+    let (output, report) = fixture.check_with_report(&fixture.0, &[]);
+    assert!(output.status.success(), "{}", output_details(&output));
+    assert_eq!(report["cache"]["verification_reused"], true);
 }
 
 #[cfg(target_os = "linux")]

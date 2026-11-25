@@ -1,8 +1,6 @@
 //! Reuse an entire checked prefix without relocating overlapping environments.
 use super::*;
-#[path = "graph_store.rs"]
-mod graph_store;
-use graph_store::GraphPages;
+use crate::graph_store::GraphPages;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 

@@ -3,9 +3,9 @@
 Run commands from the repository root.
 
 ```sh
-cargo run -p cli -- libs/std
-cargo run -p cli -- libs
-cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
+cargo run -p cli -- /path/to/package
+cargo run -p cli -- /path/to/workspace
+cargo run -p cli -- /path/to/package --module example.Main --diagnostics compact
 ```
 
 Inputs are package or workspace directories, or `.ref` files containing a root module.
@@ -22,7 +22,7 @@ A shared parent directory can define a workspace.
 
 ```toml
 [workspace]
-packages = ["std", "algebra/basic", "algebra/module_theory"]
+packages = ["std", "example"]
 ```
 
 A workspace input checks all members and their dependencies, including the root package if `[package]` is also present.
@@ -40,7 +40,6 @@ Outside a workspace, caches are stored in the input directory, or the parent dir
 | `--module NAME` | Check the specified module, its children, and declarations they reference |
 | `--module-only` | Check the module selected by `--module` itself and its references |
 | `--list-modules` | Print source module checking paths, one per line |
-| `--memory-mib N` | Linux resident memory target for paging; default: 3072 MiB; 0 leaves reclamation to the OS |
 | `--time-limit-seconds N` | Total Linux package-checking time limit; unlimited if omitted |
 | `--parse-only` | Parse sources and load external modules and packages |
 | `--save-source-snapshot PATH` | Save loaded sources and their original file identities as JSON |
@@ -72,33 +71,28 @@ Normal checks also verify dependencies' current contents.
 
 On Linux, one worker retains the package-checking session while a supervisor monitors resources and progress.
 The worker shares verified dependency declarations and namespaces and persists or spills expression graphs page by page.
-Standard Linux builds also map supervisor and worker heaps to temporary files.
-The OS can page source loading data, name-resolution tables, expression indices, and checkpoint save/restore data to disk without changing their addresses, reading them back on demand.
-At 80% of the resident memory target, cache collection is requested and background heap page reclamation begins.
-Checkpoint saving is also requested during package checking.
-The paging target is a reclamation threshold; checking continues through temporary overshoots.
-Heap paging also applies to standalone `.ref` inputs, `--parse-only`, `--list-modules`, and `--no-cache`.
-Spill files use the cache filesystem; if the cache is on tmpfs, a real disk under the working or executable directory is used instead.
-`REF_TYPE_GRAPH_SPILL_DIR` selects the spill directory.
-Disk space for spill storage is reserved at allocation time; the OS reclaims temporary files when the process exits.
-Insufficient disk space, filesystem failures, the OS OOM killer, or resource limits set by the launcher can prevent continuation.
-Builds with allocator profiling features use the allocator being measured.
+Expression pages evicted from RAM are written directly to `refcache/objects/` through the same store used by checkpoints.
+They use the store's checksums, leases, and garbage collection and are loaded again when needed.
+The expression-page RAM budget defaults to 128 MiB and is configurable with `REF_TYPE_GRAPH_RESIDENT_MIB`.
+This budget covers expression pages; it is not a limit on the process's total RAM.
+The CLI uses Rust's standard allocator.
 After abnormal termination, the same request resumes if a new checkpoint has been published.
 Published checkpoints are transferred to normal storage even on interruption.
 Explicit total time limits and user interruptions do not trigger automatic resumption.
 The source snapshot is fixed during execution; source changes require another run.
 The report's `source_steps` counts completed source-checking steps, `duplicate_source_steps` counts repeated checks within the run, and `lost_steps` counts progress beyond the checkpoint lost during recovery.
 Index size, resident page size, and spill volume in `checking.session.graph` are recorded separately from OS RSS and virtual memory.
-`execution.heap_pageout_requested_bytes` is the cumulative range of requested heap page reclamation, not actual spill volume or disk I/O.
 
-See the [reproduction benchmark](../benchmarks/heap_spill.py) for whole-heap paging.
+The [CLI integration tests](cli/tests/implementation.rs) cover cache publication failures and checkpoint recovery.
+The [graph-store test](sema/src/graph_store.rs) checks that evicted pages use `refcache` and survive cache collection.
 
 To check a saved version while continuing to edit, explicitly use a snapshot.
 Saved file identities and contents fix the check without copying sources to another directory, allowing unchanged dependency caches to be reused.
 
 ```sh
-cargo run -p cli -- libs/std --parse-only --save-source-snapshot work/std.json
-cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.Nat
+mkdir -p work
+cargo run -p cli -- /path/to/package --parse-only --save-source-snapshot work/source.json
+cargo run -p cli -- /path/to/package --source-snapshot work/source.json --module example.Main
 ```
 
 Use the same input location as when the snapshot was saved.
@@ -135,9 +129,9 @@ Diagnostics show locations, local contexts, required types, and constraints; `#0
 Compact diagnostics stop at the first error.
 
 ```sh
-RUST_LOG=ref_type::typing=debug cargo run -p cli -- libs/std --full-check
-RUST_LOG=ref_type::reduction=trace cargo run -p cli -- libs/std --full-check
-REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-cache
+RUST_LOG=ref_type::typing=debug cargo run -p cli -- /path/to/package --full-check
+RUST_LOG=ref_type::reduction=trace cargo run -p cli -- /path/to/package --full-check
+REF_TYPE_PROFILE_DECLARATIONS=1 cargo run -p cli -- /path/to/package --no-cache
 ```
 
 `RUST_LOG` overrides the default `--trace` filter.
@@ -159,15 +153,12 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_ENVIRONMENTS=1` | Checkpoint keys, restoration positions, and saved sizes |
 | `REF_TYPE_PROFILE_COSTS=1` | Inclusive/exclusive timings and cache statistics for nested operations |
 | `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | Progress reporting interval during cost profiling |
-| `REF_TYPE_PROFILE_LARGE_STACK=1` | Backtraces for allocations of at least 128 MiB with allocation profiling enabled |
 
 For the first three variables, `1` selects all entries; a name substring narrows the selection.
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` also selects compact diagnostics, but CLI settings take precedence.
 `REF_TYPE_PROFILE_COSTS` can also filter by prefixes such as `resolve.,namespace.,kernel.`.
 `inclusive_us` includes children; `exclusive_us` subtracts measured child time.
 Compare recursive work using `cost_group` exclusive time.
-Enable large-allocation backtraces with `cargo build -p cli --features large-allocation-profile`.
-Build without profiling features for normal verification.
 
 `resolve.total` / `resolve.package` measure name resolution and expansion; `namespace.*` measures instantiation and reuse decisions.
 `namespace.translation-failed.*` counts conversion failures during comparison; the first cause appears as `translation-failure sample=...`.
@@ -182,8 +173,8 @@ Use [benchmarks](../benchmarks/README.md) for detailed profiling, resource limit
 ```sh
 cargo build -p cli --locked
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
-  python3 benchmarks/bench.py run libs/algebra/homological/computations \
-  --cache-mode cold --seconds 180 --memory-mib 3072 --progress-seconds 15 \
+  python3 benchmarks/bench.py run /path/to/package \
+  --cache-mode cold --seconds 180 --progress-seconds 15 \
   --output benchmarks/runs/check/report.json
 ```
 
@@ -195,9 +186,12 @@ Peak RSS is the maximum for an individual process, including descendants.
 ```sh
 cargo build -p cli --locked
 python3 tests/tests.py
+python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s benchmarks -v
 cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
 The [acceptance tests](../tests/README.md) check Markdown sources and edit sequences for acceptance or rejection through exit codes.
+See [implementation dependencies](README.md) for crate responsibilities.
 Add `--offline` to Cargo commands if dependencies have already been downloaded.

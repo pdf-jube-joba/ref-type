@@ -186,29 +186,12 @@ impl SourceSnapshot {
     /// Capture source trees and path dependencies. A later edit on disk does
     /// not change this snapshot. Invalid syntax is reported by semantic queries.
     pub fn read(entry: impl AsRef<Path>) -> Result<Self, crate::error::Error> {
-        Self::read_with_dependency_cache(entry, |_, _| None)
-    }
-
-    /// Read every reachable dependency tree, including transitive dependencies.
-    /// The callback is a compatibility hook and cannot bypass source validation.
-    pub fn read_with_dependency_cache(
-        entry: impl AsRef<Path>,
-        mut cached: impl FnMut(&Self, &Path) -> Option<Self>,
-    ) -> Result<Self, crate::error::Error> {
-        Self::read_cached(entry, &mut SourceCache::default(), &mut cached)
+        Self::read_with_source_cache(entry, &mut SourceCache::default())
     }
 
     pub fn read_with_source_cache(
         entry: impl AsRef<Path>,
         cache: &mut SourceCache,
-    ) -> Result<Self, Error> {
-        Self::read_cached(entry, cache, &mut |_, _| None)
-    }
-
-    fn read_cached(
-        entry: impl AsRef<Path>,
-        cache: &mut SourceCache,
-        cached: &mut impl FnMut(&Self, &Path) -> Option<Self>,
     ) -> Result<Self, Error> {
         cache.next_generation();
         let mut snapshot = Self::new(entry);
@@ -242,18 +225,6 @@ impl SourceSnapshot {
             } else {
                 own.read_tree(&root, &mut BTreeSet::new(), cache)?;
             }
-            // Every reachable package is visited and checked against disk.
-            if root != snapshot.root_directory()
-                && let Some(saved) = cached(&own, &root)
-            {
-                for (path, source) in &mut own.files {
-                    if let Some(previous) = saved.files.get(path)
-                        && previous.source.text == source.source.text
-                    {
-                        *source = previous.clone();
-                    }
-                }
-            }
             snapshot.files.extend(own.files);
             snapshot.aliases.extend(own.aliases);
             if let Some(source) = snapshot.source(root.join("ref.toml"))
@@ -274,41 +245,6 @@ impl SourceSnapshot {
             }
         }
         Ok(snapshot)
-    }
-
-    /// Restrict a captured snapshot to one package and its path dependencies.
-    pub fn package_snapshot(&self, root: impl AsRef<Path>) -> Self {
-        let mut result = Self::new(root);
-        let mut pending = vec![result.entry.clone()];
-        let mut visited = BTreeSet::new();
-        while let Some(root) = pending.pop() {
-            let root = self.identity(root);
-            if !visited.insert(root.clone()) {
-                continue;
-            }
-            result.files.extend(
-                self.files
-                    .iter()
-                    .filter(|(path, _)| path.starts_with(&root))
-                    .map(|(path, source)| (path.clone(), source.clone())),
-            );
-            result.aliases.extend(
-                self.aliases
-                    .iter()
-                    .filter(|(_, identity)| identity.starts_with(&root))
-                    .map(|(path, identity)| (path.clone(), identity.clone())),
-            );
-            if let Some(source) = self.source(root.join("ref.toml"))
-                && let Ok(manifest) = crate::package_loader::parse_manifest(&root, &source.text)
-            {
-                pending.extend(
-                    manifest.package.iter().flat_map(|package| {
-                        package.dependencies.iter().map(|(_, path)| path.clone())
-                    }),
-                );
-            }
-        }
-        result
     }
 
     fn read_tree(
@@ -527,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn cached_dependency_snapshot_validates_transitive_sources() {
+    fn source_cache_validates_transitive_sources() {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
             "ref-type-source-validation-{}-{}",
@@ -545,12 +481,10 @@ mod tests {
             fs::write(root.join(name).join("ref.toml"), manifest).unwrap();
             fs::write(root.join(name).join("src/root.ref"), "\\module Original {}").unwrap();
         }
-        let before = SourceSnapshot::read(root.join("C")).unwrap();
+        let mut cache = SourceCache::default();
+        let before = SourceSnapshot::read_with_source_cache(root.join("C"), &mut cache).unwrap();
         fs::write(root.join("A/src/root.ref"), "\\module Changed {}").unwrap();
-        let after = SourceSnapshot::read_with_dependency_cache(root.join("C"), |_, path| {
-            Some(before.package_snapshot(path))
-        })
-        .unwrap();
+        let after = SourceSnapshot::read_with_source_cache(root.join("C"), &mut cache).unwrap();
         assert_eq!(
             after.source(root.join("A/src/root.ref")).unwrap().text,
             "\\module Changed {}"

@@ -2,6 +2,10 @@
 
 `python3 tests/tests.py` extracts sources from Markdown into temporary directories and checks whether the implementation accepts or rejects them.
 It uses the Python 3.11+ standard library.
+`documents.py` owns case models, Markdown parsing, validation, and discovery.
+`tests.py` owns temporary sources, checker processes, and result reporting.
+The runner invokes a prebuilt CLI independently of the benchmark tools.
+Its default binary is `target/debug/cli`, with `CARGO_TARGET_DIR` honored.
 
 ```sh
 cargo build -p cli --locked
@@ -10,6 +14,7 @@ python3 tests/tests.py tests/language --keep-failed
 python3 tests/tests.py --filter application_inference
 python3 tests/tests.py --list
 python3 tests/tests.py --command '/path/to/checker'
+python3 -m unittest discover -s tests -v
 ```
 
 `--command` accepts a command with arguments.
@@ -97,5 +102,8 @@ Specify expectations with `accept` or `reject`.
 Exit code 0 means acceptance; 1 means rejection.
 Other exit codes, crashes, and timeouts are test failures.
 Unknown settings, duplicate IDs, unclosed fences, and cases without sources are document errors.
+
+Rust unit and integration tests remain in their owning crates under `src/` and run with `cargo test --workspace --locked`.
+The benchmark tool tests run with `python3 -m unittest discover -s benchmarks -v`.
 
 See [libs](https://github.com/pdf-jube-joba/ref-type-libs/tree/main/libs) for mathematical definitions and proofs.

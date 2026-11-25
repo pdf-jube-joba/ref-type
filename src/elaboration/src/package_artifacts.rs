@@ -324,18 +324,6 @@ impl PackageChecker {
         }
         self.export_package_state(owner, input, boundary, catalog)
     }
-    pub fn export_resume_for_input(
-        &self,
-        owner: ArtifactOwner,
-        input: ArtifactOwner,
-        boundary: &ArtifactBoundary,
-        catalog: &mut ArtifactCatalog,
-    ) -> artifact::Result<PackageArtifact> {
-        if !self.pending {
-            return Err(Error("resume requires pending package".into()));
-        }
-        self.export_package_state(owner, input, boundary, catalog)
-    }
     fn export_package_state(
         &self,
         owner: ArtifactOwner,

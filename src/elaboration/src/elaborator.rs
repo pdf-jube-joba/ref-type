@@ -659,8 +659,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             for entry in &mut *ctx {
                 entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
             }
-            self.metavariables
-                .infer_pts(&self.crate_env, self.module_manager.current(), ctx, e)
+            self.metavariables.infer_pts(&self.crate_env, ctx, e)
         } else {
             CheckSession::new(&self.crate_env, ctx)
                 .infer_pts(e)
@@ -783,8 +782,7 @@ impl GlobalEnvironment {
         ctx: &mut ExpContext,
         term: Exp,
     ) -> Result<Exp, crate::error::Error> {
-        self.metavariables
-            .infer_pts(&self.crate_env, self.module_manager.current(), ctx, term)
+        self.metavariables.infer_pts(&self.crate_env, ctx, term)
     }
 
     /// Check a term against an expected type containing metavariables without
@@ -803,13 +801,8 @@ impl GlobalEnvironment {
             return Ok(());
         }
 
-        self.metavariables.check_pts(
-            &self.crate_env,
-            self.module_manager.current(),
-            ctx,
-            term,
-            expected,
-        )
+        self.metavariables
+            .check_pts(&self.crate_env, ctx, term, expected)
     }
 }
 

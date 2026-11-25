@@ -724,9 +724,6 @@ impl Arena {
     }
     pub fn alloc(&self, node: Node) -> Expression {
         let mut storage = self.0.borrow_mut();
-        if crate::resources::collection_requested() {
-            storage.nodes.set_budget(64 * 1024 * 1024);
-        }
         let hash = Storage::hash(&node);
         if let Some((previous, expression)) = storage.hot.get(&hash)
             && previous == &node

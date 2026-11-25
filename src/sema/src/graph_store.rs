@@ -5,7 +5,7 @@ use crate::{
 };
 use std::{cell::RefCell, collections::BTreeMap, io, rc::Rc, sync::Arc};
 
-pub(super) struct GraphPages {
+pub(crate) struct GraphPages {
     store: Arc<ArtifactStore>,
     references: RefCell<BTreeMap<Fingerprint, ObjectRef>>,
 }
@@ -17,19 +17,19 @@ impl std::fmt::Debug for GraphPages {
     }
 }
 impl GraphPages {
-    pub(super) fn new(store: Arc<ArtifactStore>) -> Rc<Self> {
+    pub(crate) fn new(store: Arc<ArtifactStore>) -> Rc<Self> {
         Rc::new(Self {
             store,
             references: RefCell::new(BTreeMap::new()),
         })
     }
-    pub(super) fn clear(&self) {
+    pub(crate) fn clear(&self) {
         self.references.borrow_mut().clear();
     }
-    pub(super) fn references(&self) -> Vec<ObjectRef> {
+    pub(crate) fn references(&self) -> Vec<ObjectRef> {
         self.references.borrow().values().cloned().collect()
     }
-    pub(super) fn validate(&self, references: &[ObjectRef]) -> Option<()> {
+    pub(crate) fn validate(&self, references: &[ObjectRef]) -> Option<()> {
         self.store
             .pin_objects(&references.iter().collect::<Vec<_>>())
             .ok()?;
@@ -80,5 +80,48 @@ impl elaboration::GraphStore for GraphPages {
             .borrow_mut()
             .insert(reference.digest, reference);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        fs,
+        path::PathBuf,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
+    struct Directory(PathBuf);
+    impl Drop for Directory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn pages_are_cached_before_checkpointing_and_survive_collection() {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let directory = Directory(std::env::temp_dir().join(format!(
+            "ref-type-paging-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        )));
+        let store = Arc::new(ArtifactStore::new(directory.0.join("refcache")));
+        let pages = GraphPages::new(store.clone());
+        let checker = elaboration::Checker::default();
+        let arena = checker.kernel_environment().arena().clone();
+        arena.set_resident_budget(1024 * 1024);
+        let expressions: Vec<_> = elaboration::with_graph_store(pages.clone(), || {
+            (0..32768).map(|index| arena.bound(index)).collect()
+        });
+        assert!(arena.store_stats().evictions > 0);
+        assert!(!pages.references().is_empty());
+        assert!(store.directory().join("objects").is_dir());
+        store.set_budget(0);
+        store.collect().unwrap();
+        let loads = arena.store_stats().loads;
+        let _loaded = arena.get(expressions[7]);
+        assert!(arena.store_stats().loads > loads);
     }
 }
