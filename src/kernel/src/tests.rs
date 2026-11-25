@@ -2200,6 +2200,19 @@ fn strengthening_reduces_only_dependencies_on_the_removed_binder() {
 }
 
 #[test]
+fn failed_product_congruence_does_not_assume_its_codomain_pair() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let set = sort(a, BaseSort::Set(0));
+    let hole = MetaContext::new().fresh(a, context(&env), Some(set));
+    let left = product(a, set, hole);
+    let right = product(a, set, a.bound(0));
+
+    assert!(!reduction::convertible(&env, left, right).unwrap());
+    assert!(!reduction::erased_convertible(&env, left, right).unwrap());
+}
+
+#[test]
 fn curried_conversion_preserves_argument_order_and_free_variables() {
     let env = Environment::new();
     let a = &env.arena;
