@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_RELEASE_STRIP: debuginfo
+  RUST_TOOLCHAIN: "1.100.0"
+  TARGET: x86_64-unknown-linux-gnu
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Test and package Linux CLI
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Validate release version
+        id: version
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import tomllib
+
+          manifest = tomllib.loads(Path("src/cli/Cargo.toml").read_text(encoding="utf-8"))
+          version = manifest["package"]["version"]
+          tag = f"v{version}"
+          if os.environ["GITHUB_REF_TYPE"] == "tag" and os.environ["GITHUB_REF_NAME"] != tag:
+              raise SystemExit(f"Release tag must match CLI version: expected {tag}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"tag={tag}\n")
+              output.write(f"prerelease={str('-' in version).lower()}\n")
+          PY
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$TARGET"
+          rustup override set "$RUST_TOOLCHAIN"
+
+      - name: Run Rust tests
+        run: cargo test --workspace --release --locked --target "$TARGET"
+
+      - name: Build CLI
+        run: cargo build -p cli --release --locked --target "$TARGET"
+
+      - name: Run source test runner tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Run source acceptance tests
+        run: python3 tests/run.py --command "target/$TARGET/release/cli"
+
+      - name: Package CLI
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          package="ref-type-$RELEASE_TAG-$TARGET"
+          mkdir -p "dist/$package"
+          install -m 755 "target/$TARGET/release/cli" "dist/$package/cli"
+          install -m 644 LICENSE src/USAGE.md "dist/$package/"
+          "dist/$package/cli" --version
+          tar -czf "dist/$package.tar.gz" -C dist "$package"
+          cd dist
+          sha256sum "$package.tar.gz" > SHA256SUMS
+
+      - name: Upload release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-release
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-release
+          path: dist
+
+      - name: Verify release files
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"; then
+            if [[ "$draft" != true ]]; then
+              echo "Release $RELEASE_TAG is already published."
+              exit 1
+            fi
+          else
+            gh release create "$RELEASE_TAG" --draft --verify-tag \
+              --title "$RELEASE_TAG" --generate-notes --prerelease="$PRERELEASE"
+          fi
+          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$PRERELEASE"
