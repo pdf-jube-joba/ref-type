@@ -380,10 +380,11 @@ fn read_results(
     if !coverage.iter().all(|path| manifest.coverage.contains(path)) {
         return None;
     }
+    let requested: HashSet<_> = coverage.iter().collect();
     let objects: Vec<_> = manifest
         .results
         .iter()
-        .filter(|(path, _)| coverage.contains(path))
+        .filter(|(path, _)| requested.contains(path))
         .map(|(_, object)| object)
         .collect();
     let results: Option<Vec<ModuleResult>> = disk.store().read_values(&objects).ok();
