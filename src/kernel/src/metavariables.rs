@@ -413,7 +413,8 @@ impl MetaContext {
             if !nodes.insert(e) {
                 continue;
             }
-            if let Node::Meta { id, .. } = arena.get(e) {
+            let node = arena.read(e);
+            if let Node::Meta { id, .. } = *node {
                 let entry = self.entry(id)?;
                 if metas.insert(id) {
                     if let Some(ty) = entry.expected {
@@ -425,7 +426,10 @@ impl MetaContext {
                     }
                 }
             }
-            pending.extend(arena.children(e).into_iter().map(|(e, _)| e));
+            node.try_for_each_child(|child, _| {
+                pending.push(child);
+                Ok::<_, Error>(())
+            })?;
         }
         let mut ids = metas
             .into_iter()
