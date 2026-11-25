@@ -5,7 +5,7 @@
 Swapping parent module type arguments substitutes each child's type alias once with the corresponding arguments.
 
 ```toml case
-id = "child_type_aliases_substitute_overlapping_parent_arguments_once"
+id = "child-type-aliases-substitute-overlapping-parent-arguments-once"
 scope = "package"
 expect = "accept"
 ```
@@ -29,7 +29,7 @@ expect = "accept"
 The generated and original bundles have matching Carriers, allowing proofs that retain the parent's type arguments.
 
 ```toml case
-id = "explicit_guards_preserve_parent_arguments_in_dependent_signatures"
+id = "explicit-guards-preserve-parent-arguments-in-dependent-signatures"
 scope = "package"
 expect = "accept"
 ```
@@ -68,12 +68,12 @@ expect = "accept"
 }
 ```
 
-## Bundles in different environments
+## Specialized bundles retain argument checks
 
 Each bundle's space matches the type in the module environment that generated it.
 
 ```toml case
-id = "specialized_bundle_arguments_keep_inline_module_checks_in_the_instance"
+id = "specialized-bundles-retain-argument-checks"
 scope = "package"
 expect = "accept"
 ```
@@ -109,7 +109,7 @@ expect = "accept"
 A bundle generated over Unit is passed to Maps over Two.
 
 ```toml case
-id = "specialized_bundle_guards_reject_a_different_ambient_type"
+id = "specialized-bundle-guards-reject-a-different-ambient-type"
 scope = "package"
 expect = "reject"
 ```
@@ -138,38 +138,38 @@ expect = "reject"
 
 ## Transitive dependencies between children
 
-Derived reaches Basic through Specification, and the returned value can be treated as the same Nat.
+Derived reaches Basic through Specification, and the returned value has the same nominal token type.
 
 ```toml case
-id = "nested_namespaces_follow_module_dependency_order"
+id = "nested-namespaces-follow-module-dependency-order"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Parent {
-  \inductive Nat: \VType := | zero: Nat;
+  \inductive Token: \VType := | token: Token;
   \module Operation {
     \module Basic {
-      \definition zero: Nat := Nat::zero;
+      \definition token: Token := Token::token;
     }
     \module Derived {
       \import \root.Parent[].Law[].Specification[] \as S;
-      \definition zero: Nat := S.zero;
+      \definition token: Token := S.token;
     }
   }
   \module Law {
     \module Specification {
       \import \root.Parent[].Operation[].Basic[] \as B;
-      \definition zero: Nat := B.zero;
+      \definition token: Token := B.token;
     }
   }
 }
 \module Consumer {
   \import \root.Parent[] \as P;
   \import P.Operation[].Derived[] \as D;
-  \check D.zero: P.Nat;
-  \definition zeroMatches: D.zero^ = P.Nat^::zero := \refl(P.Nat^::zero);
+  \check D.token: P.Token;
+  \definition tokenMatches: D.token^ = P.Token^::token := \refl(P.Token^::token);
 }
 ```
 
@@ -178,16 +178,20 @@ expect = "accept"
 A record value imported by the parent can be passed as a child argument and its fields used.
 
 ```toml case
-id = "nested_module_arguments_specialize_parent_imported_types"
+id = "nested-module-arguments-specialize-parent-imported-types"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Top(A: \Set) { \structure T: \Set := { x: A }; }
+\module Top(A: \Set) {
+  \structure T: \Set := { x: A };
+}
 \module Parent(A: \Set) {
   \import \root.Top[A := A] \as Base;
-  \module Child(value: Base.T) { \definition get: A := value.x; }
+  \module Child(value: Base.T) {
+    \definition get: A := value.x;
+  }
 }
 \module Test {
   \inductive Point: \Set := | point: Point;
@@ -198,12 +202,12 @@ expect = "accept"
 }
 ```
 
-## Specialization with local variables and closed imports
+## Closed imports preserve identity after local instantiation
 
 After a reference with local arguments, a closed import's identity function remains independent of local variables.
 
 ```toml case
-id = "closed_namespace_does_not_reuse_a_convertible_local_specialization"
+id = "closed-imports-preserve-identity-after-local-instantiation"
 scope = "package"
 expect = "accept"
 ```
@@ -229,14 +233,18 @@ expect = "accept"
 Source and Target values specialized from the same Carrier remain usable as the same type through aliases.
 
 ```toml case
-id = "carrier_aliases_keep_their_identity_across_nested_specializations"
+id = "carrier-aliases-keep-their-identity-across-nested-specializations"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Types(A: \Set) { \structure T: \Set := { x: A }; }
-\module Pair(A, B: \Set) { \structure P: \Set := { first: A, second: B }; }
+\module Types(A: \Set) {
+  \structure T: \Set := { x: A };
+}
+\module Pair(A, B: \Set) {
+  \structure P: \Set := { first: A, second: B };
+}
 \module Product(A, B: \Set) {
   \import \root.Pair[A := A, B := B] \as P;
   \definition Carrier: \Set := P.P;
@@ -248,9 +256,9 @@ expect = "accept"
     \definition identity[source: Source] [target: Target]: X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => source.x = x;
   }
 }
-\module Complex {
-  \inductive Real: \Set := | zero: Real;
-  \import \root.Product[A := Real, B := Real] \as Product;
+\module PairModel {
+  \inductive Item: \Set := | zero: Item;
+  \import \root.Product[A := Item, B := Item] \as Product;
   \definition Carrier: \Set := Product.Carrier;
   \module Functions(A: \Set) {
     \import Product.Universal[X := A] \as Into;
@@ -260,8 +268,8 @@ expect = "accept"
   }
 }
 \module Consumer {
-  \import \root.Complex[] \as Complex;
-  \import Complex.Functions[A := Complex.Carrier] \as Functions;
+  \import \root.PairModel[] \as PairModel;
+  \import PairModel.Functions[A := PairModel.Carrier] \as Functions;
   \definition same[x: Functions.Source]: Functions.Target := x;
 }
 ```
@@ -271,7 +279,7 @@ expect = "accept"
 The successor branch's type argument corresponds to the n bound in that branch.
 
 ```toml case
-id = "indexed_constructors_check_module_types_after_recursive_binders"
+id = "indexed-constructors-check-module-types-after-recursive-binders"
 scope = "package"
 expect = "accept"
 ```
@@ -304,7 +312,7 @@ expect = "accept"
 Direct references and references through Outer return the same Carrier for the same n and point.
 
 ```toml case
-id = "reexported_dependent_families_compose_enclosing_arguments"
+id = "reexported-dependent-families-compose-enclosing-arguments"
 scope = "package"
 expect = "accept"
 ```
@@ -316,7 +324,9 @@ expect = "accept"
 \module Source(n: \root.Numbers[].N^) {
   \definition Index: \Set := \Cast[\root.Numbers[].N^] ({ i: \root.Numbers[].N^ \where i = n });
   \structure Family := { Carrier: Index -> \Set };
-  \module Slot(i: Index) { \definition Carrier: \Set := \root.Numbers[].N^; }
+  \module Slot(i: Index) {
+    \definition Carrier: \Set := \root.Numbers[].N^;
+  }
   \definition family: Family := Family { Carrier := \fun (i: Index) => Slot[i := i].Carrier };
 }
 \module Outer(n: \root.Numbers[].N^) {
@@ -335,7 +345,7 @@ expect = "accept"
 }
 ```
 
-## inline structure / valid
+## Inline structure / valid
 
 Argument x is a value of the specified A, so the generated structure's fields are available.
 
@@ -365,7 +375,7 @@ expect = "accept"
 }
 ```
 
-## inline structure / invalid
+## Inline structure / invalid
 
 A set sort is passed where a Unit value is required.
 
@@ -395,29 +405,31 @@ expect = "reject"
 }
 ```
 
-## Module arguments of different types
+## Module arguments must have the declared type
 
 A value of B is passed to a module requiring a value of A.
 
 ```toml case
-id = "direct-argument-0"
+id = "direct-module-argument-type-mismatch"
 scope = "package"
 expect = "reject"
 ```
 
 ```ref file=src/root.ref
 \module Family(A: \Set, B: \Set) {
-  \module At(x: A) { \definition value: A := x; }
+  \module At(x: A) {
+    \definition value: A := x;
+  }
   \definition invalid[y: B]: A := At[x := y].value;
 }
 ```
 
-## Proofs depending on module arguments
+## Proof argument types depend on the selected module
 
 An equality between y and itself is passed where equality between y and x is required.
 
 ```toml case
-id = "direct-argument-1"
+id = "direct-module-proof-argument-mismatch"
 scope = "package"
 expect = "reject"
 ```
@@ -431,59 +443,65 @@ expect = "reject"
 }
 ```
 
-## temporary program datatypes and reflections agree
+## Temporary program datatypes and reflections agree
 
 Specialization and reflection of a local module's Program inductive type return types and values for the same arguments.
 
 ```toml case
-id = "temporary_program_datatypes_and_reflections_agree"
+id = "temporary-program-datatypes-and-reflections-agree"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module M {
+\module DirectReflection {
   \inductive Unit: \VType := | unit: Unit;
-  \module Family(A: \VType) { \inductive Box: \VType := | box: A -> Box; }
+  \module Family(A: \VType) {
+    \inductive Box: \VType := | box: A -> Box;
+  }
   \definition make[x: Unit]: \F(Family[A := Unit].Box) := \return Family[A := Unit].Box::box x;
   \definition reflected[x: Unit^]: Family[A := Unit].Box^ := make^ x;
 }
 ```
 
-## temporary modules preserve case branch binders
+## Temporary modules preserve case branch binders
 
 A local module can be specialized with a case-branch binder, returning a value matching that branch's type.
 
 ```toml case
-id = "temporary_modules_preserve_case_branch_binders"
+id = "temporary-modules-preserve-case-branch-binders"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module M {
+\module BranchInstantiation {
   \inductive Unit: \VType := | unit: Unit;
   \inductive Box: \VType := | box: Unit -> Box;
-  \module Value(x: Unit) { \definition value: Unit := x; }
+  \module Value(x: Unit) {
+    \definition value: Unit := x;
+  }
   \definition get[x: Box]: \F(Unit) := \match x \in Box \with {
     | box y : \return Value[x := y].value
   };
 }
 ```
 
-## temporary modules follow inferred lambda binders
+## Temporary modules follow inferred lambda binders
 
 A lambda's local variable can be passed as a module argument even after its binder type has been inferred.
 
 ```toml case
-id = "temporary_modules_follow_inferred_lambda_binders"
+id = "temporary-modules-follow-inferred-lambda-binders"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module M {
-  \module Family(A: \Set) { \inductive Box: \Set := | box: A -> Box; }
+\module LambdaInstantiation {
+  \module Family(A: \Set) {
+    \inductive Box: \Set := | box: A -> Box;
+  }
   \definition make: \forall (A: \Set) -> A -> Family[A := A].Box :=
     \fun (A: _) (x: _) => Family[A := A].Box::box x;
 }

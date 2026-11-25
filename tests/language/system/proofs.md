@@ -1,11 +1,11 @@
-# system / proofs
+# Existential elimination and proof terms
 
-## exists intro wrong witness
+## Exists intro wrong witness
 
 The existential witness is not an element of the specified set.
 
 ```toml case
-id = "reject-system.exists_intro_wrong_witness"
+id = "exists-intro-wrong-witness"
 scope = "module"
 expect = "reject"
 name = "ExistsIntroWrongWitness"
@@ -17,12 +17,12 @@ parameters = '''A, B: \Set(0),
 \definition bad: \exists A := \exact(b, A);
 ```
 
-## exists requires set
+## Exists requires set
 
 The subject of existential quantification is not a set.
 
 ```toml case
-id = "reject-system.exists_requires_set"
+id = "exists-requires-set"
 scope = "module"
 expect = "reject"
 name = "ExistsRequiresSet"
@@ -33,12 +33,12 @@ parameters = '''P: \Prop,'''
 \definition bad: \Prop := \exists P;
 ```
 
-## take prop wrong existence
+## Take prop wrong existence
 
 The existence proof for take does not concern the required proposition.
 
 ```toml case
-id = "reject-system.take_prop_wrong_existence"
+id = "take-prop-wrong-existence"
 scope = "module"
 expect = "reject"
 name = "TakePropWrongExistence"
@@ -53,12 +53,12 @@ parameters = '''X, Y: \Set(0),
     \take (x: X) => predicate x \by { existsY };
 ```
 
-## wrong proof block
+## Set runs require a termination proof
 
-The final term of a proof block does not prove the required proposition.
+The supplied certificate is a state value rather than a proof that the Set run terminates.
 
 ```toml case
-id = "reject-system.wrong-proof-block"
+id = "set-run-requires-termination-proof"
 scope = "module"
 expect = "reject"
 name = "WrongRunProof"
@@ -72,12 +72,12 @@ parameters = '''A: \Set,
 \definition bad: B := \run[A, B](step, initial) \by { initial };
 ```
 
-## local take
+## Local take
 
 An existential witness can be used locally to prove the conclusion.
 
 ```toml case
-id = "accept-system.local_take"
+id = "local-take"
 scope = "package"
 expect = "accept"
 ```
@@ -114,12 +114,12 @@ expect = "accept"
 }
 ```
 
-## nested proofs
+## Nested proofs
 
 Proof terms can be used inside applications and subset introductions.
 
 ```toml case
-id = "accept-system.nested_proofs"
+id = "nested-proofs"
 scope = "module"
 expect = "accept"
 name = "NestedProofs"
@@ -158,15 +158,15 @@ parameters = '''A: \Set(0),
     \exact((\fun (f: A -> A) => f b) (\fun (x: A) => x), A);
 ```
 
-## proof block
+## Contextual reflexivity proofs
 
-The final term of a proof block proves the required proposition.
+A contextual definition can prove that its element argument equals itself.
 
 ```toml case
-id = "accept-system.proof-block"
+id = "contextual-reflexivity-proof"
 scope = "module"
 expect = "accept"
-name = "DeferredProof"
+name = "Reflexivity"
 parameters = '''A: \Set'''
 ```
 

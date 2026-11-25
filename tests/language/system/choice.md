@@ -1,11 +1,11 @@
-# system / choice
+# Choice and uniqueness
 
-## choice eq wrong element
+## Choice eq wrong element
 
 The element passed to the choice equality proof does not belong to the specified set.
 
 ```toml case
-id = "reject-system.choice_eq_wrong_element"
+id = "choice-eq-wrong-element"
 scope = "module"
 expect = "reject"
 name = "WrongElement"
@@ -17,12 +17,12 @@ parameters = '''A, B: \Set, a: A, b: B, unique: \forall (x, y: A) -> x = y'''
     \choiceeq b \of A \by { existence: \exact(a, A), uniqueness: unique };
 ```
 
-## choice eq wrong result
+## Choice eq wrong result
 
 The choice equality proof is used to prove a different conclusion.
 
 ```toml case
-id = "reject-system.choice_eq_wrong_result"
+id = "choice-eq-wrong-result"
 scope = "module"
 expect = "reject"
 name = "WrongResult"
@@ -34,12 +34,12 @@ parameters = '''A: \Set, a, b: A, unique: \forall (x, y: A) -> x = y'''
     \choiceeq a \of A \by { existence: \exact(a, A), uniqueness: unique };
 ```
 
-## choice eq wrong uniqueness
+## Choice eq wrong uniqueness
 
 A uniqueness proof for a different property is passed to the choice equality proof.
 
 ```toml case
-id = "reject-system.choice_eq_wrong_uniqueness"
+id = "choice-eq-wrong-uniqueness"
 scope = "module"
 expect = "reject"
 name = "WrongUniqueness"
@@ -52,12 +52,12 @@ parameters = '''A: \Set, a: A'''
       \by { existence: \exact(a, A), uniqueness: \fun (x, y: A) => \refl x };
 ```
 
-## choice wrong existence
+## Choice wrong existence
 
 The choice existence proof does not establish existence for the specified property.
 
 ```toml case
-id = "reject-system.choice_wrong_existence"
+id = "choice-wrong-existence"
 scope = "module"
 expect = "reject"
 name = "WrongExistence"
@@ -68,12 +68,12 @@ parameters = '''X, Y: \Set, existsY: \exists Y, unique: \forall (x, y: X) -> x =
 \definition bad: X := \choice X \by { existence: existsY, uniqueness: unique };
 ```
 
-## choice wrong uniqueness
+## Choice wrong uniqueness
 
 The choice uniqueness proof does not concern the specified property.
 
 ```toml case
-id = "reject-system.choice_wrong_uniqueness"
+id = "choice-wrong-uniqueness"
 scope = "module"
 expect = "reject"
 name = "WrongUniqueness"
@@ -84,12 +84,12 @@ parameters = '''X: \Set, x: X, unique: \forall (a, b: X) -> a = a'''
 \definition bad: X := \choice X \by { existence: \exact(x, X), uniqueness: unique };
 ```
 
-## classical choice wrong inhabited
+## Classical choice wrong inhabited
 
 The inhabited proof for classical choice concerns a different set.
 
 ```toml case
-id = "reject-system.classical_choice_wrong_inhabited"
+id = "classical-choice-wrong-inhabited"
 scope = "module"
 expect = "reject"
 name = "ClassicalChoiceWrongInhabited"
@@ -103,12 +103,12 @@ parameters = '''X: \Set,
     \axiom:classicalIndefiniteChoice(X, Family, wrong);
 ```
 
-## choice
+## Choice and interchangeable proof certificates
 
 Corresponding elements can be selected from existence and uniqueness proofs.
 
 ```toml case
-id = "accept-system.choice"
+id = "choice-and-certificate-erasure"
 scope = "module"
 expect = "accept"
 name = "ChoiceRules"
@@ -142,12 +142,12 @@ parameters = '''X: \Set, P: \Prop, predicate: X -> P, x: X,
             equality: \choiceeq b \of X \by { existence: existsX, uniqueness: uniqueX } } };
 ```
 
-## choice eq
+## Choice equality through refinements and macros
 
 Equality between the chosen element and the unique witness can be proved.
 
 ```toml case
-id = "accept-system.choice_eq"
+id = "choice-equality-through-refinements-and-macros"
 scope = "package"
 expect = "accept"
 ```
@@ -183,12 +183,12 @@ expect = "accept"
 }
 ```
 
-## nested choice
+## Nested choice
 
 Existence and uniqueness proofs also correspond in nested choices.
 
 ```toml case
-id = "accept-system.nested_choice"
+id = "nested-choice"
 scope = "module"
 expect = "accept"
 name = "NestedChoice"

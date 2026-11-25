@@ -1,14 +1,13 @@
-# proofs / cases
+# Explicit proof terms
 
 ## Subset introduction using membership proofs
 
 An assumed membership proof can introduce an ambient-set element as a subset element.
 
 ```toml case
-id = "accept-proofs.subset-introduction-with-membership-proof"
+id = "subset-introduction-with-membership-proof"
 scope = "module"
 expect = "accept"
-name = "Test"
 parameters = '''A: \Set,
   a: \Pow (A),
   x: A,
@@ -19,12 +18,12 @@ parameters = '''A: \Set,
 \definition h: \Cast[A] (a) := \into[A](x, a) \by { p };
 ```
 
-## explicit proof terms
+## Explicit proof terms
 
 Explicit proof terms corresponding to proposition constructions can be written.
 
 ```toml case
-id = "accept-proofs.explicit_proof_terms"
+id = "explicit-proof-terms"
 scope = "module"
 expect = "accept"
 name = "ExplicitProofTerms"

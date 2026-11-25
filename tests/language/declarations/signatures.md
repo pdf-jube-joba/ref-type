@@ -1,11 +1,11 @@
-# declarations / signatures
+# Declaration signatures
 
-## ambient signature parameter
+## Ambient signature parameter
 
 Even empty signatures differ when their outer modules are instantiated with different arguments.
 
 ```toml case
-id = "reject-declarations.ambient_signature_parameter"
+id = "ambient-signature-parameter"
 scope = "package"
 expect = "reject"
 ```
@@ -14,7 +14,9 @@ expect = "reject"
 \module AmbientSignature {
   \inductive Unit: \Set := | unit: Unit;
   \inductive Other: \Set := | other: Other;
-  \module Parameter(A: \Set) { \structure Marker := {}; }
+  \module Parameter(A: \Set) {
+    \structure Marker := {};
+  }
   \import .Parameter[A := Unit] \as First;
   \import .Parameter[A := Other] \as Second;
   \definition marker: First.Marker := First.Marker {};
@@ -22,12 +24,12 @@ expect = "reject"
 }
 ```
 
-## contextual unused argument
+## Contextual unused argument
 
 An unused argument of a contextual definition also has a type mismatch.
 
 ```toml case
-id = "reject-declarations.contextual_unused_argument"
+id = "contextual-unused-argument"
 scope = "module"
 expect = "reject"
 name = "Guard"
@@ -40,12 +42,12 @@ name = "Guard"
 \definition bad: Relation := make Unit \Set;
 ```
 
-## empty signature import
+## Empty signature import
 
 An import parameter requires Empty[Unit], but a value of Empty[Other] is passed.
 
 ```toml case
-id = "reject-declarations.empty_signature_import"
+id = "empty-signature-import"
 scope = "package"
 expect = "reject"
 ```
@@ -61,12 +63,12 @@ expect = "reject"
 }
 ```
 
-## existence signature
+## Existence signature
 
 A Tag[Unit] witness is passed to an existential proof of Tag[Other].
 
 ```toml case
-id = "reject-declarations.existence_signature"
+id = "existence-signature"
 scope = "module"
 expect = "reject"
 name = "ExistentialSignature"
@@ -79,12 +81,12 @@ name = "ExistentialSignature"
 \definition wrong: \exists Tag[Other] := \exact(Tag[Unit] {}, Tag[Other]);
 ```
 
-## forward member
+## Forward member
 
 An ordinary member references a member declared later.
 
 ```toml case
-id = "reject-declarations.forward_member"
+id = "forward-member"
 scope = "module"
 expect = "reject"
 name = "Forward"
@@ -95,12 +97,12 @@ name = "Forward"
 \structure Signature := { later: earlier = Unit::unit, earlier: Unit };
 ```
 
-## kind field
+## Kind field
 
 A field type uses the higher sort `\SetKind`, which has no classifier.
 
 ```toml case
-id = "reject-declarations.kind_field"
+id = "kind-field"
 scope = "module"
 expect = "reject"
 name = "KindField"
@@ -110,12 +112,12 @@ name = "KindField"
 \structure Bad := { A: \SetKind, };
 ```
 
-## private helper
+## Private helper
 
 A child module's helper is referenced from the parent's scope without importing or qualifying it.
 
 ```toml case
-id = "reject-declarations.private_helper"
+id = "private-helper"
 scope = "package"
 expect = "reject"
 ```
@@ -130,12 +132,12 @@ expect = "reject"
 }
 ```
 
-## signature parameter
+## Signature parameter
 
-Values of empty signatures instantiated with different arguments are identified.
+Even an empty signature retains its arguments, so values from different instantiations cannot be mixed.
 
 ```toml case
-id = "reject-declarations.signature_parameter"
+id = "signature-parameter"
 scope = "module"
 expect = "reject"
 name = "Parameter"
@@ -148,12 +150,12 @@ name = "Parameter"
 \definition bad: Empty[Unit] := Empty[Other] {};
 ```
 
-## contextual definitions
+## Contextual definitions
 
 Substituting definition arguments while retaining the local context preserves types.
 
 ```toml case
-id = "accept-declarations.contextual_definitions"
+id = "contextual-definitions"
 scope = "package"
 expect = "accept"
 ```
@@ -206,12 +208,12 @@ expect = "accept"
 }
 ```
 
-## signatures
+## Logical and Program signature expansion
 
-Signature arguments and implementation fields agree.
+Signature expansion preserves logical and Program fields through nested bundles, defaults, function results, partial applications, module arguments, and existential witnesses. The declarations share a small set of fixtures to exercise agreement across those contexts.
 
 ```toml case
-id = "accept-declarations.signatures"
+id = "logical-and-program-signature-expansion"
 scope = "package"
 expect = "accept"
 ```
@@ -272,12 +274,14 @@ expect = "accept"
 
   \structure Tag[A: \Set] := { value: A, };
   \definition tag: Tag[Unit] := Tag[Unit] { value := Unit::unit, };
-  \module UseTag(t: Tag[Unit]) { \definition value: Unit := t.value; }
+  \module UseTag(t: Tag[Unit]) {
+    \definition value: Unit := t.value;
+  }
   \import .UseTag[t := tag] \as Used;
   \definition tagProof: Used.value = Unit::unit := \refl(Unit::unit);
   \definition choiceProof: (choose Equality Unit).R Unit::unit Unit::unit := \refl(Unit::unit);
   \definition identity[d: ProgramData]: d.T := d.value;
-  \definition partialScalar: PUnit := identity Data;
+  \definition extractedProgramValue: PUnit := identity Data;
 
   \definition retainElement[r: Relation][a, b: r.A]: r.A := b;
   \definition selected: Unit := retainElement (Equality Unit) Unit::unit Unit::unit;
@@ -287,7 +291,9 @@ expect = "accept"
   \definition nestedCalc: NestedCalc := NestedCalc { calculation := calc, };
   \definition calculate[n: NestedCalc]: \F(n.calculation.T) := n.calculation.result;
   \normalize calculate nestedCalc;
-  \module AbstractTag(A: \Set, t: Tag[A]) { \definition value: A := t.value; }
+  \module AbstractTag(A: \Set, t: Tag[A]) {
+    \definition value: A := t.value;
+  }
   \import .AbstractTag[A := Unit, t := tag] \as AbstractUsed;
   \definition abstractTagProof: AbstractUsed.value = Unit::unit := \refl(Unit::unit);
   \structure Witness[A: \Set]: \Set := { value: A, };
@@ -301,7 +307,9 @@ expect = "accept"
   \definition chooseAnonymous[f: \Set -> Relation][A: \Set]: Relation := f A;
   \definition anonymousProof: (chooseAnonymous Equality Unit).R Unit::unit Unit::unit := \refl(Unit::unit);
 
-  \module Parametric(A: \Set) { \structure Marker := {}; }
+  \module Parametric(A: \Set) {
+    \structure Marker := {};
+  }
   \import .Parametric[A := Unit] \as First;
   \import .Parametric[A := Unit] \as Second;
   \definition firstMarker: First.Marker := First.Marker {};
@@ -309,49 +317,51 @@ expect = "accept"
 }
 ```
 
-## Different carriers in re-exported complexes
+## Different carriers in re-exported families
 
 Even through structure aliases, maps before and after conversion retain their respective domain and codomain type arguments.
 
 ```toml case
-id = "signature_reexport_distinct_carriers"
+id = "signature-reexport-distinct-carriers"
 scope = "module"
 expect = "accept"
 ```
 
 ```ref
-\module Complexes {
+\module Families {
   \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
   \structure Family := { Carrier: Nat -> \Set };
-  \structure Complex := { family: Family };
-  \module Extend(C: Complex) {
+  \structure FamilyGroup := { family: Family };
+  \module Extend(C: FamilyGroup) {
     \definition family: Family := Family { Carrier := C.family.Carrier };
-    \definition complex: Complex := Complex { family := family };
+    \definition group: FamilyGroup := FamilyGroup { family := family };
   }
-  \module Maps(C, D: Complex) {
+  \module Maps(C, D: FamilyGroup) {
     \definition Map: \Set := \forall (n: Nat) -> C.family.Carrier n -> D.family.Carrier n;
     \module Child(f: Map) {
       \import \parent.\parent.Extend[C := C] \as Source;
       \import \parent.\parent.Extend[C := D] \as Target;
-      \import \parent.\parent.Maps[C := Source.complex, D := Target.complex] \as Result;
+      \import \parent.\parent.Maps[C := Source.group, D := Target.group] \as Result;
       \definition copy: Result.Map := f;
     }
   }
 }
 \module Make(A: \Set) {
-  \import \parent.Complexes[] \as Types;
-  \module At(n: Types.Nat) { \definition Carrier: \Set := A; }
+  \import \parent.Families[] \as Types;
+  \module At(n: Types.Nat) {
+    \definition Carrier: \Set := A;
+  }
   \definition Carrier[n: Types.Nat]: \Set := At[n := n].Carrier;
   \definition family: Types.Family := Types.Family { Carrier := Carrier };
-  \definition complex: Types.Complex := Types.Complex { family := family };
-  \import Types.Extend[C := complex] \as Extended;
-  \definition extended: Types.Complex := Extended.complex;
+  \definition group: Types.FamilyGroup := Types.FamilyGroup { family := family };
+  \import Types.Extend[C := group] \as Extended;
+  \definition extended: Types.FamilyGroup := Extended.group;
 }
 \module Use(A, B: \Set) {
-  \import \parent.Complexes[] \as Types;
+  \import \parent.Families[] \as Types;
   \import \parent.Make[A := A] \as Source;
   \import \parent.Make[A := B] \as Target;
-  \import Types.Maps[C := Source.complex, D := Target.complex] \as Maps;
+  \import Types.Maps[C := Source.group, D := Target.group] \as Maps;
   \import Types.Maps[C := Source.extended, D := Target.extended] \as Result;
   \definition direct[f: A -> B]: Maps.Map := \fun (n: Types.Nat) => f;
   \definition copied[f: A -> B]: Result.Map := Maps.Child[f := direct f].copy;

@@ -1,11 +1,11 @@
-# macros / scope
+# Macro scope and hygiene
 
-## macro name collision
+## Macro name collision
 
 Macro names are duplicated in the same scope.
 
 ```toml case
-id = "reject-macros.macro_name_collision"
+id = "macro-name-collision"
 scope = "module"
 expect = "reject"
 name = "MacroNameCollision"
@@ -17,15 +17,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro same($other) := $other;
 ```
 
-## token match branch scope
+## Token match branch scope
 
 A capture bound in a different token-match branch is referenced.
 
 ```toml case
-id = "reject-macros.token_match_branch_scope"
+id = "token-match-branch-scope"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -33,27 +32,27 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := \tmatch r { | ($x) => $x | () => $x };
 ```
 
-## use requires import
+## Macro use requires a known namespace
 
-The module providing the macro has not been imported.
+The use declaration references a namespace that is not in scope. Direct module instantiation is supported, but this path names neither an import alias nor a known package.
 
 ```toml case
-id = "reject-macros.use_requires_import"
+id = "macro-use-unknown-namespace"
 scope = "module"
 expect = "reject"
-name = "UseRequiresImport"
+name = "UnknownMacroNamespace"
 ```
 
 ```ref
 \use missing.some_macro;
 ```
 
-## definition scope hygiene
+## Definition scope hygiene
 
 Macro expansion distinguishes definition-site names from use-site binders.
 
 ```toml case
-id = "accept-macros.definition_scope_hygiene"
+id = "definition-scope-hygiene"
 scope = "module"
 expect = "accept"
 name = "DefinitionScope"
@@ -72,12 +71,12 @@ parameters = '''A: \Set(0), x: A'''
 \definition keeps_free_x: A := mixed!{};
 ```
 
-## forward math template
+## Forward math template
 
 Math templates defined later are also available in the module body.
 
 ```toml case
-id = "accept-macros.forward_math_template"
+id = "forward-math-template"
 scope = "module"
 expect = "accept"
 name = "LaterMacro"
@@ -93,38 +92,44 @@ parameters = '''A: \Set(0), x: A, y: A'''
 \definition result: A := select!{x y};
 ```
 
-## import forward scope
+## Import forward scope
 
 Macro imports are effective throughout the module body.
 
 ```toml case
-id = "accept-macros.import_forward_scope"
+id = "import-forward-scope"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Templates { \macro reflexive($x) := \refl($x); }
-\module Repro(A: \Set, a: A) {
+\module Templates {
+  \macro reflexive($x) := \refl($x);
+}
+\module ImportForwardScope(A: \Set, a: A) {
   \import \root.Templates[] \as Templates;
-  \module Child { \definition law: a = a := reflexive!{a}; }
+  \module Child {
+    \definition law: a = a := reflexive!{a};
+  }
   \use Templates.reflexive;
 }
 ```
 
-## import inherited
+## Import inherited
 
 Child modules inherit parent macro imports.
 
 ```toml case
-id = "accept-macros.import_inherited"
+id = "import-inherited"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Templates { \macro reflexive($x) := \refl($x); }
-\module Repro(A: \Set, a: A) {
+\module Templates {
+  \macro reflexive($x) := \refl($x);
+}
+\module ImportInherited(A: \Set, a: A) {
   \import \root.Templates[] \as Templates;
   \use Templates.reflexive;
   \module Child {
@@ -133,19 +138,21 @@ expect = "accept"
 }
 ```
 
-## import repeated in child
+## Import repeated in child
 
 A child module can import the same macro again.
 
 ```toml case
-id = "accept-macros.import_repeated_in_child"
+id = "import-repeated-in-child"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Templates { \macro reflexive($x) := \refl($x); }
-\module Repro(A: \Set, a: A) {
+\module Templates {
+  \macro reflexive($x) := \refl($x);
+}
+\module ImportRepeatedInChild(A: \Set, a: A) {
   \import \root.Templates[] \as Templates;
   \use Templates.reflexive;
   \module Child {
@@ -155,12 +162,12 @@ expect = "accept"
 }
 ```
 
-## module visibility
+## Module visibility
 
 Imported module macros can be used from their declared scopes.
 
 ```toml case
-id = "accept-macros.module_visibility"
+id = "module-visibility"
 scope = "package"
 expect = "accept"
 ```
@@ -187,28 +194,28 @@ expect = "accept"
 }
 ```
 
-## named forward reference
+## Named forward reference
 
 Named macros can be used before their declaration.
 
 ```toml case
-id = "accept-macros.named_forward_reference"
+id = "named-forward-reference"
 scope = "module"
 expect = "accept"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
 ```ref
-\macro early() := later!{}; \macro later() := value;
+\macro early() := later!{};
+\macro later() := value;
 ```
 
-## recursive hygiene
+## Recursive hygiene
 
 Recursive macro expansion also avoids variable capture by binders.
 
 ```toml case
-id = "accept-macros.recursive_hygiene"
+id = "recursive-hygiene"
 scope = "package"
 expect = "accept"
 ```
@@ -259,7 +266,7 @@ expect = "accept"
 Using Wrapper's macro in another module can still reference macros and arguments imported at the definition site.
 
 ```toml case
-id = "instantiated_macro_keeps_macros_used_by_its_definition_module"
+id = "instantiated-macro-keeps-macros-used-by-its-definition-module"
 scope = "package"
 expect = "accept"
 ```
@@ -285,7 +292,7 @@ expect = "accept"
 Even if a different-typed provided exists at the use site, the macro references the provided passed at its definition site.
 
 ```toml case
-id = "imported_macro_resolves_free_names_at_its_definition_site"
+id = "imported-macro-resolves-free-names-at-its-definition-site"
 scope = "package"
 expect = "accept"
 ```
@@ -301,12 +308,12 @@ expect = "accept"
 }
 ```
 
-## lexical shadowing and definition site internal references
+## Lexical shadowing and definition site internal references
 
 A child macro shadows a same-named parent macro, but references in templates defined in the parent still target the parent macro.
 
 ```toml case
-id = "lexical_shadowing_and_definition_site_internal_references"
+id = "lexical-shadowing-and-definition-site-internal-references"
 scope = "package"
 expect = "accept"
 ```
@@ -320,18 +327,22 @@ expect = "accept"
     \definition local: b = b := \refl(value!{});
     \definition captured: a = a := \refl(wrapped!{});
     \macro value() := b;
-    \module Grandchild { \definition local: b = b := \refl(value!{}); }
+    \module Grandchild {
+      \definition local: b = b := \refl(value!{});
+    }
   }
-  \module Sibling { \definition local: a = a := \refl(value!{}); }
+  \module Sibling {
+    \definition local: a = a := \refl(value!{});
+  }
 }
 ```
 
-## forward mutual recursion and aliased self recursion
+## Forward mutual recursion and aliased self recursion
 
 Mutually calling macros terminate as the input sequence shrinks and can be invoked through aliases.
 
 ```toml case
-id = "forward_mutual_recursion_and_aliased_self_recursion"
+id = "forward-mutual-recursion-and-aliased-self-recursion"
 scope = "package"
 expect = "accept"
 ```
@@ -347,37 +358,42 @@ expect = "accept"
 }
 ```
 
-## direct use flattens structure arguments
+## Direct use flattens structure arguments
 
 A structure value can be passed as a module argument, making its fields available to a directly used macro.
 
 ```toml case
-id = "direct_use_flattens_structure_arguments"
+id = "direct-use-flattens-structure-arguments"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Playground { \structure Point[Carrier: \Set] := { value: Carrier };
-  \module T(A: \Set, point: Point[A]) { \macro value() := point.value; }
+\module DirectUseFlattensStructureArguments {
+  \structure Point[Carrier: \Set] := { value: Carrier };
+  \module T(A: \Set, point: Point[A]) {
+    \macro value() := point.value;
+  }
   \module M(A: \Set, a: A) {
     \definition law: a = a := \refl(value!{});
-    \use \root.Playground[].T[A := A, point := Point[A] { value := a }].value;
+    \use \root.DirectUseFlattensStructureArguments[].T[A := A, point := Point[A] { value := a }].value;
 }}
 ```
 
-## math in use arguments can use independent local templates
+## Math in use arguments can use independent local templates
 
 A math template in a use argument can expand from an independent local definition.
 
 ```toml case
-id = "math_in_use_arguments_can_use_independent_local_templates"
+id = "math-in-use-arguments-can-use-independent-local-templates"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module T(A: \Set, a: A) { \macro value() := a; }
+\module T(A: \Set, a: A) {
+  \macro value() := a;
+}
 \module M(A: \Set, a: A) {
   \definition law: a = a := \refl(value!{});
   \use \root.T[A := A, a := \(a + a\)].value;
@@ -385,17 +401,21 @@ expect = "accept"
 }
 ```
 
-## math use arguments report their own instantiation cycle
+## Math use arguments report their own instantiation cycle
 
 The math macro being used is itself needed to compute its use arguments, so the cyclic dependency is rejected.
 
 ```toml case
-id = "math_use_arguments_report_their_own_instantiation_cycle"
+id = "math-use-arguments-report-their-own-instantiation-cycle"
 scope = "package"
 expect = "reject"
 ```
 
 ```ref file=src/root.ref
-\module T(A: \Set, a: A) { \math-macro plus($x, \+, $y) := a; }
-\module M(A: \Set, a: A) { \use \root.T[A := A, a := \(a + a\)].plus; }
+\module T(A: \Set, a: A) {
+  \math-macro plus($x, \+, $y) := a;
+}
+\module M(A: \Set, a: A) {
+  \use \root.T[A := A, a := \(a + a\)].plus;
+}
 ```

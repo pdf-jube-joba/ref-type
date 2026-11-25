@@ -1,11 +1,11 @@
-# basics / cases
+# Basic declarations and queries
 
-## ambiguity
+## Module headers with empty and nonempty parameter lists
 
 Declarations of same-named modules with different telescopes can each be parsed.
 
 ```toml case
-id = "accept-ambiguity"
+id = "module-header-variants"
 scope = "package"
 expect = "accept"
 ```
@@ -24,15 +24,14 @@ expect = "accept"
 ) {}
 ```
 
-## definition
+## Definitions reference parameters and preceding declarations
 
 A definition can reference module parameters and preceding definitions.
 
 ```toml case
-id = "accept-definition"
+id = "definitions-reference-earlier-declarations"
 scope = "module"
 expect = "accept"
-name = "Hello"
 parameters = '''A: \Set(0),'''
 ```
 
@@ -42,30 +41,29 @@ parameters = '''A: \Set(0),'''
 \definition D: \Set(0) := B;
 ```
 
-## eval id
+## Evaluating an identity application
 
 Application of the identity function can be evaluated.
 
 ```toml case
-id = "accept-eval_id"
+id = "evaluate-identity-application"
 scope = "module"
 expect = "accept"
-name = "Example"
+parameters = '''A: \Set, a: A'''
 ```
 
 ```ref
-\eval (\fun (x: \SetKind) => x) \Set;
+\eval (\fun (x: A) => x) a;
 ```
 
-## hello world
+## Empty modules
 
 An empty module without declarations is also valid.
 
 ```toml case
-id = "accept-hello_world"
+id = "empty-module"
 scope = "module"
 expect = "accept"
-name = "HelloWorld"
 ```
 
 ```ref

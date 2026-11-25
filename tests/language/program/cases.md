@@ -1,11 +1,11 @@
-# program / cases
+# Program values and computations
 
-## boxed value
+## Boxed value
 
 The Box argument is not a Program computation type.
 
 ```toml case
-id = "reject-boxed-value"
+id = "boxed-value"
 scope = "module"
 expect = "reject"
 name = "BoxedValue"
@@ -16,12 +16,12 @@ name = "BoxedValue"
 \definition bad: \Box[Unit] := \box[_](Unit::unit);
 ```
 
-## program cbv ambiguous application
+## Program cbv ambiguous application
 
 A Program function value is applied without being forced.
 
 ```toml case
-id = "reject-program-cbv-ambiguous-application"
+id = "program-cbv-ambiguous-application"
 scope = "module"
 expect = "reject"
 name = "ProgramCbvAmbiguousApplication"
@@ -32,12 +32,12 @@ parameters = '''A: \VType, a: A'''
 \definition bad[f: _]: _ := f a;
 ```
 
-## program cbv computation argument
+## Program cbv computation argument
 
 A computation is passed in an argument position requiring a value.
 
 ```toml case
-id = "reject-program-cbv-computation-argument"
+id = "program-cbv-computation-argument"
 scope = "module"
 expect = "reject"
 name = "ProgramCbvComputationArgument"
@@ -49,12 +49,12 @@ name = "ProgramCbvComputationArgument"
 \definition bad: \F(Bool) := identity (identity Bool::true);
 ```
 
-## program cbv computation codomain
+## Program cbv computation codomain
 
 A Program function's codomain is not a computation type.
 
 ```toml case
-id = "reject-program-cbv-computation-codomain"
+id = "program-cbv-computation-codomain"
 scope = "module"
 expect = "reject"
 name = "ProgramCbvComputationCodomain"
@@ -66,12 +66,12 @@ name = "ProgramCbvComputationCodomain"
   \fun (x: Bool) => \return(x);
 ```
 
-## program cbv dependent arrow
+## Program cbv dependent arrow
 
 A Program arrow's codomain depends on a value.
 
 ```toml case
-id = "reject-program-cbv-dependent-arrow"
+id = "program-cbv-dependent-arrow"
 scope = "module"
 expect = "reject"
 name = "ProgramCbvDependentArrow"
@@ -83,12 +83,12 @@ name = "ProgramCbvDependentArrow"
   \cfun (x: Bool) => \return(x);
 ```
 
-## program cbv non function application
+## Program cbv non function application
 
 A non-function Program value is applied.
 
 ```toml case
-id = "reject-program-cbv-non-function-application"
+id = "program-cbv-non-function-application"
 scope = "module"
 expect = "reject"
 name = "ProgramCbvNonFunctionApplication"
@@ -100,12 +100,12 @@ name = "ProgramCbvNonFunctionApplication"
 \definition bad: \F(Bool) := value Bool::false;
 ```
 
-## program implicit bind
+## Program implicit bind
 
 A computation result is used as a value without being bound.
 
 ```toml case
-id = "reject-program-implicit-bind"
+id = "program-implicit-bind"
 scope = "module"
 expect = "reject"
 name = "ProgramImplicitBind"
@@ -118,12 +118,12 @@ name = "ProgramImplicitBind"
 \definition bad: \F(Bool) := first Bool::true Bool::false;
 ```
 
-## program implicit force
+## Program implicit force
 
 A thunk is used as a computation without being forced.
 
 ```toml case
-id = "reject-program-implicit-force"
+id = "program-implicit-force"
 scope = "module"
 expect = "reject"
 name = "ProgramImplicitForce"
@@ -134,12 +134,12 @@ name = "ProgramImplicitForce"
 \definition apply[f: \U(Bool ~> \F(Bool)), x: Bool]: \F(Bool) := f x;
 ```
 
-## program module parameter wrong category
+## Program module parameter wrong category
 
 A module parameter's value/computation classification does not match.
 
 ```toml case
-id = "reject-program-module-parameter-wrong-category"
+id = "program-module-parameter-wrong-category"
 scope = "package"
 expect = "reject"
 ```
@@ -152,12 +152,12 @@ expect = "reject"
 }
 ```
 
-## program module parameter wrong value
+## Program module parameter wrong value
 
 A Program value passed as a module parameter has a mismatched type.
 
 ```toml case
-id = "reject-program-module-parameter-wrong-value"
+id = "program-module-parameter-wrong-value"
 scope = "package"
 expect = "reject"
 ```
@@ -171,12 +171,12 @@ expect = "reject"
 }
 ```
 
-## program cbv syntax sugar
+## Program cbv syntax sugar
 
 Program surface syntax can be expanded according to value and computation types.
 
 ```toml case
-id = "accept-program-cbv-syntax-sugar"
+id = "program-cbv-syntax-sugar"
 scope = "package"
 expect = "accept"
 ```

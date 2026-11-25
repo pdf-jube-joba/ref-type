@@ -1,25 +1,17 @@
-# declarations / machines
+# Program signatures and state machines
 
-## machine box parameters
+## Machine box parameters
 
 Module parameters can be used in a Box's computation type and payload.
 
 ```toml case
-id = "accept-declarations.machine_box_parameters"
+id = "machine-box-parameters"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module BundleSignatures {
-/* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence := {
-  T: \VType,
-  program: T,
-  specification: T^,
-  coherence: program^ = specification,
-};
-
 \definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
@@ -54,62 +46,41 @@ expect = "accept"
 }
 ```
 
-## machine step
+## Machine step
 
 The machine transition does not have the required type.
 
 ```toml case
-id = "reject-declarations.machine_step"
+id = "machine-step"
 scope = "package"
 expect = "reject"
 ```
 
 ```ref file=src/root.ref
-\module BundleSignatures {
-/* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence := {
-  T: \VType,
-  program: T,
-  specification: T^,
-  coherence: program^ = specification,
-};
-
-\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
-  \step-match t: \RunStep[State, Output] \return \Prop \with {
-    | \continue s: P s
-    | \finish result: \forall (Q: \Prop) -> Q -> Q
+\module Transitions {
+  \structure Machine := {
+    State: \VType,
+    Output: \VType,
+    step: \U(State ~> \F(\RunStep[State, Output])),
   };
-
-\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
-  \forall (P: State -> \Prop) ->
-    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
-
-\structure Machine := {
-  State: \VType,
-  Output: \VType,
-  step: \U(State ~> \F(\RunStep[State, Output])),
-  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
-  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
-    \run[State, Output](step, s) \by { terminates s }),
-};
 }
 \module WrongStep {
-  \import \root.BundleSignatures[] \as Signatures;
+  \import \root.Transitions[] \as T;
   \inductive Unit: \VType := | unit: Unit;
-  \definition invalid: Signatures.Machine := Signatures.Machine {
-    State := Unit, Output := Unit,
-    step := \thunk(\cfun(s: Unit) => \return s),
-    terminates := \fun(s: Unit^) => \refl(s),
+  \definition invalid: T.Machine := T.Machine {
+    State := Unit,
+    Output := Unit,
+    step := \thunk (\cfun (state: Unit) => \return state),
   };
 }
 ```
 
-## bundles
+## Nested machines and specification bundles
 
-The bundle's implementation, specification, and termination proof agree.
+A terminating machine is nested inside a bundle with its reflected specification and coherence proof. Keeping these declarations together exercises dependent projections, default execution, Box application, and inference across the nested fields.
 
 ```toml case
-id = "accept-declarations.bundles"
+id = "nested-machine-specification-bundles"
 scope = "package"
 expect = "accept"
 ```
@@ -193,12 +164,12 @@ expect = "accept"
 }
 ```
 
-## closed program namespace
+## Closed program namespace
 
 A closed Program namespace can be used in a Box type.
 
 ```toml case
-id = "accept-declarations.closed_program_namespace"
+id = "closed-program-namespace"
 scope = "package"
 expect = "accept"
 ```
@@ -226,12 +197,12 @@ expect = "accept"
 }
 ```
 
-## machines
+## Machines
 
 The machine's state, transition, and termination proof have matching types.
 
 ```toml case
-id = "accept-declarations.machines"
+id = "machines"
 scope = "package"
 expect = "accept"
 ```

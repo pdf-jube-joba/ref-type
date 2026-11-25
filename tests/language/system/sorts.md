@@ -1,11 +1,11 @@
-# system / sorts
+# Sorts and product rules
 
-## application wrong argument
+## Application wrong argument
 
 The application argument does not have the function's domain type.
 
 ```toml case
-id = "reject-system.application_wrong_argument"
+id = "application-wrong-argument"
 scope = "module"
 expect = "reject"
 name = "ApplicationWrongArgument"
@@ -18,12 +18,12 @@ parameters = '''A, B: \Set(0),
 \definition bad: A := f b;
 ```
 
-## non cumulative
+## Non cumulative
 
 Sets at different universe levels are implicitly identified.
 
 ```toml case
-id = "reject-system.non_cumulative"
+id = "non-cumulative"
 scope = "module"
 expect = "reject"
 name = "NonCumulative"
@@ -34,12 +34,12 @@ parameters = '''A: \Set(0)'''
 \definition lifted_type: \Set(1) := A;
 ```
 
-## product invalid sort relation
+## Product invalid sort relation
 
 The product's domain and codomain do not satisfy the permitted sort relation.
 
 ```toml case
-id = "reject-system.product_invalid_sort_relation"
+id = "product-invalid-sort-relation"
 scope = "module"
 expect = "reject"
 name = "ProductInvalidSortRelation"
@@ -51,12 +51,12 @@ parameters = '''P: \Prop,
 \definition bad: \Set(0) := \forall (p: P) -> A;
 ```
 
-## pair cumulative
+## Pair cumulative
 
 Pair components can be combined under the declared universe conditions.
 
 ```toml case
-id = "accept-pair_cumulative"
+id = "pair-cumulative"
 scope = "module"
 expect = "accept"
 name = "PairCumulative"
@@ -73,12 +73,12 @@ name = "PairCumulative"
     Times[A, B]::pairConstructor a b;
 ```
 
-## axioms
+## Axioms
 
 Public axioms can be used as proof constructors with corresponding types.
 
 ```toml case
-id = "accept-system.axioms"
+id = "axioms"
 scope = "module"
 expect = "accept"
 name = "Axioms"
@@ -103,12 +103,12 @@ parameters = '''X, Y: \Set,
     \axiom:classicalIndefiniteChoice(X, Family, inhabited);
 ```
 
-## nested functions
+## Nested functions
 
 Nested functions distinguish outer and inner binders.
 
 ```toml case
-id = "accept-system.nested_functions"
+id = "nested-functions"
 scope = "module"
 expect = "accept"
 name = "NestedFunctions"
@@ -141,12 +141,12 @@ parameters = '''A, B, C: \Set(0),
     \fun (h: A -> B) => \fun (k: B -> C) => k (h a);
 ```
 
-## pure type system
+## Pure type system
 
 Types and products can be formed under the permitted sort relations.
 
 ```toml case
-id = "accept-system.pure_type_system"
+id = "pure-type-system"
 scope = "module"
 expect = "accept"
 name = "PureTypeSystem"
@@ -174,12 +174,12 @@ parameters = '''A: \Set(0),
 \definition same_level_type: \Set(0) := A;
 ```
 
-## record induction
+## Record induction
 
 Records can be decomposed inductively to construct proofs of the corresponding motives.
 
 ```toml case
-id = "accept-system.record_induction"
+id = "record-induction"
 scope = "module"
 expect = "accept"
 name = "Records"

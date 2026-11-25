@@ -1,11 +1,11 @@
-# system / equality
+# Equality and transport
 
-## equality rejects proofs
+## Equality rejects proofs
 
 Proof terms are compared with equality intended for set elements.
 
 ```toml case
-id = "reject-system.equality_rejects_proofs"
+id = "equality-rejects-proofs"
 scope = "module"
 expect = "reject"
 name = "EqualityRejectsProofs"
@@ -17,12 +17,12 @@ parameters = '''P: \Prop,
 \definition bad: \Prop := p = p;
 ```
 
-## equality requires common set
+## Equality requires common set
 
 The equality's two sides are not elements of a common set.
 
 ```toml case
-id = "reject-system.equality_requires_common_set"
+id = "equality-requires-common-set"
 scope = "module"
 expect = "reject"
 name = "EqualityRequiresCommonSet"
@@ -35,12 +35,12 @@ parameters = '''A, B: \Set(0),
 \definition bad: \Prop := a = b;
 ```
 
-## funext wrong pointwise
+## Funext wrong pointwise
 
 The proof passed to function extensionality does not establish pointwise equality of the specified functions.
 
 ```toml case
-id = "reject-system.funext_wrong_pointwise"
+id = "funext-wrong-pointwise"
 scope = "module"
 expect = "reject"
 name = "FunExtWrongPointwise"
@@ -54,12 +54,12 @@ parameters = '''X, Y: \Set,
 \definition bad: f = g := \axiom:funext(f, g, wrong);
 ```
 
-## id elim wrong base
+## Id elim wrong base
 
 The base proof for equality elimination does not establish the motive's reflexive case.
 
 ```toml case
-id = "reject-system.id_elim_wrong_base"
+id = "id-elim-wrong-base"
 scope = "module"
 expect = "reject"
 name = "IdentityElimWrongBase"
@@ -76,12 +76,12 @@ parameters = '''A: \Set(0),
     \idelim a = b \with x: A => P x \by { base: q, equality: ab };
 ```
 
-## setext wrong inclusion
+## Setext wrong inclusion
 
 The inclusion proofs for set extensionality do not relate the specified sets.
 
 ```toml case
-id = "reject-system.setext_wrong_inclusion"
+id = "setext-wrong-inclusion"
 scope = "module"
 expect = "reject"
 name = "SetExtWrongInclusion"
@@ -95,12 +95,12 @@ parameters = '''X: \Set,
 \definition bad: A = B := \axiom:setext(A, B, aa, ba);
 ```
 
-## equality transport
+## Equality transport
 
 Types and proofs can be transported along equality.
 
 ```toml case
-id = "accept-system.equality_transport"
+id = "equality-transport"
 scope = "module"
 expect = "accept"
 name = "Transport"
@@ -118,12 +118,12 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
 ```
 
 
-## transport families resolve record fields
+## Transport families resolve record fields
 
 Equality transport and its reflexivity-law family can reference fields of bound records.
 
 ```toml case
-id = "transport_families_resolve_record_fields"
+id = "transport-families-resolve-record-fields"
 scope = "module"
 expect = "accept"
 ```
@@ -158,12 +158,12 @@ expect = "accept"
     \by { base: value };
 ```
 
-## transport specialization and macro binders
+## Transport specialization and macro binders
 
 Transport equalities for Set(1) families remain usable through macros and module specialization.
 
 ```toml case
-id = "transport_specialization_and_macro_binders"
+id = "transport-specialization-and-macro-binders"
 scope = "package"
 expect = "accept"
 ```
@@ -181,15 +181,14 @@ expect = "accept"
 }
 ```
 
-## neutral transport supports subsets functions projections and induction
+## Neutral transport in elimination contexts
 
 Transport along an assumed equality can be used in function application, field projection, induction, and as a subset value.
 
 ```toml case
-id = "neutral_transport_supports_subsets_functions_projections_and_induction"
+id = "neutral-transport-in-elimination-contexts"
 scope = "module"
 expect = "accept"
-name = "T"
 parameters = '''A: \Set, a, b: A'''
 ```
 
@@ -214,15 +213,14 @@ parameters = '''A: \Set, a, b: A'''
   \fun (value: _) => \transporteq a \with x: _ => Sub \by { base: value };
 ```
 
-## transport substitutes through nested family binders
+## Transport substitutes through nested family binders
 
 Types can be transported along an outer equality while preserving binders within the family.
 
 ```toml case
-id = "transport_substitutes_through_nested_family_binders"
+id = "transport-substitutes-through-nested-family-binders"
 scope = "module"
 expect = "accept"
-name = "T"
 parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
 ```
 
@@ -234,15 +232,14 @@ parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
   \fun (value: _) => \transporteq a \with x: _ => \forall (y: A) -> F x y \by { base: value };
 ```
 
-## transport checks base and equality certificates
+## Transport checks the base term type
 
 The supplied base does not match the type before transport.
 
 ```toml case
-id = "transport_checks_base_and_equality_certificates"
+id = "transport-base-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "T"
 parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F b, e: a = b'''
 ```
 
@@ -250,15 +247,14 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F b, e: a = b'''
 \definition bad: F b := \idelim a = b \with x: _ => F x \by { base: v, equality: e };
 ```
 
-## transport checks base and equality certificates 1
+## Transport checks the equality proof direction
 
 The transport direction is opposite to the equality proof's direction.
 
 ```toml case
-id = "transport_checks_base_and_equality_certificates-1"
+id = "transport-equality-direction-mismatch"
 scope = "module"
 expect = "reject"
-name = "T"
 parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F a, e: b = a'''
 ```
 
@@ -266,15 +262,14 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F a, e: b = a'''
 \definition bad: F b := \idelim a = b \with x: _ => F x \by { base: v, equality: e };
 ```
 
-## transport substitutes through nested family binders 1
+## Transport identity requires a set-valued family
 
 A proposition is specified as the family for transporteq.
 
 ```toml case
-id = "transport_substitutes_through_nested_family_binders-1"
+id = "transport-identity-requires-set-family"
 scope = "module"
 expect = "reject"
-name = "T"
 parameters = '''A: \Set, a: A, P: A -> \Prop, p: P a'''
 ```
 

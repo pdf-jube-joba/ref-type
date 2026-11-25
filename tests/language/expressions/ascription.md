@@ -5,7 +5,7 @@
 Lambda arguments are inferred from expected types, and type ascriptions survive macro expansion and module specialization.
 
 ```toml case
-id = "ascription_infers_types_and_works_through_macros_and_modules"
+id = "ascription-infers-types-and-works-through-macros-and-modules"
 scope = "package"
 expect = "accept"
 ```
@@ -36,7 +36,7 @@ expect = "accept"
 Values and computations can be ascribed the types of their respective judgments and used in application and reflection.
 
 ```toml case
-id = "ascription_supports_program_values_computations_and_reflection"
+id = "ascription-supports-program-values-computations-and-reflection"
 scope = "package"
 expect = "accept"
 ```
@@ -56,10 +56,10 @@ expect = "accept"
   \check a \of A: A;
 }
 \module ProgramUse {
-  \inductive Bool: \VType := | yes: Bool;
-  \import \root.AnnotatedProgram[A := Bool, a := Bool::yes] \as M;
-  \definition value: Bool := M.value;
-  \definition computation: \F Bool := M.forced;
+  \inductive Unit: \VType := | unit: Unit;
+  \import \root.AnnotatedProgram[A := Unit, a := Unit::unit] \as M;
+  \definition value: Unit := M.value;
+  \definition computation: \F Unit := M.forced;
 }
 ```
 
@@ -68,10 +68,9 @@ expect = "accept"
 The original term's type does not match the ascription.
 
 ```toml case
-id = "wrong-ascription-0"
+id = "logic-ascription-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \Set, B: \Set, a: A'''
 ```
 
@@ -84,10 +83,9 @@ parameters = '''A: \Set, B: \Set, a: A'''
 The original term's type does not match the ascription.
 
 ```toml case
-id = "wrong-ascription-1"
+id = "program-value-ascription-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \VType, B: \VType, a: A'''
 ```
 
@@ -100,10 +98,9 @@ parameters = '''A: \VType, B: \VType, a: A'''
 The original term's type does not match the ascription.
 
 ```toml case
-id = "wrong-ascription-2"
+id = "program-computation-ascription-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \VType, B: \VType, a: A'''
 ```
 
@@ -111,12 +108,12 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition value: \F A := (\return a) \of \F B;
 ```
 
-## Ascribing a subset element with its base type
+## Ascribing subset elements with their carrier type
 
 A subset element can be ascribed its base type and used as a value of that type.
 
 ```toml case
-id = "subset-ascription-0"
+id = "subset-ascription-to-carrier"
 scope = "module"
 expect = "accept"
 name = "Widen"
@@ -128,12 +125,12 @@ parameters = '''A: \Set, S: \Pow A, s: \Cast[A] S'''
 \definition equal: value = s := \refl(s);
 ```
 
-## Returning to a subset after ascription
+## Carrier ascriptions do not prove subset membership
 
 A value ascribed its base type is used as a subset value without a membership proof.
 
 ```toml case
-id = "subset-ascription-1"
+id = "carrier-ascription-does-not-prove-membership"
 scope = "module"
 expect = "reject"
 name = "Narrow"

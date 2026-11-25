@@ -1,11 +1,11 @@
-# metavariables / holes
+# Inference and inspection holes
 
-## conflicting named constraints
+## Conflicting named constraints
 
 Holes with the same name receive incompatible constraints.
 
 ```toml case
-id = "reject-metavariables.conflicting_named_constraints"
+id = "conflicting-named-constraints"
 scope = "module"
 expect = "reject"
 name = "ConflictingNamedConstraints"
@@ -24,12 +24,12 @@ parameters = '''A: \Set(0),
 \definition impossible: A := chooseLeft _2 a b;
 ```
 
-## contextual unsolved goal
+## Contextual unsolved goal
 
 An inspection hole with a local context remains.
 
 ```toml case
-id = "reject-metavariables.contextual_unsolved_goal"
+id = "contextual-unsolved-goal"
 scope = "module"
 expect = "reject"
 name = "ContextualUnsolvedGoal"
@@ -40,12 +40,12 @@ parameters = '''A: \Set(0)'''
 \definition pending: A -> A := \fun (x: A) => ?;
 ```
 
-## named goal captures sibling binder
+## Named goal captures sibling binder
 
 A named hole attempts to capture a local variable from a different binder.
 
 ```toml case
-id = "reject-metavariables.named_goal_captures_sibling_binder"
+id = "named-goal-captures-sibling-binder"
 scope = "module"
 expect = "reject"
 name = "NamedGoalCapturesSiblingBinder"
@@ -63,12 +63,12 @@ parameters = '''A: \Set(0),
       (\fun (y: A) => \refl(_9));
 ```
 
-## occurs check
+## Occurs check
 
 A hole's solution depends on the hole itself.
 
 ```toml case
-id = "reject-metavariables.occurs_check"
+id = "occurs-check"
 scope = "module"
 expect = "reject"
 name = "MetaOccursCheck"
@@ -79,12 +79,12 @@ name = "MetaOccursCheck"
 \infer _1 _1;
 ```
 
-## shared unsolved goal
+## Shared unsolved goal
 
 Constraints on a shared named hole cannot be solved.
 
 ```toml case
-id = "reject-metavariables.shared_unsolved_goal"
+id = "shared-unsolved-goal"
 scope = "module"
 expect = "reject"
 name = "SharedUnsolvedGoal"
@@ -95,15 +95,14 @@ name = "SharedUnsolvedGoal"
 \definition pending: \Prop := _6 = _6;
 ```
 
-## solved inspection argument
+## Solved inspection argument
 
 An inspection hole in argument position requires inspection even when solved.
 
 ```toml case
-id = "reject-metavariables.solved_inspection_argument"
+id = "solved-inspection-argument"
 scope = "module"
 expect = "reject"
-name = "Inspection"
 parameters = '''A: \Set, a: A'''
 ```
 
@@ -113,15 +112,14 @@ parameters = '''A: \Set, a: A'''
 \definition pending: A := id ? a;
 ```
 
-## solved inspection program
+## Solved inspection program
 
 A Program inspection hole requires inspection even when solved.
 
 ```toml case
-id = "reject-metavariables.solved_inspection_program"
+id = "solved-inspection-program"
 scope = "module"
 expect = "reject"
-name = "Inspection"
 parameters = '''A: \VType, a: A'''
 ```
 
@@ -130,15 +128,14 @@ parameters = '''A: \VType, a: A'''
 \definition pending: Box[A] := Box[?]::box a;
 ```
 
-## solved inspection proof
+## Solved inspection proof
 
 An inspection hole in proof position requires inspection even when solved.
 
 ```toml case
-id = "reject-metavariables.solved_inspection_proof"
+id = "solved-inspection-proof"
 scope = "module"
 expect = "reject"
-name = "Inspection"
 parameters = '''A: \Set, a: A'''
 ```
 
@@ -146,12 +143,12 @@ parameters = '''A: \Set, a: A'''
 \definition pending: a = a := \refl(?);
 ```
 
-## two fresh unsolved goals
+## Two fresh unsolved goals
 
 Two independent inspection holes remain.
 
 ```toml case
-id = "reject-metavariables.two_fresh_unsolved_goals"
+id = "two-fresh-unsolved-goals"
 scope = "module"
 expect = "reject"
 name = "TwoFreshUnsolvedGoals"
@@ -162,12 +159,12 @@ name = "TwoFreshUnsolvedGoals"
 \definition pending: \Prop := ? = ?;
 ```
 
-## unsolved goal
+## Unsolved goal
 
 An inspection hole remains.
 
 ```toml case
-id = "reject-metavariables.unsolved_goal"
+id = "unsolved-goal"
 scope = "module"
 expect = "reject"
 name = "UnsolvedGoal"
@@ -178,12 +175,12 @@ parameters = '''A: \Set(0)'''
 \definition pending: A := ?;
 ```
 
-## unsolved named goal
+## Unsolved named goal
 
 A named hole cannot be resolved.
 
 ```toml case
-id = "reject-metavariables.unsolved_named_goal"
+id = "unsolved-named-goal"
 scope = "module"
 expect = "reject"
 name = "UnsolvedNamedGoal"

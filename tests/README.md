@@ -11,7 +11,7 @@ Its default binary is `target/debug/cli`, with `CARGO_TARGET_DIR` honored.
 cargo build -p cli --locked
 python3 tests/run.py
 python3 tests/run.py tests/language --keep-failed
-python3 tests/run.py --filter application_inference
+python3 tests/run.py --filter application-inference
 python3 tests/run.py --list
 python3 tests/run.py --command '/path/to/checker'
 python3 -m unittest discover -s tests -v
@@ -28,6 +28,16 @@ Each invocation has a 30-second timeout, configurable with the runner's `--timeo
 
 Compare acceptance and rejection conditions for the same topic in one document and explain the reasons in prose.
 Each case runs in an independent source directory.
+
+Use lowercase, hyphen-separated case IDs that name the behavior being checked.
+The document path already identifies the topic, and `expect` records acceptance or rejection, so IDs do not need either repeated as a prefix.
+Use headings that distinguish cases without relying on serial numbers.
+
+Keep examples self-contained and retain only the declarations needed to demonstrate the behavior.
+Use names that describe language constructs rather than the mathematical library where a regression was first observed.
+Preserve the nesting, instantiation, binding, and refinement relationships needed to reproduce a regression when simplifying it.
+For rejection cases, keep unrelated declarations valid and explain the specific invalid operation.
+When an example is intended to check a computed result, state the result as a checked equality rather than relying only on query output.
 
 ````markdown
 ## Identity function

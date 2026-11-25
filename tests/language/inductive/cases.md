@@ -1,11 +1,11 @@
-# inductive / cases
+# Inductive types and elimination
 
-## inductive motive large elimination
+## Inductive motive large elimination
 
 The inductive motive requires forbidden elimination into a large sort.
 
 ```toml case
-id = "reject-inductive_motive_large_elimination"
+id = "inductive-motive-large-elimination"
 scope = "module"
 expect = "reject"
 name = "LargeElimination"
@@ -20,12 +20,12 @@ name = "LargeElimination"
   };
 ```
 
-## inductive motive telescope
+## Inductive motive telescope
 
 The motive's argument list does not match the inductive type's indices.
 
 ```toml case
-id = "reject-inductive_motive_telescope"
+id = "inductive-motive-telescope"
 scope = "module"
 expect = "reject"
 name = "MotiveTelescope"
@@ -40,12 +40,12 @@ name = "MotiveTelescope"
   };
 ```
 
-## inductives
+## Inductive construction and constructor application
 
 Inductive constructors and recursor arguments correspond.
 
 ```toml case
-id = "accept-inductive.inductives"
+id = "inductive-construction-and-application"
 scope = "module"
 expect = "accept"
 name = "Ind"
@@ -70,12 +70,12 @@ name = "Ind"
 \definition two: Nat := Nat::succ (Nat::succ Nat::zero);
 ```
 
-## local parameter arguments
+## Local parameter arguments
 
 Substitution of inductive arguments distinguishes different local variables.
 
 ```toml case
-id = "accept-inductive.local_parameter_arguments"
+id = "local-parameter-arguments"
 scope = "module"
 expect = "accept"
 name = "LocalParameterArguments"
@@ -96,12 +96,12 @@ parameters = '''A: \Set(0)'''
     \fun (x: A) => \fun (y: A) => Tagged[y, x]::tag;
 ```
 
-## natural number
+## Natural number
 
 Natural-number constructors and primitive recursion can be expressed.
 
 ```toml case
-id = "accept-inductive.natural_number"
+id = "natural-number"
 scope = "module"
 expect = "accept"
 name = "nat"
@@ -129,12 +129,12 @@ name = "nat"
   };
 ```
 
-## nested parameters
+## Nested parameters
 
 Passing the same inductive type as a parameter is distinguished from a recursive field.
 
 ```toml case
-id = "accept-inductive.nested_parameters"
+id = "nested-parameters"
 scope = "module"
 expect = "accept"
 name = "NestedParameters"
@@ -189,12 +189,12 @@ name = "NestedParameters"
 \definition nestedDepth: depth Tree[Unit^] nestedTree = Count::succ Count::zero := \refl(Count::succ Count::zero);
 ```
 
-## open motives
+## Open motives
 
 An inductive type can be eliminated with a motive depending on local variables.
 
 ```toml case
-id = "accept-inductive.open_motives"
+id = "open-motives"
 scope = "module"
 expect = "accept"
 name = "OpenMotives"
@@ -246,15 +246,14 @@ name = "OpenMotives"
   \refl(Nat::zero);
 ```
 
-## parametrized inductive
+## Parametrized inductive
 
 Parameterized inductive types can be instantiated.
 
 ```toml case
-id = "accept-inductive.parametrized_inductive"
+id = "parametrized-inductive"
 scope = "module"
 expect = "accept"
-name = "Example"
 parameters = '''B: \Set'''
 ```
 
@@ -266,12 +265,12 @@ parameters = '''B: \Set'''
 \check T[B]::w: B -> T[B];
 ```
 
-## structure motive
+## Structure motive
 
 An inductive type can be eliminated with a structure-returning motive.
 
 ```toml case
-id = "accept-inductive.structure_motive"
+id = "structure-motive"
 scope = "package"
 expect = "accept"
 ```
@@ -293,66 +292,68 @@ expect = "accept"
 }
 ```
 
-## unit prec
+## Boolean elimination
 
-Primitive recursors for finitely many constructors are available.
+The Boolean eliminator handles both constructors and reduces to the selected branch.
 
 ```toml case
-id = "accept-inductive.unit_prec"
+id = "boolean-elimination"
 scope = "module"
 expect = "accept"
-name = "bool"
+name = "BooleanElimination"
 ```
 
 ```ref
-\inductive Bool: \Set :=
-| true : Bool
-| false : Bool
-;
-
-\infer \induction (x: Bool) \return Bool \with { | true: Bool::true | false: Bool::false };
+\inductive Bool: \Set := | true: Bool | false: Bool;
+\definition identity: Bool -> Bool :=
+  \induction (value: Bool) \return Bool \with {
+    | true: Bool::true
+    | false: Bool::false
+  };
+\definition onTrue: identity Bool::true = Bool::true := \refl(Bool::true);
+\definition onFalse: identity Bool::false = Bool::false := \refl(Bool::false);
 ```
 
-## parameterized prec pair
+## Parameterized pair elimination
 
 Primitive recursion correctly substitutes multiple local parameters.
 
 ```toml case
-id = "accept-parameterized_prec_pair"
+id = "parameterized-pair-elimination"
 scope = "module"
 expect = "accept"
-name = "ParameterizedPrecPair"
+name = "PairElimination"
 ```
 
 ```ref
-\inductive Times[A, B: \Set]: \Set :=
-| pair: A -> B -> Times
+\inductive Pair[A, B: \Set]: \Set :=
+| pair: A -> B -> Pair
 ;
 
 \definition first:
-  \forall (A, B: \Set) -> Times[A, B] -> A :=
-  \fun (A, B: \Set) => \fun (p: Times[A, B]) =>
-    \induction (q: Times[A, B]) \return A \with {
+  \forall (A, B: \Set) -> Pair[A, B] -> A :=
+  \fun (A, B: \Set) => \fun (p: Pair[A, B]) =>
+    \induction (q: Pair[A, B]) \return A \with {
       | pair: \fun (a: A) => \fun (b: B) => a
     }
       p;
 
 \definition second:
-  \forall (A, B: \Set) -> Times[A, B] -> B :=
-  \fun (A, B: \Set) => \fun (p: Times[A, B]) =>
-    \induction (q: Times[A, B]) \return B \with {
+  \forall (A, B: \Set) -> Pair[A, B] -> B :=
+  \fun (A, B: \Set) => \fun (p: Pair[A, B]) =>
+    \induction (q: Pair[A, B]) \return B \with {
       | pair: \fun (a: A) => \fun (b: B) => b
     }
       p;
 ```
 
 
-## constant motives keep parameters indices and outer variables scoped
+## Constant motives preserve index and parameter scopes
 
 Inductive types with parameters and indices can also be eliminated by a match returning the type of an outer variable or constant.
 
 ```toml case
-id = "constant_motives_keep_parameters_indices_and_outer_variables_scoped"
+id = "constant-motives-preserve-index-and-parameter-scopes"
 scope = "module"
 expect = "accept"
 name = "Scoped"
@@ -390,15 +391,14 @@ parameters = '''A: \Set, a: A'''
 \definition firstComputes: first (Pair[A, A]::pair a a) = a := \refl(a);
 ```
 
-## constant return types check every branch
+## Constant return types check every branch
 
 Only one branch returns a value whose type differs from the declared result type.
 
 ```toml case
-id = "constant_return_types_check_every_branch"
+id = "constant-return-types-check-every-branch"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A, B: \Set, a: A, b: B'''
 ```
 

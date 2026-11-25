@@ -1,11 +1,11 @@
-# modules / cases
+# Modules and instantiation
 
-## distinct namespace arguments
+## Distinct namespace arguments
 
-Nominal types instantiated with different arguments are identified.
+A value from one instantiation cannot be used at the nominal type from different module arguments.
 
 ```toml case
-id = "reject-modules.distinct-namespace-arguments"
+id = "distinct-namespace-arguments"
 scope = "package"
 expect = "reject"
 ```
@@ -21,12 +21,12 @@ expect = "reject"
 }
 ```
 
-## distinct namespace sources
+## Distinct namespace sources
 
-Nominal types from different modules are identified.
+A value from one module cannot be used at the nominal type declared by another module.
 
 ```toml case
-id = "reject-modules.distinct-namespace-sources"
+id = "distinct-namespace-sources"
 scope = "package"
 expect = "reject"
 ```
@@ -45,15 +45,14 @@ expect = "reject"
 }
 ```
 
-## param free
+## Module parameter types must be in scope
 
 An undeclared name is used as a module parameter.
 
 ```toml case
-id = "reject-param_free"
+id = "module-parameter-unknown-type"
 scope = "module"
 expect = "reject"
-name = "Hello"
 parameters = '''A: B,'''
 ```
 
@@ -61,12 +60,12 @@ parameters = '''A: B,'''
 
 ```
 
-## module nested
+## Module nested
 
 Child modules can reference parent parameters and declarations.
 
 ```toml case
-id = "accept-modules.module_nested"
+id = "module-nested"
 scope = "package"
 expect = "accept"
 ```
@@ -80,12 +79,12 @@ expect = "accept"
 }
 ```
 
-## module reference
+## Applying imported type functions
 
 Module instantiation can substitute parameters and reference members.
 
 ```toml case
-id = "accept-modules.module_reference"
+id = "imported-type-function-application"
 scope = "package"
 expect = "accept"
 ```
@@ -106,12 +105,12 @@ expect = "accept"
 }
 ```
 
-## module reference2
+## Imported function types through aliases
 
 Instantiated module members can be used at corresponding types.
 
 ```toml case
-id = "accept-modules.module_reference2"
+id = "imported-function-type-alias"
 scope = "package"
 expect = "accept"
 ```
@@ -134,12 +133,12 @@ expect = "accept"
 }
 ```
 
-## parent import scope
+## Parent import scope
 
 Child modules can use their parent's import aliases and macros.
 
 ```toml case
-id = "accept-modules.parent_import_scope"
+id = "parent-import-scope"
 scope = "package"
 expect = "accept"
 ```
@@ -184,12 +183,12 @@ expect = "accept"
 }
 ```
 
-## program inductive instance
+## Program inductive instance
 
 Inductive types from instantiated Program modules can be distinguished and used.
 
 ```toml case
-id = "accept-modules.program_inductive_instance"
+id = "program-inductive-instance"
 scope = "package"
 expect = "accept"
 ```
@@ -214,12 +213,12 @@ expect = "accept"
 }
 ```
 
-## structure instance
+## Structure instance
 
 Structures inside instantiated modules can be constructed with corresponding fields.
 
 ```toml case
-id = "accept-modules.structure_instance"
+id = "structure-instance"
 scope = "package"
 expect = "accept"
 ```
@@ -240,12 +239,12 @@ expect = "accept"
 }
 ```
 
-## substitution identity
+## Substitution identity
 
 Reusing the same arguments in module substitution preserves type identity.
 
 ```toml case
-id = "accept-modules.substitution-identity"
+id = "substitution-identity"
 scope = "package"
 expect = "accept"
 ```
@@ -274,12 +273,12 @@ expect = "accept"
 }
 ```
 
-## parameter dependent
+## Proof parameters use earlier propositions
 
 Later module parameters can depend on earlier parameters' types.
 
 ```toml case
-id = "accept-parameter_dependent"
+id = "proof-parameters-use-earlier-propositions"
 scope = "module"
 expect = "accept"
 name = "DependParam"
@@ -291,12 +290,12 @@ parameters = '''P1: \Prop,
 
 ```
 
-## parameter dependent2
+## Function parameters use earlier domain and codomain types
 
-Instantiating dependent parameters also substitutes later types.
+Function parameters can use the domain and codomain types declared earlier in the same module header.
 
 ```toml case
-id = "accept-parameter_dependent2"
+id = "function-parameters-use-earlier-types"
 scope = "module"
 expect = "accept"
 name = "DependParam"

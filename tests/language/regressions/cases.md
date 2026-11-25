@@ -1,34 +1,34 @@
-# regressions / cases
+# Conversion and reduction regressions
 
-## display conversion
+## Display conversion
 
 Definitional equality checking also works for terms with display information.
 
 ```toml case
-id = "accept-regressions.display_conversion"
+id = "display-conversion"
 scope = "module"
 expect = "accept"
 name = "Display"
 ```
 
 ```ref
-\inductive Degree: \Set := | zero: Degree | one: Degree;
-\inductive Scalar: \Set := | value: Scalar;
-\definition Form[k: Degree]: \Set := Scalar;
-\definition series[k: Degree][omega: Form k]: Scalar := omega;
-\definition recover[k: Degree][representation: Scalar]: Form k := representation;
-\definition convert[k, l: Degree][omega: Form k]: Form l := recover l (series k omega);
-\definition cast[k, l: Degree][omega: Form k][same: k = l]: Form l := convert k l omega;
-\definition identity: \forall (k: Degree)(omega: Form k)(same: k = k) -> cast k k omega same = omega :=
-  \fun (k: Degree)(omega: Form k)(same: k = k) => \refl omega;
+\inductive Index: \Set := | zero: Index | one: Index;
+\inductive Item: \Set := | value: Item;
+\definition IndexedValue[k: Index]: \Set := Item;
+\definition forgetIndex[k: Index][value: IndexedValue k]: Item := value;
+\definition atIndex[k: Index][representation: Item]: IndexedValue k := representation;
+\definition changeIndex[k, l: Index][value: IndexedValue k]: IndexedValue l := atIndex l (forgetIndex k value);
+\definition transport[k, l: Index][value: IndexedValue k][same: k = l]: IndexedValue l := changeIndex k l value;
+\definition identity: \forall (k: Index)(value: IndexedValue k)(same: k = k) -> transport k k value same = value :=
+  \fun (k: Index)(value: IndexedValue k)(same: k = k) => \refl value;
 ```
 
-## inductive reduction large parameter
+## Inductive reduction large parameter
 
 Recursor reduction preserves types even for inductive types with large parameters.
 
 ```toml case
-id = "accept-regressions.inductive_reduction_large_parameter"
+id = "inductive-reduction-large-parameter"
 scope = "module"
 expect = "accept"
 name = "InductiveReductionLargeParameter"
@@ -53,12 +53,12 @@ name = "InductiveReductionLargeParameter"
 \definition project [x: T8]: first T8 T8 (Pair[T8, T8]::pair x x) = x := \refl(x);
 ```
 
-## refined function application
+## Refined function application
 
 Application of a function with refinements has the corresponding type.
 
 ```toml case
-id = "accept-regressions.refined_function_application"
+id = "refined-function-application"
 scope = "module"
 expect = "accept"
 name = "RefinedFunctionApplication"

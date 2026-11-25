@@ -1,12 +1,12 @@
 # Box parameters and residual terms
 
-## Type and value module parameters
+## Boxes retain module type and value parameters
 
 Terms blocked on input during Program reduction are reflected, and Logic beta reduction eliminates unnecessary inputs.
 Parameters remaining in thunks inside return are reflected as well.
 
 ```toml case
-id = "box-parameters.module"
+id = "boxes-retain-module-parameters"
 scope = "module"
 parameters = 'A: \VType, a: A, x: \U(\F(A))'
 expect = "accept"
@@ -25,13 +25,13 @@ expect = "accept"
   \squash[_](\boxapp(identity, \box[_](\return a))) = a^ := \refl(a^);
 ```
 
-## Definition arguments and instantiation
+## Boxes retain definition arguments after instantiation
 
 An ordinary definition takes a type and value to construct a Box.
 Reflection and substitution agree before and after instantiation.
 
 ```toml case
-id = "box-parameters.definition"
+id = "boxes-retain-definition-arguments"
 scope = "module"
 expect = "accept"
 ```
@@ -50,12 +50,12 @@ expect = "accept"
 \definition substituted: reflected Bit Bit::one = Bit^::one := \refl(Bit^::one);
 ```
 
-## Namespace instantiation
+## Boxes survive namespace instantiation
 
 A module exposing a Box is instantiated with two values.
 
 ```toml case
-id = "box-parameters.namespace"
+id = "boxes-survive-namespace-instantiation"
 scope = "package"
 expect = "accept"
 ```
@@ -81,12 +81,12 @@ expect = "accept"
 }
 ```
 
-## Boxes in termination proofs
+## Boxes inside reflected termination proofs
 
 When reflecting Program definitions, parameters and Boxes referenced by termination proofs also move into the Logic context.
 
 ```toml case
-id = "box-parameters.termination-proof"
+id = "boxes-in-reflected-termination-proofs"
 scope = "module"
 parameters = 'A: \VType, a: A'
 expect = "accept"

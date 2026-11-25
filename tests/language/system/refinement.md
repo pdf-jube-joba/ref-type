@@ -1,11 +1,11 @@
-# system / refinement
+# Refinement types and membership
 
-## powerset requires set
+## Powerset requires set
 
 The powerset's subject is not a set.
 
 ```toml case
-id = "reject-system.powerset_requires_set"
+id = "powerset-requires-set"
 scope = "module"
 expect = "reject"
 name = "PowerSetRequiresSet"
@@ -16,12 +16,12 @@ parameters = '''P: \Prop,'''
 \definition bad: \Set(0) := \Pow (P);
 ```
 
-## predicate wrong element
+## Predicate wrong element
 
 The element passed to the predicate does not belong to the specified ambient set.
 
 ```toml case
-id = "reject-system.predicate_wrong_element"
+id = "predicate-wrong-element"
 scope = "module"
 expect = "reject"
 name = "PredicateWrongElement"
@@ -34,12 +34,12 @@ parameters = '''A, B: \Set(0),
 \definition bad: \Prop := \In[A] (subsetOfA) (b);
 ```
 
-## subset elim requires refined element
+## Subset elim requires refined element
 
 Subset elimination is given a value that is not a refinement element.
 
 ```toml case
-id = "reject-system.subset_elim_requires_refined_element"
+id = "subset-elim-requires-refined-element"
 scope = "module"
 expect = "reject"
 name = "SubsetElimRequiresRefinedElement"
@@ -53,12 +53,12 @@ parameters = '''A: \Set(0),
 \definition bad: \In[A] (PSet) (a) := \bysub(A, PSet, a);
 ```
 
-## subset intro wrong proof
+## Subset intro wrong proof
 
 The proof passed to subset introduction does not establish the witness's membership.
 
 ```toml case
-id = "reject-system.subset_intro_wrong_proof"
+id = "subset-intro-wrong-proof"
 scope = "module"
 expect = "reject"
 name = "SubsetIntroWrongProof"
@@ -74,12 +74,12 @@ parameters = '''A: \Set(0),
 \definition bad: PA := \into[A](a, PSet) \by { qa };
 ```
 
-## subset requires proposition
+## Subset requires proposition
 
 The subset condition is not a proposition.
 
 ```toml case
-id = "reject-system.subset_requires_proposition"
+id = "subset-requires-proposition"
 scope = "module"
 expect = "reject"
 name = "SubsetRequiresProposition"
@@ -90,12 +90,12 @@ parameters = '''A: \Set(0),'''
 \definition bad: \Pow (A) := { x : A \where A };
 ```
 
-## type lift wrong carrier
+## Type lift wrong carrier
 
 The refinement is not a subset of the specified ambient set.
 
 ```toml case
-id = "reject-system.type_lift_wrong_carrier"
+id = "type-lift-wrong-carrier"
 scope = "module"
 expect = "reject"
 name = "TypeLiftWrongCarrier"
@@ -107,12 +107,12 @@ parameters = '''A, B: \Set(0),
 \definition bad: \Set(0) := \Cast[A] (subsetOfB);
 ```
 
-## subset intro
+## Subset intro
 
 A subset witness and membership proof can be combined.
 
 ```toml case
-id = "accept-subset_intro"
+id = "subset-intro"
 scope = "module"
 expect = "accept"
 name = "SubsetIntro"
@@ -180,12 +180,12 @@ parameters = '''A: \Set(0),
     \refl(xa);
 ```
 
-## id elim local subset
+## Id elim local subset
 
 Local subsets are retained under motives and binders.
 
 ```toml case
-id = "accept-system.id_elim_local_subset"
+id = "id-elim-local-subset"
 scope = "module"
 expect = "accept"
 name = "LocalSubset"
@@ -220,12 +220,12 @@ parameters = '''A: \Set'''
     subsetEquality!{ { { T : \Pow (A) \where T = Left -> T = Right } } } x y e;
 ```
 
-## inductive elimination through refinement
+## Inductive elimination through refinement
 
 Inductive elements can be eliminated through refinements.
 
 ```toml case
-id = "accept-system.inductive_elimination_through_refinement"
+id = "inductive-elimination-through-refinement"
 scope = "module"
 expect = "accept"
 name = "RefinedNaturalElimination"
@@ -253,12 +253,12 @@ name = "RefinedNaturalElimination"
 \normalize eliminate (Nat::succ Nat::zero);
 ```
 
-## nested subset applications
+## Nested subset applications
 
 Nested refinements and applications preserve types.
 
 ```toml case
-id = "accept-system.nested_subset_applications"
+id = "nested-subset-applications"
 scope = "module"
 expect = "accept"
 name = "NestedSubsetApplications"
@@ -300,12 +300,12 @@ parameters = '''A: \Set(0),
 \definition indexed_by_named_intro: Family refined_a := indexed;
 ```
 
-## refinement eliminators
+## Refinement eliminators
 
 A refinement's witness and membership proof can be extracted at corresponding types.
 
 ```toml case
-id = "accept-system.refinement_eliminators"
+id = "refinement-eliminators"
 scope = "package"
 expect = "accept"
 ```
@@ -383,12 +383,12 @@ expect = "accept"
 }
 ```
 
-## subset and equality
+## Subset and equality
 
 Subset membership can be combined with ambient-set equality.
 
 ```toml case
-id = "accept-system.subset_and_equality"
+id = "subset-and-equality"
 scope = "module"
 expect = "accept"
 name = "SubsetAndEquality"

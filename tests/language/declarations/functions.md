@@ -1,52 +1,50 @@
-# language / declarations / functions
+# Structure-valued functions
 
-## structure result arrows check lambdas and their applications
+## Structure-valued functions and field reduction
 
 Applying a structure-returning function and projecting its fields reduces to values corresponding to the function arguments.
 
 ```toml case
-id = "structure_result_arrows_check_lambdas_and_their_applications"
+id = "structure-valued-function-application"
 scope = "module"
 expect = "accept"
-name = "Playground"
 parameters = '''Carrier: \Set, x: Carrier'''
 ```
 
 ```ref
-\structure A[Carrier: \Set] := { a: Carrier };
-\structure B[Carrier: \Set] := { b: Carrier };
-\definition AtoB[Carrier: \Set]: A[Carrier] -> B[Carrier] :=
-  \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
-\definition choose[Carrier: \Set]: A[Carrier] -> A[Carrier] -> B[Carrier] :=
-  \fun (left, right: A[Carrier]) => B[Carrier] { b := right.a };
-\definition make[Carrier: \Set]: Carrier -> B[Carrier] :=
-  \fun (value: Carrier) => B[Carrier] { b := value };
-\definition dependent: \forall (Carrier: \Set) -> A[Carrier] -> B[Carrier] :=
-  \fun (Carrier: \Set) => \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
-\definition captured: \forall (value: Carrier) -> B[Carrier] :=
-  \fun (value: Carrier) => B[Carrier] { b := (\fun (x: Carrier) => value) x };
-\definition input: A[Carrier] := A[Carrier] { a := x };
-\definition output: B[Carrier] := AtoB[Carrier] input;
-\definition chosen: B[Carrier] := choose[Carrier] input input;
-\definition made: B[Carrier] := make[Carrier] x;
-\definition dep: B[Carrier] := dependent Carrier input;
-\definition cap: B[Carrier] := captured x;
-\definition sameDependent: dep.b = x := \refl(x);
-\definition sameCaptured: cap.b = x := \refl(x);
-\definition same: output.b = x := \refl(x);
-\definition sameChosen: chosen.b = x := \refl(x);
-\definition sameMade: made.b = x := \refl(x);
+\structure Input[Carrier: \Set] := { value: Carrier };
+\structure Output[Carrier: \Set] := { value: Carrier };
+\definition convert[Carrier: \Set]: Input[Carrier] -> Output[Carrier] :=
+  \fun (data: Input[Carrier]) => Output[Carrier] { value := data.value };
+\definition choose[Carrier: \Set]: Input[Carrier] -> Input[Carrier] -> Output[Carrier] :=
+  \fun (left, right: Input[Carrier]) => Output[Carrier] { value := right.value };
+\definition make[Carrier: \Set]: Carrier -> Output[Carrier] :=
+  \fun (value: Carrier) => Output[Carrier] { value := value };
+\definition dependent: \forall (Carrier: \Set) -> Input[Carrier] -> Output[Carrier] :=
+  \fun (Carrier: \Set) => \fun (data: Input[Carrier]) => Output[Carrier] { value := data.value };
+\definition captured: \forall (value: Carrier) -> Output[Carrier] :=
+  \fun (value: Carrier) => Output[Carrier] { value := (\fun (x: Carrier) => value) x };
+\definition input: Input[Carrier] := Input[Carrier] { value := x };
+\definition output: Output[Carrier] := convert[Carrier] input;
+\definition chosen: Output[Carrier] := choose[Carrier] input input;
+\definition made: Output[Carrier] := make[Carrier] x;
+\definition dependentOutput: Output[Carrier] := dependent Carrier input;
+\definition capturedOutput: Output[Carrier] := captured x;
+\definition sameDependent: dependentOutput.value = x := \refl(x);
+\definition sameCaptured: capturedOutput.value = x := \refl(x);
+\definition same: output.value = x := \refl(x);
+\definition sameChosen: chosen.value = x := \refl(x);
+\definition sameMade: made.value = x := \refl(x);
 ```
 
-## structure result lambdas check their parameter annotations
+## Parameter annotations of structure-valued functions
 
 Even for a structure-returning function, a lambda parameter annotation differs from the domain.
 
 ```toml case
-id = "structure_result_lambdas_check_their_parameter_annotations"
+id = "structure-valued-lambda-annotation-mismatch"
 scope = "module"
 expect = "reject"
-name = "M"
 parameters = '''A: \Set, B: \Set'''
 ```
 
@@ -55,99 +53,97 @@ parameters = '''A: \Set, B: \Set'''
 \definition bad: A -> Box[B] := \fun (value: B) => Box[B] { value := value };
 ```
 
-## structure sort
+## Structure sort
 
-A structure without an explicit sort is treated as a signature; a structure with an explicit sort can be used as a type.
+A structure without an explicit sort is a signature. Adding a Set sort makes Cell a record that can be returned as a type.
 
 ```toml scenario
 id = "structure-sort"
 scope = "module"
-name = "Playground"
 ```
 
 ```ref
-\structure A[Carrier: \Set] := {
-  op1: Carrier,
+\structure Cell[Carrier: \Set] := {
+  value: Carrier,
 };
 
-\definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+\definition CellType: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => Cell[Carrier];
 ```
 
-### signature
+### Signature without a sort
 
-It cannot be used as a type.
+A signature does not itself inhabit Set.
 
 ```toml step
-id = "invalid"
+id = "signature-has-no-sort"
 expect = "reject"
 ```
 
-### value
+### Record with an explicit sort
 
-Specifying the required sort or value makes it accepted.
+Adding an explicit Set sort makes Cell a record type.
 
 ```toml step
-id = "fixed"
+id = "record-has-sort"
 expect = "accept"
 ```
 
 ```ref
-\structure A[Carrier: \Set]: \Set := {
-  op1: Carrier,
+\structure Cell[Carrier: \Set]: \Set := {
+  value: Carrier,
 };
 
-\definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+\definition CellType: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => Cell[Carrier];
 ```
 
-## structure value projection
+## Structure value projection
 
-Value fields cannot be extracted from a structure type itself; extracting them from a structure value data allows equalities to be stated.
+Packed.value is a projection function, while data.value is the field of a particular record. The law must compare field values from that record.
 
 ```toml scenario
 id = "structure-value-projection"
 scope = "module"
-name = "Playground"
 ```
 
 ```ref
-\structure A: \SetKind := {
+\structure Packed: \SetKind := {
   Carrier: \Set,
-  a: Carrier,
+  value: Carrier,
 };
 
-\structure ALaw := {
-  data: A,
-  some: A.a = A.a,
+\structure Laws := {
+  data: Packed,
+  reflexive: Packed.value = Packed.value,
 };
 ```
 
-### signature
+### Projecting from the record type
 
-It cannot be used as a type.
+Packed.value still needs a record argument, so it cannot be used as the element compared by this equality.
 
 ```toml step
-id = "invalid"
+id = "project-from-type"
 expect = "reject"
 ```
 
-### value
+### Projecting from the record value
 
-Specifying the required sort or value makes it accepted.
+Projecting data.value gives the field of the supplied record.
 
 ```toml step
-id = "fixed"
+id = "project-from-value"
 expect = "accept"
 ```
 
 ```ref
-\structure A: \SetKind := {
+\structure Packed: \SetKind := {
   Carrier: \Set,
-  a: Carrier,
+  value: Carrier,
 };
 
-\structure ALaw := {
-  data: A,
-  some: data.a = data.a,
+\structure Laws := {
+  data: Packed,
+  reflexive: data.value = data.value,
 };
 ```
 
@@ -159,7 +155,6 @@ The projection's product does not satisfy the permitted sort relation.
 id = "generated-projection"
 scope = "module"
 expect = "reject"
-name = "M"
 ```
 
 ```ref

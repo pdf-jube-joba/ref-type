@@ -1,11 +1,11 @@
-# general-recursion / datatypes
+# Program datatypes and reflection
 
-## double negative program inductive
+## Double negative program inductive
 
 A Program inductive type occurs in a doubly negative position and fails strict positivity.
 
 ```toml case
-id = "reject-general-recursion.double-negative-program-inductive"
+id = "double-negative-program-inductive"
 scope = "module"
 expect = "reject"
 name = "DoubleNegativeProgramInductive"
@@ -17,12 +17,12 @@ name = "DoubleNegativeProgramInductive"
 ;
 ```
 
-## duplicate program constructor
+## Duplicate program constructor
 
 Program constructor names are duplicated.
 
 ```toml case
-id = "reject-general-recursion.duplicate-program-constructor"
+id = "duplicate-program-constructor"
 scope = "module"
 expect = "reject"
 name = "DuplicateProgramConstructor"
@@ -35,12 +35,12 @@ name = "DuplicateProgramConstructor"
 ;
 ```
 
-## non positive program inductive
+## Non positive program inductive
 
 A Program inductive type occurs in a negative position.
 
 ```toml case
-id = "reject-general-recursion.non-positive-program-inductive"
+id = "non-positive-program-inductive"
 scope = "module"
 expect = "reject"
 name = "NonPositiveProgramInductive"
@@ -52,12 +52,12 @@ name = "NonPositiveProgramInductive"
 ;
 ```
 
-## reflected constructor wrong parameter
+## Reflected constructor wrong parameter
 
 A reflected constructor's type arguments do not match the original inductive type's arguments.
 
 ```toml case
-id = "reject-general-recursion.reflected-constructor-wrong-parameter"
+id = "reflected-constructor-wrong-parameter"
 scope = "module"
 expect = "reject"
 name = "WrongReflectedParameter"
@@ -70,12 +70,12 @@ name = "WrongReflectedParameter"
 \definition bad: Wrap^[Nat^] := Wrap^[Bit^]::wrap Bit^::off;
 ```
 
-## wrong program constructor result
+## Wrong program constructor result
 
 A Program constructor does not return the inductive type being declared.
 
 ```toml case
-id = "reject-general-recursion.wrong-program-constructor-result"
+id = "wrong-program-constructor-result"
 scope = "module"
 expect = "reject"
 name = "WrongProgramConstructorResult"
@@ -87,12 +87,12 @@ name = "WrongProgramConstructorResult"
 ;
 ```
 
-## compute inductive
+## Compute inductive
 
 Program inductive constructors and cases have corresponding types.
 
 ```toml case
-id = "accept-general-recursion.compute-inductive"
+id = "compute-inductive"
 scope = "module"
 expect = "accept"
 name = "ProgramInductive"
@@ -115,12 +115,12 @@ name = "ProgramInductive"
 \normalize (flip zero);
 ```
 
-## parameterized reflection
+## Parameterized reflection
 
 Program inductive parameters are retained in reflection to Set.
 
 ```toml case
-id = "accept-general-recursion.parameterized-reflection"
+id = "parameterized-reflection"
 scope = "module"
 expect = "accept"
 name = "ParameterizedReflection"
@@ -143,12 +143,12 @@ name = "ParameterizedReflection"
 \infer Box^[Unit^]::box Unit^::unit;
 ```
 
-## program case fields
+## Program case fields
 
 Program case branches bind constructor fields as values.
 
 ```toml case
-id = "accept-general-recursion.program-case-fields"
+id = "program-case-fields"
 scope = "module"
 expect = "accept"
 name = "PairProgram"
@@ -168,12 +168,12 @@ parameters = '''A: \VType, a: A, b: A'''
 \normalize (swap input);
 ```
 
-## recursive program inductive
+## Recursive program inductive
 
 Recursive Program inductive types satisfying strict positivity can be defined.
 
 ```toml case
-id = "accept-general-recursion.recursive-program-inductive"
+id = "recursive-program-inductive"
 scope = "module"
 expect = "accept"
 name = "RecursiveProgramInductive"
@@ -196,12 +196,12 @@ name = "RecursiveProgramInductive"
 \normalize \squash[_](boxedOne);
 ```
 
-## reflected names
+## Reflected names
 
 Reflected Program inductive types and constructors can be referenced by their generated names.
 
 ```toml case
-id = "accept-general-recursion.reflected-names"
+id = "reflected-names"
 scope = "package"
 expect = "accept"
 ```
@@ -265,12 +265,12 @@ expect = "accept"
 }
 ```
 
-## reflection conversion
+## Reflection conversion
 
 Reflection and reduction produce definitionally equal results.
 
 ```toml case
-id = "accept-general-recursion.reflection-conversion"
+id = "reflection-conversion"
 scope = "module"
 expect = "accept"
 name = "ReflectionConversion"
@@ -300,12 +300,12 @@ name = "ReflectionConversion"
 \definition mirrorRecursor: unwrap mirrorConstructor^ = Nat^::zero := \refl(Nat^::zero);
 ```
 
-## reflection nested recursive
+## Reflection nested recursive
 
 Recursive fields through U and F can be reflected.
 
 ```toml case
-id = "accept-general-recursion.reflection-nested-recursive"
+id = "reflection-nested-recursive"
 scope = "module"
 expect = "accept"
 name = "NestedRecursiveReflection"
@@ -326,12 +326,12 @@ name = "NestedRecursiveReflection"
 \normalize \squash[_](boxedTree);
 ```
 
-## reflection
+## Reflection
 
 Program types and values can be reflected into corresponding Sets and elements.
 
 ```toml case
-id = "accept-general-recursion.reflection"
+id = "reflection"
 scope = "module"
 expect = "accept"
 name = "ProgramReflection"

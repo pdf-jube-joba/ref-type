@@ -1,11 +1,11 @@
-# macros / inference
+# Inference through macro expansion
 
 ## Holes passed to equality-elimination captures
 
 Holes in the same capture at equality endpoints, in a motive under binders, and in the base case are inferred from the equality proof.
 
 ```toml case
-id = "accept-macros.captured_hole_equality_elimination"
+id = "captured-hole-equality-elimination"
 scope = "module"
 expect = "accept"
 parameters = '''A, B: \Set'''
@@ -24,7 +24,7 @@ parameters = '''A, B: \Set'''
 Holes passed through sequence captures and token matches are also shared between the motive and base case.
 
 ```toml case
-id = "accept-macros.forwarded_captured_hole"
+id = "forwarded-captured-hole"
 scope = "module"
 expect = "accept"
 parameters = '''A, B: \Set'''
@@ -46,7 +46,7 @@ parameters = '''A, B: \Set'''
 A hole in the same capture cannot be solved as two different local variables.
 
 ```toml case
-id = "reject-macros.captured_hole_inconsistent_constraints"
+id = "captured-hole-inconsistent-constraints"
 scope = "module"
 expect = "reject"
 parameters = '''A: \Set, a, b: A'''
@@ -62,7 +62,7 @@ parameters = '''A: \Set, a, b: A'''
 Holes from separate macro calls within a declaration and explicit named holes are each solved from their expected types.
 
 ```toml case
-id = "accept-macros.captured_hole_independent_calls"
+id = "captured-hole-independent-calls"
 scope = "module"
 expect = "accept"
 parameters = '''A: \Set, a, b: A'''
@@ -87,7 +87,7 @@ parameters = '''A: \Set, a, b: A'''
 Duplicated lambdas compare their entire expressions under binders rather than requiring identical internal variable names.
 
 ```toml case
-id = "accept-macros.captured_lambda_body_hole"
+id = "captured-lambda-body-hole"
 scope = "module"
 expect = "accept"
 parameters = '''A: \Set'''
@@ -105,7 +105,7 @@ parameters = '''A: \Set'''
 Forwarding a lambda with holes in its annotation and body still gives matching duplicated function values.
 
 ```toml case
-id = "accept-macros.forwarded_captured_nested_lambda"
+id = "forwarded-captured-nested-lambda"
 scope = "module"
 expect = "accept"
 parameters = '''A: \Set'''
@@ -124,7 +124,7 @@ parameters = '''A: \Set'''
 Capture sharing does not prevent inference from propagating expected types into Program function annotations.
 
 ```toml case
-id = "accept-macros.program_capture_expected_function"
+id = "program-capture-expected-function"
 scope = "module"
 expect = "accept"
 ```
@@ -141,7 +141,7 @@ expect = "accept"
 Capture sharing does not turn lambdas or ascribed computations into values requiring an explicit force.
 
 ```toml case
-id = "accept-macros.program_capture_application_head"
+id = "program-capture-application-head"
 scope = "module"
 expect = "accept"
 parameters = '''A: \VType, a: A'''
@@ -161,7 +161,7 @@ parameters = '''A: \VType, a: A'''
 Expected types and shared values are matched in type, computation-type, value, and computation positions.
 
 ```toml case
-id = "accept-macros.program_capture_categories"
+id = "program-capture-categories"
 scope = "module"
 expect = "accept"
 parameters = '''A: \VType, a: A'''
@@ -180,19 +180,19 @@ parameters = '''A: \VType, a: A'''
 Intermediate expressions through nested congruence and commutativity arguments are inferred from the surrounding equational reasoning.
 
 ```toml case
-id = "accept-macros.captured_proof_type_constraints"
+id = "captured-proof-type-constraints"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Repro(V, K: \Set, add: V -> V -> V, scale: K -> V -> V, neg: V -> V,
-  unit, row, source, result: V, a, b: K,
-  comm: \forall (x, y: V) -> add x y = add y x,
-  join: source = add (scale a unit) row,
-  same: scale a unit = scale b unit,
-  negative: scale b unit = neg unit,
-  final: result = add row (neg unit)) {
+\module NestedEquality(A, Index: \Set, combine: A -> A -> A, select: Index -> A -> A, transform: A -> A,
+  seed, other, source, result: A, a, b: Index,
+  commutes: \forall (x, y: A) -> combine x y = combine y x,
+  join: source = combine (select a seed) other,
+  same: select a seed = select b seed,
+  transformed: select b seed = transform seed,
+  final: result = combine other (transform seed)) {
   \macro sym($A) :=
     (\fun (law: \forall (a, b: $A) -> a = b -> b = a) => law)
     (\fun (a, b: $A)(e: a = b) =>
@@ -208,14 +208,14 @@ expect = "accept"
   };
   \macro congr($A, $B) := \fun (f: $A -> $B)(a, b: $A)(same: a = b) =>
     \idelim a = b \with x: $A => f a = f x \by { base: \refl(f a), equality: same };
-  \definition law: source = result := eq_reason_in!{V _
+  \definition law: source = result := eq_reason_in!{A _
     "=" _ "by" { join }
-    "=" _ "by" { congr!{V V} (\fun (w: V) => add w row) _ _ (eq_reason_in!{V _
+    "=" _ "by" { congr!{A A} (\fun (w: A) => combine w other) _ _ (eq_reason_in!{A _
       "=" _ "by" { same }
-      "=" _ "by" { negative }
+      "=" _ "by" { transformed }
     }) }
-    "=" _ "by" { comm _ _ }
-    "=" _ "by" { sym!{V} _ _ final }
+    "=" _ "by" { commutes _ _ }
+    "=" _ "by" { sym!{A} _ _ final }
   };
 }
 ```

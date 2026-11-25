@@ -1,29 +1,27 @@
-# aliases / cases
+# Type aliases
 
-## body type
+## Body type
 
 The alias body does not have its declared type.
 
 ```toml case
-id = "reject-aliases.body_type"
+id = "body-type"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \definition Wrong[A: \Set]: \Set := A -> \Prop;
 ```
 
-## dependent argument type
+## Dependent argument type
 
 A later alias argument does not have the type determined by an earlier argument.
 
 ```toml case
-id = "reject-aliases.dependent_argument_type"
+id = "dependent-argument-type"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
@@ -33,15 +31,14 @@ name = "Bad"
 \definition bad: Unit := Identity[Unit, Other::other];
 ```
 
-## parameter count
+## Parameter count
 
 The alias lacks arguments, and the remaining higher sort cannot be used as a term's type.
 
 ```toml case
-id = "reject-aliases.parameter_count"
+id = "parameter-count"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
@@ -49,15 +46,14 @@ name = "Bad"
 \definition bad: \PropKind := Relation;
 ```
 
-## unused argument type
+## Unused argument type
 
 An alias argument unused in the body also has a type mismatch.
 
 ```toml case
-id = "reject-aliases.unused_argument_type"
+id = "unused-argument-type"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
@@ -66,12 +62,12 @@ name = "Bad"
 \definition bad: \Prop := Ignore[Unit::unit];
 ```
 
-## aliases
+## Alias substitution through local and imported definitions
 
 Substituting arguments into the alias body yields the declared type.
 
 ```toml case
-id = "accept-aliases"
+id = "alias-substitution-and-imports"
 scope = "package"
 expect = "accept"
 ```
@@ -123,12 +119,12 @@ expect = "accept"
 ```
 
 
-## expected types reach grouped dependent local and record bodies
+## Expected types reach grouped dependent local and record bodies
 
 The outer expected type propagates into grouped binders, dependent result types, lets, and record bodies.
 
 ```toml case
-id = "expected_types_reach_grouped_dependent_local_and_record_bodies"
+id = "expected-types-reach-grouped-dependent-local-and-record-bodies"
 scope = "module"
 expect = "accept"
 name = "Expected"
@@ -159,12 +155,12 @@ parameters = '''A: \Set, P: A -> \Prop'''
   \fun (x: _) => \bysub(A, Sub, x);
 ```
 
-## chained and instantiated aliases keep parameters and reduce
+## Chained and instantiated aliases keep parameters and reduce
 
 Repeated specialization through inductive-type aliases preserves matching constructor and induction arguments and supports reduction.
 
 ```toml case
-id = "chained_and_instantiated_aliases_keep_parameters_and_reduce"
+id = "chained-and-instantiated-aliases-keep-parameters-and-reduce"
 scope = "package"
 expect = "accept"
 ```
@@ -193,12 +189,12 @@ expect = "accept"
 }
 ```
 
-## indexed alias induction preserves its motive telescope
+## Indexed alias induction preserves its motive telescope
 
 Induction returning the same index can be defined for an alias of an indexed inductive type.
 
 ```toml case
-id = "indexed_alias_induction_preserves_its_motive_telescope"
+id = "indexed-alias-induction-preserves-its-motive-telescope"
 scope = "module"
 expect = "accept"
 name = "Indexed"
@@ -216,15 +212,14 @@ parameters = '''A: \Set'''
   \refl(Family[A]::intro x);
 ```
 
-## take accepts a codomain independent after reduction
+## Take accepts a codomain independent after reduction
 
 After reduction, the result type does not depend on the witness, so a proof can be returned after existential elimination.
 
 ```toml case
-id = "take_accepts_a_codomain_independent_after_reduction"
+id = "take-accepts-a-codomain-independent-after-reduction"
 scope = "module"
 expect = "accept"
-name = "Example"
 parameters = '''A: \Set, y: A'''
 ```
 
@@ -236,135 +231,155 @@ parameters = '''A: \Set, y: A'''
 };
 ```
 
-## Alias type checking / 1
+## Constructor field types through aliases
 
 A value of the wrong type is passed to a constructor field; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-0"
+id = "alias-constructor-field-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::cons Unit::unit Alias::nil;
+\inductive Unit: \Set := | unit: Unit;
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition bad: Bits := Bits::cons Unit::unit Bits::nil;
 ```
 
-## Alias type checking / 2
+## Unknown associated items through aliases
 
 The specified associated item does not exist; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-1"
+id = "alias-unknown-associated-item"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::missing;
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition bad: Bits := Bits::missing;
 ```
 
-## Alias type checking / 3
+## Missing induction branches through aliases
 
 Induction branches are missing; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-2"
+id = "alias-induction-missing-branch"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Alias :=
-  \induction (xs: Alias) \return Alias \with { | nil: Alias::nil };
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition bad: Bits -> Bits :=
+  \induction (xs: Bits) \return Bits \with {
+    | nil: Bits::nil
+  };
 ```
 
-## Alias type checking / 4
+## Duplicate induction branches through aliases
 
 Branches for the same constructor are duplicated; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-3"
+id = "alias-induction-duplicate-branch"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Alias :=
-  \induction (xs: Alias) \return Alias \with {
-  | nil: Alias::nil | nil: Alias::nil
-};
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition bad: Bits -> Bits :=
+  \induction (xs: Bits) \return Bits \with {
+    | nil: Bits::nil
+    | nil: Bits::nil
+  };
 ```
 
-## Alias type checking / 5
+## Induction result types through aliases
 
 The induction result type differs from the branch term's type; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-4"
+id = "alias-induction-wrong-result-type"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Unit :=
-  \induction (xs: Alias) \return Unit \with {
-  | nil: Alias::nil
-  | cons: \fun (x: Bit) (xs: Alias) (ih: Unit) => ih
-};
+\inductive Unit: \Set := | unit: Unit;
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition bad: Bits -> Unit :=
+  \induction (xs: Bits) \return Unit \with {
+    | nil: Bits::nil
+    | cons: \fun (x: Bit) (xs: Bits) (previous: Unit) => previous
+  };
 ```
 
-## Alias type checking / 6
+## Refinement aliases do not expose carrier constructors
 
 A subset is not itself an inductive type; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-5"
+id = "refinement-alias-is-not-inductive"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Refined: \Set := \Cast[Alias] ({ xs: Alias \where xs = xs });
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition Refined: \Set := \Cast[Bits] ({ xs: Bits \where xs = xs });
 \definition bad: Refined := Refined::nil;
 ```
 
-## Alias type checking / 7
+## Function aliases do not expose constructors
 
 A function type is not inductive; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-6"
+id = "function-alias-is-not-inductive"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Function: \Set := Unit -> Unit;
-\definition bad: Function := Function::unit;
+\inductive Unit: \Set := | unit: Unit;
+\definition Endomorphism: \Set := Unit -> Unit;
+\definition bad: Endomorphism := Endomorphism::unit;
 ```
 
-## Alias type checking / 8
+## Unused alias arguments are still checked
 
 A value of a different inductive type is passed as an alias type argument; it is rejected even through an alias.
 
 ```toml case
-id = "alias-check-7"
+id = "alias-unused-argument-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Discard[x: Unit]: \Set := List[Bit];
-\definition bad: Alias := Discard[Bit::zero]::nil;
+\inductive Unit: \Set := | unit: Unit;
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+\definition Bits: \Set := List[Bit];
+\definition Ignore[x: Unit]: \Set := List[Bit];
+\definition bad: Bits := Ignore[Bit::zero]::nil;
 ```
 
 ## Large elimination from a proposition alias

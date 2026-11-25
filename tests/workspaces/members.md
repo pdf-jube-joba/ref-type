@@ -1,4 +1,4 @@
-# workspaces / members
+# Workspace members
 
 ## Workspace members
 
@@ -39,7 +39,9 @@ name = 'unlisted'
 ```
 
 ```ref file=unlisted/src/root.ref
-\module Broken { \definition bad: \Prop := \Set; }
+\module Broken {
+  \definition bad: \Prop := \Set;
+}
 ```
 
 ### Listed members
@@ -61,7 +63,9 @@ expect = "reject"
 ```
 
 ```ref file=right/src/root.ref
-\module Main { \definition bad: \Prop := \Set; }
+\module Main {
+  \definition bad: \Prop := \Set;
+}
 ```
 
 ### Missing member
@@ -94,7 +98,10 @@ member = {path = 'member'}
 ```
 
 ```ref file=src/root.ref
-\module Main { \import member.Core[] \as M; \definition P: \Prop := M.P; }
+\module Main {
+  \import member.Core[] \as M;
+  \definition P: \Prop := M.P;
+}
 ```
 
 ```toml file=member/ref.toml
@@ -103,6 +110,8 @@ name = 'member'
 ```
 
 ```ref file=member/src/root.ref
-\module Core { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }
+\module Core {
+  \definition P: \Prop := \forall (P: \Prop) -> P -> P;
+}
 ```
 

@@ -1,11 +1,11 @@
-# metavariables / inference
+# Metavariable inference
 
-## ambiguous implicit value
+## Ambiguous implicit value
 
 There are insufficient constraints to determine the implicit value uniquely.
 
 ```toml case
-id = "reject-metavariables.ambiguous_implicit_value"
+id = "ambiguous-implicit-value"
 scope = "module"
 expect = "reject"
 name = "AmbiguousImplicitValue"
@@ -17,12 +17,12 @@ parameters = '''A: \Set(0), candidate: A'''
 \definition pending: A := _;
 ```
 
-## ambiguous inductive argument
+## Ambiguous inductive argument
 
 There are insufficient constraints to determine the inductive argument uniquely.
 
 ```toml case
-id = "reject-metavariables.ambiguous_inductive_argument"
+id = "ambiguous-inductive-argument"
 scope = "module"
 expect = "reject"
 name = "AmbiguousInductiveArgument"
@@ -37,12 +37,12 @@ name = "AmbiguousInductiveArgument"
 \infer Box[_]::box;
 ```
 
-## ambiguous module parameter
+## Ambiguous module parameter
 
 A module parameter's type cannot be determined.
 
 ```toml case
-id = "reject-metavariables.ambiguous_module_parameter"
+id = "ambiguous-module-parameter"
 scope = "module"
 expect = "reject"
 name = "AmbiguousModuleParameter"
@@ -53,12 +53,12 @@ parameters = '''A: _'''
 
 ```
 
-## ambiguous program value
+## Ambiguous program value
 
 There are insufficient constraints to determine the Program value's type uniquely.
 
 ```toml case
-id = "reject-metavariables.ambiguous_program_value"
+id = "ambiguous-program-value"
 scope = "module"
 expect = "reject"
 name = "AmbiguousProgramValue"
@@ -69,12 +69,12 @@ parameters = '''A: \VType'''
 \definition pending: A := _;
 ```
 
-## application inference
+## Application inference
 
 Holes can be inferred from an application's expected type and arguments.
 
 ```toml case
-id = "accept-metavariables.application_inference"
+id = "application-inference"
 scope = "module"
 expect = "accept"
 name = "MetaApplication"
@@ -103,12 +103,12 @@ parameters = '''A: \Set(0), a: A'''
 \normalize id _ a;
 ```
 
-## bidirectional inference
+## Bidirectional inference
 
 Constraints from expected types to terms and from terms to types can be combined.
 
 ```toml case
-id = "accept-metavariables.bidirectional_inference"
+id = "bidirectional-inference"
 scope = "module"
 expect = "accept"
 name = "MetaBidirectional"
@@ -127,12 +127,12 @@ parameters = '''A: \Set(0), a: A'''
 \definition inferredDeclarationType: _ := a;
 ```
 
-## contextual inference
+## Contextual inference
 
 A hole's solution is well-typed in its local context.
 
 ```toml case
-id = "accept-metavariables.contextual_inference"
+id = "contextual-inference"
 scope = "module"
 expect = "accept"
 name = "MetaContextual"
@@ -159,12 +159,12 @@ name = "MetaContextual"
         (\fun (y: A) => (\fun (X: \Set(0)) => \fun (value: X) => value) _9 y);
 ```
 
-## declaration scopes
+## Declaration scopes
 
 Hole-sharing scopes follow declaration boundaries.
 
 ```toml case
-id = "accept-metavariables.declaration_scopes"
+id = "declaration-scopes"
 scope = "module"
 expect = "accept"
 name = "MetaDeclarationScopes"
@@ -182,12 +182,12 @@ parameters = '''A: \Set(0), a: A'''
 \definition third: A := id _1 a;
 ```
 
-## equality inference
+## Equality inference
 
 The carrier and type arguments can be inferred from both sides of an equality.
 
 ```toml case
-id = "accept-metavariables.equality_inference"
+id = "equality-inference"
 scope = "module"
 expect = "accept"
 name = "MetaEquality"
@@ -199,15 +199,14 @@ parameters = '''A: \Set(0), a: A'''
 \definition namedImplicitReflexivity: a = a := \refl(_5);
 ```
 
-## id elim inferred carrier
+## Id elim inferred carrier
 
 The carrier for equality elimination can be inferred from both sides of the equality.
 
 ```toml case
-id = "accept-metavariables.id_elim_inferred_carrier"
+id = "id-elim-inferred-carrier"
 scope = "module"
 expect = "accept"
-name = "Example"
 parameters = '''A: \Set(1), a, b, c: A, ab: a = b, bc: b = c'''
 ```
 
@@ -219,12 +218,12 @@ parameters = '''A: \Set(1), a, b, c: A, ab: a = b, bc: b = c'''
   \idelim x = y \with z: _ => z = x \by { base: \refl(x), equality: xy };
 ```
 
-## indexed match constraints
+## Indexed match constraints
 
 Holes can be inferred from branch constraints of indexed constructors.
 
 ```toml case
-id = "accept-metavariables.indexed_match_constraints"
+id = "indexed-match-constraints"
 scope = "module"
 expect = "accept"
 name = "IndexedMatch"
@@ -258,12 +257,12 @@ parameters = '''A: \Set, x: A'''
     };
 ```
 
-## inductive parameter inference
+## Inductive parameter inference
 
 Inductive parameters can be inferred from constructor arguments.
 
 ```toml case
-id = "accept-metavariables.inductive_parameter_inference"
+id = "inductive-parameter-inference"
 scope = "module"
 expect = "accept"
 name = "MetaInductive"
@@ -279,12 +278,12 @@ parameters = '''A: \Set(0), a: A'''
 \definition namedImplicitBox: Box[A] := Box[_3]::box a;
 ```
 
-## match constraints
+## Match constraints
 
 Holes can be inferred from match scrutinee and branch constraints.
 
 ```toml case
-id = "accept-metavariables.match_constraints"
+id = "match-constraints"
 scope = "module"
 expect = "accept"
 name = "MatchConstraints"
@@ -322,12 +321,12 @@ name = "MatchConstraints"
   };
 ```
 
-## program annotations
+## Program annotations
 
 Program annotations and expected types describe the same value and computation types.
 
 ```toml case
-id = "accept-metavariables.program_annotations"
+id = "program-annotations"
 scope = "module"
 expect = "accept"
 name = "MetaProgram"
@@ -349,12 +348,12 @@ parameters = '''A: \VType, a: A'''
 \normalize (\bind x: _ <- \return(a) \in \return(x));
 ```
 
-## program constructor inference
+## Program constructor inference
 
 Program constructor parameters can be inferred from expected types.
 
 ```toml case
-id = "accept-metavariables.program_constructor_inference"
+id = "program-constructor-inference"
 scope = "module"
 expect = "accept"
 name = "MetaProgramConstructor"
@@ -372,12 +371,12 @@ parameters = '''A: \VType, a: A'''
 \infer Box[_]::box a;
 ```
 
-## program type inference
+## Program type inference
 
 Program type arguments can be inferred from application constraints.
 
 ```toml case
-id = "accept-metavariables.program_type_inference"
+id = "program-type-inference"
 scope = "module"
 expect = "accept"
 name = "MetaProgramTypeInference"
@@ -399,7 +398,7 @@ parameters = '''A: \VType, a: A'''
 A record type shared through assign can serve as the expected type for binders and projections.
 
 ```toml case
-id = "explicit_meta_assignment_shares_record_types_before_projection"
+id = "explicit-meta-assignment-shares-record-types-before-projection"
 scope = "module"
 expect = "accept"
 name = "Assignment"
@@ -426,15 +425,14 @@ name = "Assignment"
 };
 ```
 
-## Program let annotations / 1
+## Program let annotations must match the value type
 
 The let annotation differs from the value's type.
 
 ```toml case
-id = "wrong-program-let-0"
+id = "program-let-annotation-type-mismatch"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \VType, B: \VType, a: A'''
 ```
 
@@ -442,15 +440,14 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: B := a \in \return(a));
 ```
 
-## Program let annotations / 2
+## Program let annotations require a type
 
 A value is written in a let type annotation.
 
 ```toml case
-id = "wrong-program-let-1"
+id = "program-let-annotation-requires-type"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \VType, B: \VType, a: A'''
 ```
 
@@ -458,15 +455,14 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: a := a \in \return(a));
 ```
 
-## Program let annotations / 3
+## Program let inspection holes remain unsolved
 
 No constraints determine the let value or its type.
 
 ```toml case
-id = "wrong-program-let-2"
+id = "program-let-inspection-hole-remains-unsolved"
 scope = "module"
 expect = "reject"
-name = "Wrong"
 parameters = '''A: \VType, B: \VType, a: A'''
 ```
 
@@ -474,12 +470,12 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition result: \F(A) := (\let x: _ := ? \in \return(a));
 ```
 
-## Reassigning inference variables / A
+## Repeated compatible metavariable assignments
 
 The same type is assigned again.
 
 ```toml case
-id = "reassign-meta-A"
+id = "repeat-compatible-metavariable-assignment"
 scope = "module"
 expect = "accept"
 name = "Assignment"
@@ -487,15 +483,16 @@ parameters = '''A: \Set, B: \Set, a: A'''
 ```
 
 ```ref
-\definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (A \assign _1) := \fun (x: A) => x;
+\definition value: A \assign _1 := a;
+\definition repeated: (A \assign _1) -> (A \assign _1) := \fun (x: A) => x;
 ```
 
-## Reassigning inference variables / B
+## Conflicting metavariable assignments
 
 A different type B is assigned to an inference variable already determined to be A.
 
 ```toml case
-id = "reassign-meta-B"
+id = "repeat-conflicting-metavariable-assignment"
 scope = "module"
 expect = "reject"
 name = "Assignment"
@@ -503,15 +500,16 @@ parameters = '''A: \Set, B: \Set, a: A'''
 ```
 
 ```ref
-\definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (B \assign _1) := \fun (x: A) => x;
+\definition value: A \assign _1 := a;
+\definition repeated: (A \assign _1) -> (B \assign _1) := \fun (x: A) => x;
 ```
 
-## Match constraints / 1
+## Inferred match motives must match the scrutinee type
 
 The motive type differs from the scrutinee type.
 
 ```toml case
-id = "match-constraint-mismatch-0"
+id = "inferred-match-motive-domain-mismatch"
 scope = "module"
 expect = "reject"
 name = "MatchConstraints"
@@ -520,41 +518,29 @@ name = "MatchConstraints"
 ```ref
 \inductive Or[P, Q: \Prop]: \Prop :=
   | left: P -> Or
-| right: Q -> Or
-;
-
-\structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
-
-\definition orAssoc [P, Q, R: \Prop]:
-  PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
-  PropEquiv[_1, _2] {
-  lt := \fun (h: _) =>
-  \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
-    | left inner :
-      \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
-      | left p : Or[P, Or[Q, R]]::left p
-      | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
-    }
-    | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
-  },
-  rt := \fun (h: _) =>
-  \match h \in Or \return (\fun (_: Or[P, Q]) => Or[Or[P, Q], R]) \with {
-    | left p : Or[_, _]::left (Or[_, _]::left p)
-    | right inner :
-      \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
-      | left q : Or[_, _]::left (Or[_, _]::right q)
-      | right r : Or[_, _]::right r
-    }
-  }
-};
+  | right: Q -> Or;
+\structure Implication[P, Q: \Prop]: \Prop := { apply: P -> Q };
+\definition regroup[P, Q, R: \Prop]:
+  Implication[Or[P, Or[Q, R]] \assign _1, Or[Or[P, Q], R] \assign _2] :=
+  Implication[_1, _2] {
+    apply := \fun (value: _) =>
+      \match value \in Or \return (\fun (_: Or[P, Q]) => Or[Or[P, Q], R]) \with {
+        | left p: Or[_, _]::left (Or[_, _]::left p)
+        | right inner:
+          \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+            | left q: Or[_, _]::left (Or[_, _]::right q)
+            | right r: Or[_, _]::right r
+          }
+      }
+  };
 ```
 
-## Match constraints / 2
+## Inferred match branches must match constructor field types
 
 A branch value differs from the corresponding constructor argument's type.
 
 ```toml case
-id = "match-constraint-mismatch-1"
+id = "inferred-match-constructor-field-mismatch"
 scope = "module"
 expect = "reject"
 name = "MatchConstraints"
@@ -563,31 +549,19 @@ name = "MatchConstraints"
 ```ref
 \inductive Or[P, Q: \Prop]: \Prop :=
   | left: P -> Or
-| right: Q -> Or
-;
-
-\structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
-
-\definition orAssoc [P, Q, R: \Prop]:
-  PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
-  PropEquiv[_1, _2] {
-  lt := \fun (h: _) =>
-  \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
-    | left inner :
-      \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
-      | left p : Or[P, Or[Q, R]]::left p
-      | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
-    }
-    | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
-  },
-  rt := \fun (h: _) =>
-  \match h \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
-    | left p : Or[_, _]::left (Or[_, _]::left p)
-    | right inner :
-      \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
-      | left q : Or[_, _]::left (Or[_, _]::right q)
-      | right r : Or[_, _]::left r
-    }
-  }
-};
+  | right: Q -> Or;
+\structure Implication[P, Q: \Prop]: \Prop := { apply: P -> Q };
+\definition regroup[P, Q, R: \Prop]:
+  Implication[Or[P, Or[Q, R]] \assign _1, Or[Or[P, Q], R] \assign _2] :=
+  Implication[_1, _2] {
+    apply := \fun (value: _) =>
+      \match value \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
+        | left p: Or[_, _]::left (Or[_, _]::left p)
+        | right inner:
+          \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+            | left q: Or[_, _]::left (Or[_, _]::right q)
+            | right r: Or[_, _]::left r
+          }
+      }
+  };
 ```

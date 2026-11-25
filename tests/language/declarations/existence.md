@@ -1,11 +1,11 @@
-# declarations / existence
+# Existential structure bundles
 
-## existence escaping proposition
+## Existence escaping proposition
 
 A proof of the existential witness's proposition is used as a proof of an arbitrary different proposition P.
 
 ```toml case
-id = "reject-declarations.existence_escaping_proposition"
+id = "existence-escaping-proposition"
 scope = "module"
 expect = "reject"
 name = "EscapingExistentialProposition"
@@ -17,12 +17,12 @@ name = "EscapingExistentialProposition"
   \fun(P: \Prop) => \take(r: Proof) => r.proof \by { e };
 ```
 
-## existence escaping type
+## Existence escaping type
 
 Elimination of an existential proposition attempts to extract a set.
 
 ```toml case
-id = "reject-declarations.existence_escaping_type"
+id = "existence-escaping-type"
 scope = "module"
 expect = "reject"
 name = "EscapingExistentialType"
@@ -34,19 +34,18 @@ name = "EscapingExistentialType"
   \take(r: Relation) => r.A \by { e };
 ```
 
-## correspondences
+## Correspondences
 
 A structure with matching fields and laws can be constructed.
 
 ```toml case
-id = "accept-declarations.correspondences"
+id = "correspondences"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module BundleSignatures {
-/* Program implementations, specifications, and terminating transitions. */
 \structure Correspondence := {
   T: \VType,
   program: T,
@@ -54,24 +53,7 @@ expect = "accept"
   coherence: program^ = specification,
 };
 
-\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
-  \step-match t: \RunStep[State, Output] \return \Prop \with {
-    | \continue s: P s
-    | \finish result: \forall (Q: \Prop) -> Q -> Q
-  };
 
-\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
-  \forall (P: State -> \Prop) ->
-    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
-
-\structure Machine := {
-  State: \VType,
-  Output: \VType,
-  step: \U(State ~> \F(\RunStep[State, Output])),
-  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
-  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
-    \run[State, Output](step, s) \by { terminates s }),
-};
 }
 \module Source(A: \VType) {
   \import \root.BundleSignatures[] \as Signatures;
@@ -113,12 +95,12 @@ expect = "accept"
 }
 ```
 
-## existence
+## Existence
 
 A local existential witness can be used without escaping into the conclusion.
 
 ```toml case
-id = "accept-declarations.existence"
+id = "existence"
 scope = "module"
 expect = "accept"
 name = "AssociatedExistence"

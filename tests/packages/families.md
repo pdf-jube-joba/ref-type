@@ -1,11 +1,11 @@
 # Structure families and specialization
 
-## Point-dependent quotients and function extensionality
+## Function extensionality over specialized refinements
 
 For functions whose argument types are point-specialized quotients, the same extensionality proof works with an explicit type, a function-type alias, or a local module.
 
 ```toml case
-id = "pointwise-quotient-function-extensionality"
+id = "extensionality-over-specialized-refinements"
 scope = "package"
 expect = "accept"
 ```
@@ -17,49 +17,49 @@ expect = "accept"
   \definition IsClass[C: \Pow A]: \Prop := \exists Representative C;
   \definition Carrier: \Set := \Cast[\Pow A] ({ C: \Pow A \where IsClass C });
 }
-\module Forms(I: \Set) {
-  \structure Space := { Point: \Set, Vector: \Set, };
-  \structure Representative[M: Space, x: M.Point]: \Set := {
-    point: \Cast[M.Point] ({ y: M.Point \where y = x }),
-    vector: M.Vector,
+\module IndexedFunctions(I: \Set) {
+  \structure Family := { Index: \Set, Value: \Set, };
+  \structure Representative[M: Family, x: M.Index]: \Set := {
+    index: \Cast[M.Index] ({ y: M.Index \where y = x }),
+    value: M.Value,
   };
-  \module Fiber(M: Space, x: M.Point) {
-    \definition Equivalent[a, b: Representative[M, x]]: \Prop := a.vector = b.vector;
+  \module AtIndex(M: Family, x: M.Index) {
+    \definition Equivalent[a, b: Representative[M, x]]: \Prop := a.value = b.value;
     \import \root.Quotient[A := Representative[M, x], Equivalent := Equivalent] \as Q;
     \definition Carrier: \Set := Q.Carrier;
   }
-  \definition fiber[M: Space][x: M.Point]: \Set := Fiber[M := M, x := x].Carrier;
-  \definition sections[M: Space]: \Set := \forall (x: M.Point) -> (I -> fiber M x) -> M.Vector;
-  \definition equal[M: Space][f, g: sections M]: \Prop :=
-    \forall (x: M.Point)(v: I -> fiber M x) -> f x v = g x v;
-  \definition ext: \forall (M: Space)(f, g: sections M) -> equal M f g -> f = g :=
-    \fun (M: Space)(f, g: sections M)(same: equal M f g) =>
-      \axiom:funext(f, g, \fun (x: M.Point) => \axiom:funext(f x, g x, same x));
+  \definition Selected[M: Family][x: M.Index]: \Set := AtIndex[M := M, x := x].Carrier;
+  \definition Functions[M: Family]: \Set := \forall (x: M.Index) -> (I -> Selected M x) -> M.Value;
+  \definition Pointwise[M: Family][f, g: Functions M]: \Prop :=
+    \forall (x: M.Index)(v: I -> Selected M x) -> f x v = g x v;
+  \definition ext: \forall (M: Family)(f, g: Functions M) -> Pointwise M f g -> f = g :=
+    \fun (M: Family)(f, g: Functions M)(same: Pointwise M f g) =>
+      \axiom:funext(f, g, \fun (x: M.Index) => \axiom:funext(f x, g x, same x));
 
   \definition Function[A, B: \Set]: \Set := A -> B;
-  \definition aliased[M: Space]: \Set :=
-    \forall (x: M.Point) -> Function (Function I (fiber M x)) M.Vector;
-  \definition aliasExt: \forall (M: Space)(f, g: aliased M) -> equal M f g -> f = g := ext;
+  \definition aliased[M: Family]: \Set :=
+    \forall (x: M.Index) -> Function (Function I (Selected M x)) M.Value;
+  \definition aliasExt: \forall (M: Family)(f, g: aliased M) -> Pointwise M f g -> f = g := ext;
 
-  \module At(M: Space, x: M.Point) {
-    \definition Arguments: \Set := I -> fiber M x;
-    \definition Form: \Set := Arguments -> M.Vector;
+  \module At(M: Family, x: M.Index) {
+    \definition Arguments: \Set := I -> Selected M x;
+    \definition Function: \Set := Arguments -> M.Value;
   }
-  \definition scoped[M: Space]: \Set := \forall (x: M.Point) -> At[M := M, x := x].Form;
-  \definition copy[M: Space][f: scoped M]: scoped M :=
-    \fun (x: M.Point)(v: _) => f x v;
-  \definition copyAt[M: Space][f: scoped M]: scoped M :=
-    \fun (x: M.Point)(v: At[M := M, x := x].Arguments) => f x v;
-  \definition scopedExt: \forall (M: Space)(f, g: scoped M) -> equal M f g -> f = g := ext;
+  \definition scoped[M: Family]: \Set := \forall (x: M.Index) -> At[M := M, x := x].Function;
+  \definition copy[M: Family][f: scoped M]: scoped M :=
+    \fun (x: M.Index)(v: _) => f x v;
+  \definition copyAt[M: Family][f: scoped M]: scoped M :=
+    \fun (x: M.Index)(v: At[M := M, x := x].Arguments) => f x v;
+  \definition scopedExt: \forall (M: Family)(f, g: scoped M) -> Pointwise M f g -> f = g := ext;
 }
 ```
 
-## temporary field
+## Field types from direct module instantiation
 
 After specializing inline module arguments, the structure's fields can be used as types.
 
 ```toml case
-id = "module_specialization.temporary-field"
+id = "direct-instantiation-field-type"
 scope = "package"
 expect = "accept"
 ```
@@ -77,12 +77,12 @@ expect = "accept"
 }
 ```
 
-## named field
+## Field types from named imports
 
 Named imports also return the same specialized types through structure fields.
 
 ```toml case
-id = "module_specialization.named-field"
+id = "imported-instantiation-field-type"
 scope = "package"
 expect = "accept"
 ```
@@ -101,12 +101,12 @@ expect = "accept"
 }
 ```
 
-## named piece
+## Field types from indexed child imports
 
 A parent's child module can be imported to use structure fields at a selected index.
 
 ```toml case
-id = "module_specialization.named-piece"
+id = "indexed-child-import-field-type"
 scope = "package"
 expect = "accept"
 ```
@@ -129,128 +129,130 @@ expect = "accept"
 }
 ```
 
-## parameter classifier local namespace
+## Parameterized types remain valid in inner module imports
 
 A local import appearing in a parameter type can be referenced with the same arguments from an inner module.
 
 ```toml case
-id = "module_specialization.parameter-classifier-local-namespace"
+id = "parameter-types-and-inner-module-imports"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Chains {
-  \structure Complex := { Carrier: \Set };
-  \module Map(C, D: Complex) {
+\module Mappings {
+  \structure Carrier := { Carrier: \Set };
+  \module Map(C, D: Carrier) {
     \structure Data: \Set := { apply: C.Carrier -> D.Carrier };
     \structure Laws[data: Data]: \Prop := { reflexive: \forall (x: C.Carrier) -> data.apply x = data.apply x };
     \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
   }
-  \module ShortExact(A, B, C: Complex) {
+  \module Composable(A, B, C: Carrier) {
     \import \parent.Map[C := A, D := B] \as Left;
     \import \parent.Map[C := B, D := C] \as Right;
     \structure Data: \Set := { left: Left.Map, right: Right.Map };
-    \structure Laws[data: Data]: \Prop := { zero: \forall (x: A.Carrier) -> data.left.apply x = data.left.apply x };
-    \definition Sequence: \Set := \Cast[Data] ({data: Data \where Laws[data]});
+    \structure Laws[data: Data]: \Prop := { same: \forall (x: A.Carrier) -> data.left.apply x = data.left.apply x };
+    \definition Pair: \Set := \Cast[Data] ({data: Data \where Laws[data]});
   }
 }
-\module Category {
-  \import \root.Chains[] \as Chains;
-  \module On(Index: \Set, A, B, C: Index -> Chains.Complex,
-  sequences: \forall (x: Index) -> Chains.ShortExact[A := A x, B := B x, C := C x].Sequence) {
+\module IndexedMappings {
+  \import \root.Mappings[] \as Mappings;
+  \module On(Index: \Set, A, B, C: Index -> Mappings.Carrier,
+  sequences: \forall (x: Index) -> Mappings.Composable[A := A x, B := B x, C := C x].Pair) {
     \definition leftCarrier[x: Index]: \Set := (A x).Carrier;
     \module At(x, y: Index) {
-      \import Chains.Map[C := A x, D := A y] \as Left;
-      \import Chains.Map[C := B x, D := B y] \as Middle;
-      \import Chains.Map[C := C x, D := C y] \as Right;
+      \import Mappings.Map[C := A x, D := A y] \as Left;
+      \import Mappings.Map[C := B x, D := B y] \as Middle;
+      \import Mappings.Map[C := C x, D := C y] \as Right;
       \structure Data: \Set := { left: Left.Map, middle: Middle.Map, right: Right.Map };
     }
   }
 }
 ```
 
-## nested structure alias
+## Nested structure alias
 
 A structure nested within a structure can be passed as an import argument to return a value of the original Carrier.
 
 ```toml case
-id = "module_specialization.nested-structure-alias"
+id = "nested-structure-alias"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Theory(A: \Set, a: A) {
-  \structure Family := { Carrier: \Set, space: Carrier };
-  \structure Complex := { family: Family, value: family.Carrier };
+\module NestedStructures(A: \Set, a: A) {
+  \structure Family := { Carrier: \Set, seed: Carrier };
+  \structure Package := { family: Family, value: family.Carrier };
   \module Constant(family: Family) {
-    \definition complex: Complex := Complex { family := family, value := family.space };
+    \definition package: Package := Package { family := family, value := family.seed };
   }
-  \module Zero {
-    \definition family: Family := Family { Carrier := A, space := a };
+  \module Seed {
+    \definition family: Family := Family { Carrier := A, seed := a };
     \import \parent.Constant[family := family] \as Constant;
-    \definition complex: Complex := Constant.complex;
+    \definition package: Package := Constant.package;
   }
-  \module At(C: Complex) { \definition value: C.family.Carrier := C.family.space; }
+  \module At(C: Package) {
+    \definition value: C.family.Carrier := C.family.seed;
+  }
 }
 \module Test {
   \inductive Unit: \Set := | unit: Unit;
-  \import \root.Theory[A := Unit, a := Unit::unit] \as T;
-  \import T.Zero[] \as Zero;
-  \import T.At[C := Zero.complex] \as At;
+  \import \root.NestedStructures[A := Unit, a := Unit::unit] \as T;
+  \import T.Seed[] \as Seed;
+  \import T.At[C := Seed.package] \as At;
   \definition result: Unit := At.value;
 }
 ```
 
-## selected namespace classifiers follow carriers and record fields
+## Selected types depend on record fields
 
 A record's Carrier and dependent fields can be passed as module arguments, making the resulting field type available.
 
 ```toml case
-id = "selected_namespace_classifiers_follow_carriers_and_record_fields"
+id = "selected-types-depend-on-record-fields"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Structures {
-  \structure Topology[Carrier: \Set]: \Set := { openSets: \Pow (\Pow Carrier), };
+  \structure Selection[Carrier: \Set]: \Set := { members: \Pow Carrier, };
 }
-\module Topology(Carrier: \Set) {
-  \definition Topology: \Set := \root.Structures[].Topology[Carrier];
-  \definition Good[space: Topology]: \Prop := space = space;
+\module Selection(Carrier: \Set) {
+  \definition Selection: \Set := \root.Structures[].Selection[Carrier];
+  \definition Good[selection: Selection]: \Prop := selection = selection;
 }
-\module Chart(M: \Set, space: \root.Topology[Carrier := M].Topology) {
-  \definition Chart: \Set := M;
+\module View(M: \Set, selection: \root.Selection[Carrier := M].Selection) {
+  \definition View: \Set := M;
 }
 \module Example {
-  \definition ChartType[M: \Set][space: \root.Structures[].Topology[M]]: \Set :=
-    \root.Chart[M := M, space := space].Chart;
-  \structure Manifold := {
-    Point: \Set,
-    space: \root.Topology[Carrier := Point].Topology,
-    good: \root.Topology[Carrier := Point].Good space,
+  \definition ViewedType[M: \Set][selection: \root.Structures[].Selection[M]]: \Set :=
+    \root.View[M := M, selection := selection].View;
+  \structure Bundle := {
+    Carrier: \Set,
+    selection: \root.Selection[Carrier := Carrier].Selection,
+    good: \root.Selection[Carrier := Carrier].Good selection,
   };
-  \definition manifold[A: \Set][s: \root.Structures[].Topology[A]]: Manifold :=
-    Manifold { Point := A, space := s, good := \refl(s) };
-  \definition identity[A: \Set][s: \root.Structures[].Topology[A]][x: A]:
-    (manifold A s).Point := x;
+  \definition bundle[A: \Set][s: \root.Structures[].Selection[A]]: Bundle :=
+    Bundle { Carrier := A, selection := s, good := \refl(s) };
+  \definition identity[A: \Set][s: \root.Structures[].Selection[A]][x: A]:
+    (bundle A s).Carrier := x;
 }
 ```
 
-## selected namespace functions preserve degree under lambdas
+## Specialized functions preserve lambda-bound indices
 
 A function specialized at a lambda's local index accepts and returns the subset at that index.
 
 ```toml case
-id = "selected_namespace_functions_preserve_degree_under_lambdas"
+id = "local-indices-in-specialized-functions"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Repro {
+\module LocalIndicesInSpecializedFunctions {
   \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
   \module At(n: Nat) {
     \definition Carrier: \Set := \Cast[Nat] ({ k: Nat \where k = n });
@@ -263,18 +265,20 @@ expect = "accept"
 }
 ```
 
-## structure families preserve nested named import arguments
+## Structure families preserve nested named import arguments
 
 Importing another child of the parent from a child preserves the family's original index arguments.
 
 ```toml case
-id = "structure_families_preserve_nested_named_import_arguments"
+id = "structure-families-preserve-nested-named-import-arguments"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Shapes { \structure Bundle := { Carrier: \Set, }; }
+\module Shapes {
+  \structure Bundle := { Carrier: \Set, };
+}
 \module Family(I: \Set, types: I -> \Set) {
   \import \root.Shapes[] \as Shapes;
   \module At(i: I) {
@@ -293,18 +297,18 @@ expect = "accept"
 }
 ```
 
-## degree indexed structure results preserve declaration arguments
+## Indexed structure results preserve declaration arguments
 
 A structure at the successor index can be returned and its operation's equality proved.
 
 ```toml case
-id = "degree_indexed_structure_results_preserve_declaration_arguments"
+id = "indexed-structure-results-preserve-arguments"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Repro(A: \Set) {
+\module IndexedStructureResultsPreserveArguments(A: \Set) {
   \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
   \structure Operator[k: Nat] := { apply: A -> A, };
   \module At(k: Nat) {
@@ -321,7 +325,7 @@ expect = "accept"
 
 ## Nested family guards
 
-A family's space and Data are constructed using the same parent type argument and complex.
+The packed family's dependent data type uses the same outer type argument as its family group.
 
 ```toml case
 id = "nested-family-guards"
@@ -331,44 +335,43 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := R].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
 ## Nested families with different environments
 
-A complex over S is passed to a factory over R.
+A group over S is passed to a factory over R.
 
 ```toml case
 id = "nested-family-ambient-mismatch"
@@ -378,44 +381,43 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R, S: \Set) {
-  \import \root.Chains[R := S] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := S].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := S] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := S].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
 ## Environment-independent indices
 
-A family over a fixed Index also applies the space guard corresponding to the parent's R.
+A family over a fixed Index still requires function fields of type R -> Carrier at each index.
 
 ```toml case
 id = "fixed-family-index"
@@ -424,46 +426,49 @@ expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Indices { \inductive Index: \Set := | point: Index; }
-\module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+\module Indices {
+  \inductive Index: \Set := | point: Index;
 }
-\module Chains(R: \Set) { \import \root.Indices[] \as Indices;
-  \import \root.Base[R := R] \as Modules;
+\module Base(R: \Set) {
+  \definition Maps[V: \Set]: \Set := R -> V;
+}
+\module Families(R: \Set) {
+  \import \root.Indices[] \as Indices;
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: Indices.Index -> \Set,
-    space: \forall (n: Indices.Index) -> Modules.Space (Carrier n),
+    maps: \forall (n: Indices.Index) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
 }
-\module Resolutions(R: \Set) { \import \root.Indices[] \as Indices;
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Indices[] \as Indices;
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: Indices.Index) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := R].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
 ## Fixed indices with different environments
 
-Even with the same index, the parent space environments differ between R and S.
+Even with a fixed index type, families instantiated with R and S retain different required function field types.
 
 ```toml case
 id = "fixed-family-ambient-mismatch"
@@ -472,145 +477,146 @@ expect = "reject"
 ```
 
 ```ref file=src/root.ref
-\module Indices { \inductive Index: \Set := | point: Index; }
-\module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+\module Indices {
+  \inductive Index: \Set := | point: Index;
 }
-\module Chains(R: \Set) { \import \root.Indices[] \as Indices;
-  \import \root.Base[R := R] \as Modules;
+\module Base(R: \Set) {
+  \definition Maps[V: \Set]: \Set := R -> V;
+}
+\module Families(R: \Set) {
+  \import \root.Indices[] \as Indices;
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: Indices.Index -> \Set,
-    space: \forall (n: Indices.Index) -> Modules.Space (Carrier n),
+    maps: \forall (n: Indices.Index) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
 }
-\module Resolutions(R: \Set) { \import \root.Indices[] \as Indices;
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Indices[] \as Indices;
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: Indices.Index) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R, S: \Set) {
-  \import \root.Chains[R := S] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := S].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := S] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := S].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
-## imported factory fields can be projected after specialization
+## Imported factory fields can be projected after specialization
 
-Fields of a specialized sequence can be extracted with the Data type depending on the original complex.
+Projecting a packed family's data field preserves the type determined by its family group.
 
 ```toml case
-id = "imported_factory_fields_can_be_projected_after_specialization"
+id = "imported-factory-fields-can-be-projected-after-specialization"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
-    \definition recovered: \root.Resolutions[R := R].Of[P := P].Data := sequence.data;
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := R].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
+    \definition recovered: \root.Readers[R := R].Of[P := P].Data := sequence.data;
   }
 }
 ```
 
-## imported factory specializes a structure dependent type alias
+## Imported factory specializes a structure dependent type alias
 
-A type alias taking a complex can be used in the field and argument types of a specialized factory.
+A type alias taking a family group can be used in the field and argument types of a specialized factory.
 
 ```toml case
-id = "imported_factory_specializes_a_structure_dependent_type_alias"
+id = "imported-factory-specializes-a-structure-dependent-type-alias"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
-  \module Pair(A, B: Complex) {
+  \structure FamilyGroup := { family: Family };
+  \module Pair(A, B: FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> A.family.Carrier n -> B.family.Carrier n;
   }
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \definition ChainData[P, Q: Chains.Complex]: \Set := \root.Chains[R := R].Pair[A := P, B := Q].Data;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: ChainData complex complex,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \definition MapType[P, Q: Families.FamilyGroup]: \Set := \root.Families[R := R].Pair[A := P, B := Q].Data;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: MapType group group,
     };
-    \definition make[P: Chains.Complex][p: ChainData P P]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: MapType P P]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: Chains.Pair[A := P, B := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: Families.Pair[A := P, B := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
 ## Dependent type aliases with different environments
 
-A complex created from different parent arguments is passed as a type-alias argument.
+A family group created from different outer arguments is passed as a type-alias argument.
 
 ```toml case
 id = "dependent-alias-mismatch"
@@ -620,147 +626,144 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
-  \module Pair(A, B: Complex) {
+  \structure FamilyGroup := { family: Family };
+  \module Pair(A, B: FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> A.family.Carrier n -> B.family.Carrier n;
   }
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \definition ChainData[P, Q: Chains.Complex]: \Set := \root.Chains[R := R].Pair[A := P, B := Q].Data;
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: ChainData complex complex,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \definition MapType[P, Q: Families.FamilyGroup]: \Set := \root.Families[R := R].Pair[A := P, B := Q].Data;
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: MapType group group,
     };
-    \definition make[P: Chains.Complex][p: ChainData P P]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: MapType P P]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R, S: \Set) {
-  \import \root.Chains[R := S] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: Chains.Pair[A := P, B := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
+  \import \root.Families[R := S] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: Families.Pair[A := P, B := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
   }
 }
 ```
 
-## specialized factory fields can be record type arguments
+## Specialized factory fields can be record type arguments
 
 A reconstructed family can be passed as a record type argument and constructed with a value of the same Carrier.
 
 ```toml case
-id = "specialized_factory_fields_can_be_record_type_arguments"
+id = "specialized-factory-fields-can-be-record-type-arguments"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
   \structure Data[family: Family]: \Set := { read: \forall (n: R) -> family.Carrier n };
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \definition makeFamily[P: Chains.Complex]: Chains.Family := Chains.Family {
-      Carrier := P.family.Carrier, space := P.family.space,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \definition makeFamily[P: Families.FamilyGroup]: Families.Family := Families.Family {
+      Carrier := P.family.Carrier, maps := P.family.maps,
     };
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
-    \definition data: Chains.Data[Sequences.makeFamily P] := Chains.Data[Sequences.makeFamily P] { read := p };
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := R].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
+    \definition data: Families.Data[Packing.makeFamily P] := Families.Data[Packing.makeFamily P] { read := p };
   }
 }
 ```
 
-## specialized factory fields can be module arguments
+## Specialized factory fields can be module arguments
 
 A reconstructed family can be passed to another module, preserving the original Data type.
 
 ```toml case
-id = "specialized_factory_fields_can_be_module_arguments"
+id = "specialized-factory-fields-can-be-module-arguments"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space[V: \Set]: \Set := R -> V;
-  \structure Bundle := { Carrier: \Set, space: Space Carrier };
+  \definition Maps[V: \Set]: \Set := R -> V;
 }
-\module Chains(R: \Set) {
-  \import \root.Base[R := R] \as Modules;
+\module Families(R: \Set) {
+  \import \root.Base[R := R] \as Types;
   \structure Family := {
     Carrier: R -> \Set,
-    space: \forall (n: R) -> Modules.Space (Carrier n),
+    maps: \forall (n: R) -> Types.Maps (Carrier n),
   };
-  \structure Complex := { family: Family };
+  \structure FamilyGroup := { family: Family };
   \module Consume(family: Family) {
     \definition Data: \Set := \forall (n: R) -> family.Carrier n;
   }
 }
-\module Resolutions(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \module Of(P: Chains.Complex) {
+\module Readers(R: \Set) {
+  \import \root.Families[R := R] \as Families;
+  \module Of(P: Families.FamilyGroup) {
     \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
   }
-  \module Sequences {
-    \import \root.Resolutions[R := R] \as Resolutions;
-    \definition makeFamily[P: Chains.Complex]: Chains.Family := Chains.Family {
-      Carrier := P.family.Carrier, space := P.family.space,
+  \module Packing {
+    \import \root.Readers[R := R] \as Readers;
+    \definition makeFamily[P: Families.FamilyGroup]: Families.Family := Families.Family {
+      Carrier := P.family.Carrier, maps := P.family.maps,
     };
-    \structure Sequence := {
-      complex: Chains.Complex,
-      data: Resolutions.Of[P := complex].Data,
+    \structure PackedFamily := {
+      group: Families.FamilyGroup,
+      data: Readers.Of[P := group].Data,
     };
-    \definition make[P: Chains.Complex][p: Resolutions.Of[P := P].Data]: Sequence :=
-      Sequence { complex := P, data := p };
+    \definition make[P: Families.FamilyGroup][p: Readers.Of[P := P].Data]: PackedFamily :=
+      PackedFamily { group := P, data := p };
   }
 }
 \module Use(R: \Set) {
-  \import \root.Chains[R := R] \as Chains;
-  \import \root.Resolutions[R := R].Sequences[] \as Sequences;
-  \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
-    \definition sequence: Sequences.Sequence := Sequences.make P p;
-    \import Chains.Consume[family := Sequences.makeFamily P] \as Consumed;
+  \import \root.Families[R := R] \as Families;
+  \import \root.Readers[R := R].Packing[] \as Packing;
+  \module Of(P: Families.FamilyGroup, p: \root.Readers[R := R].Of[P := P].Data) {
+    \definition sequence: Packing.PackedFamily := Packing.make P p;
+    \import Families.Consume[family := Packing.makeFamily P] \as Consumed;
     \definition data: Consumed.Data := p;
   }
 }

@@ -1,11 +1,11 @@
-# general-recursion / evaluation
+# Program execution and general recursion
 
-## bind wrong value
+## Bind requires a computation
 
-The type of the value bound by bind does not match the computation's result type.
+A thunk is a value, so it must be forced before its computation can be sequenced with bind.
 
 ```toml case
-id = "reject-general-recursion.bind-wrong-value"
+id = "bind-requires-computation"
 scope = "module"
 expect = "reject"
 name = "InvalidBind"
@@ -17,12 +17,12 @@ parameters = '''A: \VType, a: A'''
   \return x);
 ```
 
-## finish wrong result
+## Finish wrong result
 
 The value passed to finish does not have the result type.
 
 ```toml case
-id = "reject-general-recursion.finish-wrong-result"
+id = "finish-wrong-result"
 scope = "module"
 expect = "reject"
 name = "FinishWrongResult"
@@ -33,12 +33,12 @@ parameters = '''A: \VType, B: \VType, a: A'''
 \definition bad: \RunStep[A, B] := \finish[A, B](a);
 ```
 
-## let wrong computation
+## Let wrong computation
 
 The subject of a let binding is not the required Program value.
 
 ```toml case
-id = "reject-general-recursion.let-wrong-computation"
+id = "let-wrong-computation"
 scope = "module"
 expect = "reject"
 name = "InvalidLet"
@@ -50,12 +50,12 @@ parameters = '''A: \VType, a: A'''
   \return x);
 ```
 
-## program case wrong branch count
+## Program case wrong branch count
 
 The number of Program case branches does not match the number of constructors.
 
 ```toml case
-id = "reject-general-recursion.program-case-wrong-branch-count"
+id = "program-case-wrong-branch-count"
 scope = "module"
 expect = "reject"
 name = "IncompleteProgramCase"
@@ -72,12 +72,12 @@ name = "IncompleteProgramCase"
     });
 ```
 
-## block syntax
+## Block syntax
 
 Sequencing inside blocks preserves Program value and computation bindings.
 
 ```toml case
-id = "accept-general-recursion.block-syntax"
+id = "block-syntax"
 scope = "module"
 expect = "accept"
 name = "Blocks"
@@ -109,12 +109,12 @@ name = "Blocks"
 \check result: \F(Bit);
 ```
 
-## continue
+## Continue
 
 Execution can continue by passing the continue state to the transition.
 
 ```toml case
-id = "accept-general-recursion.continue"
+id = "continue"
 scope = "module"
 expect = "accept"
 name = "RunContinue"
@@ -150,12 +150,12 @@ name = "RunContinue"
 \normalize \run[State, State](step, State::first) \by { firstTerminates };
 ```
 
-## finish
+## Finish
 
 The result carried by finish can be extracted as the run result.
 
 ```toml case
-id = "accept-general-recursion.finish"
+id = "finish"
 scope = "module"
 expect = "accept"
 name = "RunFinish"
@@ -183,12 +183,12 @@ parameters = '''A: \VType,
 \normalize \run[A, B](step, a) \by { terminates a^ };
 ```
 
-## forms
+## Program bindings and function forms
 
 Program value and computation syntax can each be used with corresponding types.
 
 ```toml case
-id = "accept-general-recursion.forms"
+id = "program-bindings-and-function-forms"
 scope = "module"
 expect = "accept"
 name = "ProgramForms"
@@ -212,28 +212,28 @@ parameters = '''A: \VType,
 \eval applied;
 ```
 
-## ill typed evaluation
+## Ill typed evaluation
 
 Even applications with mismatched Set/Prop types can be reduced in evaluation queries.
 
 ```toml case
-id = "accept-general-recursion.ill-typed-evaluation"
+id = "ill-typed-evaluation"
 scope = "module"
 expect = "accept"
 name = "IllTypedEvaluation"
 ```
 
 ```ref
-\eval (\fun (x: \SetKind(0)) => x) \Set(0);
-\normalize (\fun (x: \SetKind(0)) => x) \Set(0);
+\eval (\fun (P: \Prop) => P) \Set;
+\normalize (\fun (P: \Prop) => P) \Set;
 ```
 
-## mccarthy 91
+## Mccarthy 91
 
-Recursive execution of McCarthy 91 can be expressed with a termination proof.
+A state machine encodes McCarthy 91 and its pending recursive calls. Execution receives a termination certificate as a module parameter; this case does not prove the termination theorem.
 
 ```toml case
-id = "accept-general-recursion.mccarthy-91"
+id = "mccarthy-91"
 scope = "package"
 expect = "accept"
 ```
@@ -381,7 +381,7 @@ expect = "accept"
 An expression applying Program return as a function can be retained as an irreducible expression in evaluation queries.
 
 ```toml case
-id = "accept-general-recursion.raw-ill-typed-program-application-evaluation"
+id = "raw-ill-typed-program-application-evaluation"
 scope = "module"
 expect = "accept"
 name = "RawIllTypedProgramEvaluation"
@@ -394,12 +394,12 @@ parameters = '''A: \VType,
 \normalize ((\return(a)) a);
 ```
 
-## rose map
+## Rose map
 
-Recursive trees can be mapped by a Program with a termination proof.
+A state machine maps a forest in first-child / next-sibling representation, using continuations to rebuild both traversals. The execution wrapper takes a termination certificate as a module parameter.
 
 ```toml case
-id = "accept-general-recursion.rose-map"
+id = "rose-map"
 scope = "package"
 expect = "accept"
 ```
@@ -491,12 +491,12 @@ expect = "accept"
 }
 ```
 
-## run case
+## Run case
 
 runCase can use the active transition computation and its corresponding proof.
 
 ```toml case
-id = "accept-general-recursion.run-case"
+id = "run-case"
 scope = "module"
 expect = "accept"
 name = "ExplicitRunCase"
@@ -518,12 +518,12 @@ parameters = '''A: \VType,
       \refl(step^ initial^) };
 ```
 
-## step match
+## Step match
 
 The result of a parameterized transition can be decomposed with case.
 
 ```toml case
-id = "accept-general-recursion.step-match"
+id = "step-match"
 scope = "package"
 expect = "accept"
 ```
@@ -574,12 +574,12 @@ expect = "accept"
 }
 ```
 
-## stuck
+## Stuck
 
 Forcing an open thunk is retained as an irreducible computation.
 
 ```toml case
-id = "accept-general-recursion.stuck"
+id = "stuck"
 scope = "module"
 expect = "accept"
 name = "StuckComputation"
@@ -597,15 +597,15 @@ parameters = '''A: \VType,
 A RunStep in a higher universe can be eliminated to return a fixed value in a lower universe.
 
 ```toml case
-id = "step_match_distinguishes_branch_and_result_sorts"
+id = "step-match-distinguishes-branch-and-result-sorts"
 scope = "module"
 expect = "accept"
-name = "InvalidMotive"
+name = "LowerUniverseResult"
 parameters = '''A: \Set(2), a: A, B: \Set(0), b: B'''
 ```
 
 ```ref
-\definition bad: B := (\step-match r: \RunStep[A, A] \return B \with {
+\definition result: B := (\step-match r: \RunStep[A, A] \return B \with {
   | \continue x: b
   | \finish x: b
 }) \finish[A, A](a);

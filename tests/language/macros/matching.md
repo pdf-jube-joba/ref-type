@@ -1,11 +1,11 @@
-# macros / matching
+# Macro patterns and token matching
 
-## duplicate capture
+## Duplicate capture
 
 Macro capture names are duplicated.
 
 ```toml case
-id = "reject-macros.duplicate_capture"
+id = "duplicate-capture"
 scope = "module"
 expect = "reject"
 name = "DuplicateCapture"
@@ -15,12 +15,12 @@ name = "DuplicateCapture"
 \macro invalid($value, $value) := $value;
 ```
 
-## math extra expression
+## Math extra expression
 
 Extra expressions remain after a math macro match.
 
 ```toml case
-id = "reject-macros.math_extra_expression"
+id = "math-extra-expression"
 scope = "module"
 expect = "reject"
 name = "MathExtra"
@@ -35,12 +35,12 @@ parameters = '''A: \Set(0), x: A, y: A'''
 \definition invalid: A := \(x + y x \);
 ```
 
-## math operator chain
+## Math operator chain
 
 No math macro matches the entire operator sequence.
 
 ```toml case
-id = "reject-macros.math_operator_chain"
+id = "math-operator-chain"
 scope = "module"
 expect = "reject"
 name = "MathChain"
@@ -55,12 +55,12 @@ parameters = '''A: \Set(0), x: A, y: A'''
 \definition invalid: A := \(x + y + x \);
 ```
 
-## named literal mismatch
+## Named literal mismatch
 
 A macro call's literal does not match the declared template.
 
 ```toml case
-id = "reject-macros.named_literal_mismatch"
+id = "named-literal-mismatch"
 scope = "module"
 expect = "reject"
 name = "LiteralMismatch"
@@ -73,12 +73,12 @@ parameters = '''A: \Set(0), value: A'''
 \definition invalid: A := tagged!{value "different"};
 ```
 
-## non tail recursion depth
+## Non tail recursion depth
 
 Non-tail-recursive macro expansion exceeds the finite expansion limit.
 
 ```toml case
-id = "reject-macros.non_tail_recursion_depth"
+id = "non-tail-recursion-depth"
 scope = "module"
 expect = "reject"
 name = "Loop"
@@ -91,12 +91,12 @@ parameters = '''A: \Set(0), x: A'''
 \definition result: A := forever!{};
 ```
 
-## reserved macro token
+## Reserved macro token
 
 A macro uses a reserved syntax token as its own token.
 
 ```toml case
-id = "reject-macros.reserved_macro_token"
+id = "reserved-macro-token"
 scope = "module"
 expect = "reject"
 name = "ReservedMacroToken"
@@ -106,15 +106,14 @@ name = "ReservedMacroToken"
 \math-macro invalid($left, \:, $right) := $left;
 ```
 
-## rest must be last
+## Rest must be last
 
 Another capture follows a rest capture.
 
 ```toml case
-id = "reject-macros.rest_must_be_last"
+id = "rest-must-be-last"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -122,15 +121,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r, $x) := $x;
 ```
 
-## self recursion depth
+## Self recursion depth
 
 A macro that continually expands itself exceeds the finite expansion limit.
 
 ```toml case
-id = "reject-macros.self_recursion_depth"
+id = "self-recursion-depth"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -139,15 +137,14 @@ parameters = '''A: \Set(0), value: A'''
 \definition result: A := forever!{};
 ```
 
-## token capture requires token
+## Token capture requires token
 
 A value interpreted as an ordinary term is passed to a token capture.
 
 ```toml case
-id = "reject-macros.token_capture_requires_token"
+id = "token-capture-requires-token"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -156,29 +153,30 @@ parameters = '''A: \Set(0), value: A'''
 \definition result: A := select!{value};
 ```
 
-## token match no branch
+## Token match no branch
 
-No token-match branch matches the input token.
+The input is a quoted token of the right kind, but its text matches none of the branches.
 
 ```toml case
-id = "reject-macros.token_match_no_branch"
+id = "token-match-no-branch"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
 ```ref
-\macro select(tk) := \tmatch tk { | \+ => value };
-\definition result: A := select!{"+"};
+\macro choose(token) := \tmatch token {
+  | "keep" => value
+};
+\definition result: A := choose!{"drop"};
 ```
 
-## local expansion
+## Local expansion
 
 Expressions in local contexts can be passed to macro captures.
 
 ```toml case
-id = "accept-macros.local_expansion"
+id = "local-expansion"
 scope = "module"
 expect = "accept"
 name = "LocalMacros"
@@ -200,12 +198,12 @@ parameters = '''A: \Set(0), x: A, y: A'''
 \definition quoted: A := tagged!{y "keep"};
 ```
 
-## variadic token match
+## Variadic token match
 
 Variadic captures and token matching can be combined during expansion.
 
 ```toml case
-id = "accept-macros.variadic_token_match"
+id = "variadic-token-match"
 scope = "module"
 expect = "accept"
 name = "Variadic"
@@ -285,7 +283,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 When two macros match the same pattern, the earlier macro returning A is selected.
 
 ```toml case
-id = "earlier_math_macro_wins_when_patterns_are_equally_applicable"
+id = "earlier-math-macro-wins-when-patterns-are-equally-applicable"
 scope = "module"
 expect = "accept"
 name = "Priority"
@@ -305,7 +303,7 @@ parameters = '''A: \Set(0), B: \Set(0), a: A, b: B'''
 A bare hole can be passed as a macro expression argument, with its type inferred from later arguments.
 
 ```toml case
-id = "bare_underscore_is_a_macro_expression_argument"
+id = "bare-underscore-is-a-macro-expression-argument"
 scope = "module"
 expect = "accept"
 name = "Underscore"
@@ -319,47 +317,46 @@ parameters = '''A: \Set(0), f: A, y: A'''
 \definition bare_hole_with_next_argument: A := two!{_ f};
 ```
 
-## Capture classification / 5
+## Undeclared sequence captures
 
 An undeclared sequence capture is expanded.
 
 ```toml case
-id = "capture-judgement-4"
+id = "undeclared-rest-capture"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
 ```ref
-\macro bad(..r) := last!{..missing};
+\macro collect(..values) := value;
+\macro bad(..values) := collect!{..missing};
 ```
 
-## Capture classification / 6
+## Expression captures cannot be spliced as sequences
 
 An expression capture is expanded as a sequence.
 
 ```toml case
-id = "capture-judgement-5"
+id = "expression-capture-used-as-sequence"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
 ```ref
-\macro bad($x) := last!{..x};
+\macro collect(..values) := value;
+\macro bad($x) := collect!{..x};
 ```
 
-## Capture classification / 7
+## Token captures cannot be used as expressions
 
 A token capture is referenced as an expression.
 
 ```toml case
-id = "capture-judgement-6"
+id = "token-capture-used-as-expression"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -367,15 +364,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(tk) := $tk;
 ```
 
-## Capture classification / 8
+## Sequence captures cannot be used as expressions
 
 A sequence capture is referenced as an expression.
 
 ```toml case
-id = "capture-judgement-7"
+id = "sequence-capture-used-as-expression"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -383,15 +379,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := $r;
 ```
 
-## Capture classification / 9
+## Expression captures cannot be token-match subjects
 
 An expression capture is used as a token-match subject.
 
 ```toml case
-id = "capture-judgement-8"
+id = "expression-capture-used-as-match-subject"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -399,15 +394,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad($x) := \tmatch x {};
 ```
 
-## Capture classification / 11
+## Sequence patterns cannot match token captures
 
 A sequence match pattern is written for a token capture.
 
 ```toml case
-id = "capture-judgement-10"
+id = "sequence-pattern-for-token-capture"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -415,15 +409,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(tk) := \tmatch tk { | () => value };
 ```
 
-## Capture classification / 12
+## Token patterns cannot match sequence captures
 
 A token match pattern is written for a sequence capture.
 
 ```toml case
-id = "capture-judgement-11"
+id = "token-pattern-for-sequence-capture"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -431,15 +424,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := \tmatch r { | \+ => value };
 ```
 
-## Capture classification / 16
+## Token-match captures remain inside their branch
 
 A capture bound inside a token-match branch is referenced outside the branch.
 
 ```toml case
-id = "capture-judgement-15"
+id = "branch-capture-escapes-token-match"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -447,15 +439,14 @@ parameters = '''A: \Set(0), value: A'''
 \macro bad(..r) := \tmatch r { | ($x) => $x } $x;
 ```
 
-## Capture classification / 18
+## Math macro patterns reject token captures
 
 A token capture intended for named macros is written in a math macro pattern.
 
 ```toml case
-id = "capture-judgement-17"
+id = "math-pattern-rejects-token-captures"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -463,12 +454,12 @@ parameters = '''A: \Set(0), value: A'''
 \math-macro bad(tk, \+) := value;
 ```
 
-## Math macros without operators
+## Math macro patterns require a fixed token
 
 A math macro pattern has no operator token.
 
 ```toml case
-id = "macro-template-4"
+id = "math-pattern-requires-fixed-token"
 scope = "module"
 expect = "reject"
 name = "NoToken"
@@ -483,7 +474,7 @@ name = "NoToken"
 A template uses an undeclared capture.
 
 ```toml case
-id = "macro-template-5"
+id = "undeclared-expression-capture"
 scope = "module"
 expect = "reject"
 name = "UnknownCapture"
@@ -493,7 +484,7 @@ name = "UnknownCapture"
 \macro bad($value) := $other;
 ```
 
-## token match / string-for-symbol
+## Token match / string-for-symbol
 
 String tokens do not match symbol-token patterns.
 
@@ -501,7 +492,6 @@ String tokens do not match symbol-token patterns.
 id = "token-match-string-for-symbol"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -509,7 +499,7 @@ parameters = '''A: \Set(0), value: A'''
 \macro m(tk) := \tmatch tk { | \+ => value }; \definition result: A := m!{"+"};
 ```
 
-## token match / symbol-for-string
+## Token match / symbol-for-string
 
 Symbol tokens do not match string-token patterns.
 
@@ -517,7 +507,6 @@ Symbol tokens do not match string-token patterns.
 id = "token-match-symbol-for-string"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
@@ -525,7 +514,7 @@ parameters = '''A: \Set(0), value: A'''
 \macro m(tk) := \tmatch tk { | "+" => value }; \definition result: A := m!{+};
 ```
 
-## token match / group-for-token
+## Token match / group-for-token
 
 A parenthesized sequence is passed to a single token capture.
 
@@ -533,10 +522,10 @@ A parenthesized sequence is passed to a single token capture.
 id = "token-match-group-for-token"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set(0), value: A'''
 ```
 
 ```ref
-\macro m(tk) := value; \definition result: A := m!{(+)};
+\macro m(tk) := value;
+\definition result: A := m!{(+)};
 ```

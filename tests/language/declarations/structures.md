@@ -1,11 +1,11 @@
-# declarations / structures
+# Structures and record fields
 
-## callback product
+## Callback product
 
 A callback product taking a proof and returning a signature does not satisfy the permitted sort relation.
 
 ```toml case
-id = "reject-declarations.callback_product"
+id = "callback-product"
 scope = "module"
 expect = "reject"
 name = "Callback"
@@ -16,19 +16,18 @@ name = "Callback"
 \definition bad[f: \forall(P: \Prop)(h: P) -> Relation]: \Prop := \forall(P: \Prop) -> P -> P;
 ```
 
-## coherence
+## Coherence
 
 The structure's coherence proof does not establish the required equality.
 
 ```toml case
-id = "reject-declarations.coherence"
+id = "coherence"
 scope = "package"
 expect = "reject"
 ```
 
 ```ref file=src/root.ref
 \module BundleSignatures {
-/* Program implementations, specifications, and terminating transitions. */
 \structure Correspondence := {
   T: \VType,
   program: T,
@@ -36,24 +35,7 @@ expect = "reject"
   coherence: program^ = specification,
 };
 
-\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
-  \step-match t: \RunStep[State, Output] \return \Prop \with {
-    | \continue s: P s
-    | \finish result: \forall (Q: \Prop) -> Q -> Q
-  };
 
-\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
-  \forall (P: State -> \Prop) ->
-    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
-
-\structure Machine := {
-  State: \VType,
-  Output: \VType,
-  step: \U(State ~> \F(\RunStep[State, Output])),
-  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
-  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
-    \run[State, Output](step, s) \by { terminates s }),
-};
 }
 \module Coherence {
   \import \root.BundleSignatures[] \as Signatures;
@@ -64,12 +46,12 @@ expect = "reject"
 }
 ```
 
-## default override
+## Default override
 
 Overriding copy with a value different from a prevents the default same from proving copy = a.
 
 ```toml case
-id = "reject-declarations.default_override"
+id = "default-override"
 scope = "module"
 expect = "reject"
 name = "Override"
@@ -81,12 +63,12 @@ name = "Override"
 \definition bad: Value := Value { a := Bool::no, copy := Bool::yes, };
 ```
 
-## duplicate field
+## Duplicate field
 
 The same field name occurs twice.
 
 ```toml case
-id = "reject-declarations.duplicate_field"
+id = "duplicate-field"
 scope = "module"
 expect = "reject"
 name = "Duplicate"
@@ -97,12 +79,12 @@ name = "Duplicate"
 \structure Duplicate: \Set := { value: Unit, value: Unit::unit = Unit::unit };
 ```
 
-## structure law
+## Structure law
 
 A structure law does not prove the required proposition.
 
 ```toml case
-id = "reject-declarations.structure_law"
+id = "structure-law"
 scope = "module"
 expect = "reject"
 name = "Law"
@@ -116,12 +98,12 @@ name = "Law"
 isZero := \refl(Bit::one) };
 ```
 
-## field classification
+## Field classification
 
 Values and proofs can be classified according to field types and sorts.
 
 ```toml case
-id = "accept-declarations.field_classification"
+id = "field-classification"
 scope = "package"
 expect = "accept"
 ```
@@ -174,12 +156,12 @@ expect = "accept"
 }
 ```
 
-## law dependency
+## Law dependency
 
 A later law can use a preceding law's proof.
 
 ```toml case
-id = "accept-declarations.law_dependency"
+id = "law-dependency"
 scope = "module"
 expect = "accept"
 name = "Dependency"
@@ -198,12 +180,12 @@ same := \refl(a), witness := \refl(a) };
  \check get w: a = a;
 ```
 
-## structure fields
+## Structure fields
 
 Dependent structure fields and projection types agree.
 
 ```toml case
-id = "accept-declarations.structure_fields"
+id = "structure-fields"
 scope = "package"
 expect = "accept"
 ```
@@ -262,12 +244,12 @@ expect = "accept"
 }
 ```
 
-## structures
+## Dependent record fields and laws
 
 A value satisfying the structure's fields and laws can be constructed.
 
 ```toml case
-id = "accept-declarations.structures"
+id = "dependent-records-with-laws"
 scope = "package"
 expect = "accept"
 ```
@@ -315,12 +297,12 @@ expect = "accept"
 }
 ```
 
-## structures
+## Record construction, projections, and sorts
 
 A value satisfying the structure's fields and laws can be constructed.
 
 ```toml case
-id = "accept-structures"
+id = "record-construction-and-sorts"
 scope = "module"
 expect = "accept"
 name = "Structures"
@@ -372,12 +354,12 @@ name = "Structures"
 ```
 
 
-## Type-directed record projections
+## Type-directed projections and inferred constructors
 
 Generic constructors, nested and alias projections, Program associated definitions, and reflection can all use the same record type.
 
 ```toml case
-id = "records_have_type_directed_projection_and_generic_construction_syntax"
+id = "type-directed-projections-and-inferred-constructors"
 scope = "module"
 expect = "accept"
 name = "Records"
@@ -435,12 +417,12 @@ pair.first.first;
 \definition reflectedDefault: VBit^ := VBit::default^;
 ```
 
-## proposition structure defaults follow parameters and supplied fields
+## Proof defaults follow parameters and supplied fields
 
 Default fields of a propositional structure can reference specialized arguments and previously specified fields.
 
 ```toml case
-id = "proposition_structure_defaults_follow_parameters_and_supplied_fields"
+id = "proof-defaults-follow-parameters-and-overrides"
 scope = "package"
 expect = "accept"
 ```
@@ -473,12 +455,12 @@ expect = "accept"
 }
 ```
 
-## proposition structure default is checked when declared
+## Proposition structure default is checked when declared
 
 A mismatch between a declared default field's term and type is detected and rejected at declaration time rather than deferred until use.
 
 ```toml case
-id = "proposition_structure_default_is_checked_when_declared"
+id = "proposition-structure-default-is-checked-when-declared"
 scope = "module"
 expect = "reject"
 name = "InvalidDefault"

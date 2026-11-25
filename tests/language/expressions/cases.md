@@ -1,28 +1,25 @@
-# expressions / cases
+# Polymorphic expressions
 
-## expressions
+## Polymorphic functions at different universes
 
-Term, binder, and application syntax can each be used with the corresponding types.
+An identity at a higher universe can be instantiated with the type of lower-universe identity functions. A separate query infers the type of a function that takes an endomorphism and returns a type.
 
 ```toml case
-id = "accept-expressions.expressions"
+id = "polymorphic-functions-at-different-universes"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Test1 {
-    \definition Idtype: \Set(1) := \forall (X: \Set(0)) -> \forall (x: X) -> X;
-    \definition id: Idtype := \fun (X: \Set(0)) => \fun (x: X) => x;
-    \definition id2: \forall (X: \Set(1)) -> \forall (x: X) -> X := \fun (X: \Set(1)) => \fun (x: X) => x;
-    \definition a: Idtype -> Idtype := id2 Idtype;
+\module PolymorphicIdentity {
+    \definition Identity: \Set(1) := \forall (X: \Set(0)) -> \forall (x: X) -> X;
+    \definition identity: Identity := \fun (X: \Set(0)) => \fun (x: X) => x;
+    \definition identityHigher: \forall (X: \Set(1)) -> \forall (x: X) -> X := \fun (X: \Set(1)) => \fun (x: X) => x;
+    \definition identityOnFunctions: Identity -> Identity := identityHigher Identity;
 }
 
-\module Test2 (
+\module HigherOrderType (
     A: \Set(0),
-    P: A -> \Prop,
-    x: A,
-    l: P x,
 ) {
     \infer \fun (_: A -> A) => A;
 }

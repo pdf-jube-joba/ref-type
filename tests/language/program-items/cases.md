@@ -1,302 +1,260 @@
-# program-items / cases
+# Program type-associated items
 
-## constructor name collision
+## Constructor name collision
 
 An associated item name conflicts with a constructor.
 
 ```toml case
-id = "reject-program-items.constructor-name-collision"
+id = "constructor-name-collision"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Unit::unit: Unit := Unit::unit;
 ```
 
-## dependent field
+## Dependent field
 
 A Program record field's type depends on an earlier field's value.
 
 ```toml case
-id = "reject-program-items.dependent-field"
+id = "dependent-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
-\inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \structure Dep[A: \VType]: \VType := { first: A, second: first };
 ```
 
-## duplicate declaration field
+## Duplicate declaration field
 
 A Program record declaration duplicates a field name.
 
 ```toml case
-id = "reject-program-items.duplicate-declaration-field"
+id = "duplicate-declaration-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
-\inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \structure Dup[A: \VType]: \VType := { first: A, first: A };
 ```
 
-## duplicate field
+## Duplicate field
 
 A Program record literal specifies the same field twice.
 
 ```toml case
-id = "reject-program-items.duplicate-field"
+id = "duplicate-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition bad: Pair[Unit] := Pair[Unit] { first := Unit::unit, first := Unit::unit, second := Unit::unit };
 ```
 
-## inductive literal
+## Inductive literal
 
 An inductive type that is not a Program record is used as a record literal.
 
 ```toml case
-id = "reject-program-items.inductive-literal"
+id = "inductive-literal"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition bad: Unit := Unit {};
 ```
 
-## missing field
+## Missing field
 
 A Program record literal lacks required fields.
 
 ```toml case
-id = "reject-program-items.missing-field"
+id = "missing-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition bad: Pair[Unit] := Pair[Unit] { first := Unit::unit };
 ```
 
-## owner parameter count
+## Owner parameter count
 
 The number of associated-item owner arguments does not match the declaration.
 
 ```toml case
-id = "reject-program-items.owner-parameter-count"
+id = "owner-parameter-count"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Pair::value: Unit := Unit::unit;
 ```
 
-## owner parameter kind
+## Owner parameter kind
 
 A Program associated item's owner argument is not classified as VType.
 
 ```toml case
-id = "reject-program-items.owner-parameter-kind"
+id = "owner-parameter-kind"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Pair[A: \Set]::value: Unit := Unit::unit;
 ```
 
-## projection as value
+## Projection as value
 
 An associated projection is used as a Program value.
 
 ```toml case
-id = "reject-program-items.projection-as-value"
+id = "projection-as-value"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \check Pair[Unit]::first: \U(Pair[Unit] ~> \F(Unit));
 ```
 
-## projection name collision
+## Projection name collision
 
 An associated item name conflicts with a generated projection.
 
 ```toml case
-id = "reject-program-items.projection-name-collision"
+id = "projection-name-collision"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Pair[A: \VType]::first: \F(Unit) := \return Unit::unit;
 ```
 
-## recursive field
+## Recursive field
 
 A Program record field's type references the type being declared.
 
 ```toml case
-id = "reject-program-items.recursive-field"
+id = "recursive-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
-\inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \structure Rec: \VType := { next: Rec };
 ```
 
-## type argument count
+## Type argument count
 
 The number of associated-item type arguments does not match the declaration.
 
 ```toml case
-id = "reject-program-items.type-argument-count"
+id = "type-argument-count"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \infer Pair[Unit, Unit]::first;
 ```
 
-## unknown field
+## Unknown field
 
 A nonexistent Program record field is specified.
 
 ```toml case
-id = "reject-program-items.unknown-field"
+id = "unknown-field"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition bad: Pair[Unit] := Pair[Unit] { first := Unit::unit, second := Unit::unit, third := Unit::unit };
 ```
 
-## unsolved type argument
+## Unsolved type argument
 
 An associated item's type arguments cannot be inferred.
 
 ```toml case
-id = "reject-program-items.unsolved-type-argument"
+id = "unsolved-type-argument"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
-\inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \infer Pair::first;
 ```
 
-## unused invalid item
+## Unused invalid item
 
 An unused associated item also has a type mismatch.
 
 ```toml case
-id = "reject-program-items.unused-invalid-item"
+id = "unused-invalid-item"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Pair[A: \VType]::bad: Pair[A] ~> \F(Unit) := \cfun (p: Pair[A]) => \return p;
 ```
 
-## value as computation
+## Value as computation
 
 A Program value is used as a computation.
 
 ```toml case
-id = "reject-program-items.value-as-computation"
+id = "value-as-computation"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
-\definition Unit::value: Unit := Unit::unit; \check Unit::value: \F(Unit);
+\definition Unit::value: Unit := Unit::unit;
+\check Unit::value: \F(Unit);
 ```
 
-## wrong field type
+## Wrong field type
 
 A Program record field value does not have the declared type.
 
 ```toml case
-id = "reject-program-items.wrong-field-type"
+id = "wrong-field-type"
 scope = "module"
 expect = "reject"
-name = "Bad"
 ```
 
 ```ref
@@ -306,12 +264,12 @@ name = "Bad"
 \definition bad: Pair[Unit] := Pair[Unit] { first := Bool::no, second := Unit::unit };
 ```
 
-## associated order
+## Associated order
 
 Program associated items can be used in declaration order.
 
 ```toml case
-id = "accept-program-items.associated-order"
+id = "associated-order"
 scope = "package"
 expect = "accept"
 ```
@@ -329,53 +287,53 @@ expect = "accept"
 }
 ```
 
-## certificates
+## Certificates
 
-Certificates corresponding to a Program implementation and its specification can be constructed.
+A Program associated computation uses a termination certificate at either constructor of its state type, and remains executable after module import and boxing.
 
 ```toml case
-id = "accept-program-items.certificates"
+id = "certificates"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module CertifiedSteps {
-          \inductive Unit: \VType := | unit: Unit | other: Unit;
-          \structure Owner[A: \VType]: \VType := {};
-          \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
-            \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
-          
-          \definition Terminates [s: Unit^]: \Prop :=
-            \forall (P: Unit^ -> \Prop) ->
-              (\forall (x: Unit^) ->
-                (\step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
-                  | \continue next: P next
-                  | \finish output: \forall (Q: \Prop) -> Q -> Q
-                }) (step^ x) -> P x) -> P s;
-          \definition terminates: \forall (s: Unit^) -> Terminates s :=
-            \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q);
-          \definition Owner[A: \VType]::result: \F(Unit) :=
-            \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
-          \definition Owner[A: \VType]::otherResult: \F(Unit) :=
-            \run[Unit, Unit](step, Unit::other) \by { terminates Unit^::other };
-          \definition boxed: \Box[\F(Unit)] := \box[_](Owner[Unit]::result);
-        }
+  \inductive Bit: \VType := | zero: Bit | one: Bit;
+  \structure Owner[A: \VType]: \VType := {};
+  \definition step: \U((Bit ~> \F(\RunStep[Bit, Bit]))) :=
+    \thunk((\cfun (s: Bit) => \return(\finish[Bit, Bit](Bit::zero))));
+
+  \definition Terminates [s: Bit^]: \Prop :=
+    \forall (P: Bit^ -> \Prop) ->
+      (\forall (x: Bit^) ->
+        (\step-match t: \RunStep[Bit^, Bit^] \return \Prop \with {
+          | \continue next: P next
+          | \finish output: \forall (Q: \Prop) -> Q -> Q
+        }) (step^ x) -> P x) -> P s;
+  \definition terminates: \forall (s: Bit^) -> Terminates s :=
+    \fun (s: Bit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q);
+  \definition Owner[A: \VType]::result: \F(Bit) :=
+    \run[Bit, Bit](step, Bit::zero) \by { terminates Bit^::zero };
+  \definition Owner[A: \VType]::otherResult: \F(Bit) :=
+    \run[Bit, Bit](step, Bit::one) \by { terminates Bit^::one };
+  \definition boxed: \Box[\F(Bit)] := \box[_](Owner[Bit]::result);
+}
 
 \module CertifiedConsumer {
   \import \root.CertifiedSteps[] \as S;
-  \definition boxed: \Box[\F(S.Unit)] := \box[_](S.Owner[S.Unit]::result);
+  \definition boxed: \Box[\F(S.Bit)] := \box[_](S.Owner[S.Bit]::result);
   \normalize \squash[_](boxed);
-  \normalize S.Owner[S.Unit]::result;
+  \normalize S.Owner[S.Bit]::result;
 }
 ```
 
-## modules
+## Program module instantiation and re-exports
 
 Instantiation and re-export of Program modules preserve member types.
 
 ```toml case
-id = "accept-program-items.modules"
+id = "program-module-instantiation-and-reexports"
 scope = "package"
 expect = "accept"
 ```
@@ -434,12 +392,12 @@ expect = "accept"
 }
 ```
 
-## namespace identity
+## Namespace identity
 
 Types extracted from the same nominal instantiation retain their identity.
 
 ```toml case
-id = "accept-program-items.namespace-identity"
+id = "namespace-identity"
 scope = "package"
 expect = "accept"
 ```
@@ -456,33 +414,31 @@ expect = "accept"
 }
 ```
 
-## pts associated owner
+## Set owners expose reflected Program values
 
-Associated items can take PTS types as owner arguments.
+An associated item of a Set record can expose the reflected value of a Program constructor.
 
 ```toml case
-id = "accept-program-items.pts-associated-owner"
+id = "set-owner-exposes-reflected-program-value"
 scope = "module"
 expect = "accept"
-name = "Bad"
 ```
 
 ```ref
 \inductive Unit: \VType := | unit: Unit;
-\inductive Bool: \VType := | no: Bool | yes: Bool;
-\structure Pair[A: \VType]: \VType := { first: A, second: A };
-\structure P: \Set := {}; \definition P::value: Unit^ := Unit^::unit;
+\structure Holder: \Set := {};
+\definition Holder::value: Unit^ := Unit^::unit;
+\check Holder::value: Unit^;
 ```
 
-## records
+## Program record construction and projections
 
 Program record fields, projections, and cases have corresponding types.
 
 ```toml case
-id = "accept-program-items.records"
+id = "program-record-construction-and-projections"
 scope = "module"
 expect = "accept"
-name = "Example"
 ```
 
 ```ref

@@ -1,11 +1,11 @@
-# packages / imports
+# Package imports and external modules
 
-## packages resolve temporary module expressions
+## Packages resolve temporary module expressions
 
 Instantiations of an external dependency and a module in the same package can be used as carriers with the same type arguments substituted.
 
 ```toml case
-id = "packages_resolve_temporary_module_expressions"
+id = "packages-resolve-temporary-module-expressions"
 scope = "package"
 expect = "accept"
 entry = "main"
@@ -17,7 +17,9 @@ name = "shared"
 ```
 
 ```ref file=shared/src/root.ref
-\module Family(A: \Set) { \definition Carrier: \Set := A; }
+\module Family(A: \Set) {
+  \definition Carrier: \Set := A;
+}
 ```
 
 ```toml file=main/ref.toml
@@ -28,7 +30,9 @@ shared = { path = "../shared" }
 ```
 
 ```ref file=main/src/root.ref
-\module Local(A: \Set) { \definition Carrier: \Set := A; }
+\module Local(A: \Set) {
+  \definition Carrier: \Set := A;
+}
         \module Consumer {
             \definition dependency[A: \Set]: \Set := shared.Family[A := A].Carrier;
             \definition rooted[A: \Set]: \Set := \root.Local[A := A].Carrier;
@@ -36,12 +40,12 @@ shared = { path = "../shared" }
         }
 ```
 
-## packages resolve dependencies and local children
+## Packages resolve dependencies and local children
 
 A package shared through two dependency paths and a local child module can be imported together.
 
 ```toml case
-id = "packages_resolve_dependencies_and_local_children"
+id = "packages-resolve-dependencies-and-local-children"
 scope = "package"
 expect = "accept"
 entry = "app"
@@ -53,7 +57,9 @@ name = "shared"
 ```
 
 ```ref file=shared/src/root.ref
-\module Truth { \definition proposition: \Prop := \forall (P: \Prop) -> P -> P; }
+\module Truth {
+  \definition proposition: \Prop := \forall (P: \Prop) -> P -> P;
+}
 ```
 
 ```toml file=left/ref.toml
@@ -64,7 +70,10 @@ shared = { path = "../shared" }
 ```
 
 ```ref file=left/src/root.ref
-\module Source { \import shared.Truth[] \as T; \definition proposition: \Prop := T.proposition; }
+\module Source {
+  \import shared.Truth[] \as T;
+  \definition proposition: \Prop := T.proposition;
+}
 ```
 
 ```toml file=right/ref.toml
@@ -75,7 +84,10 @@ shared = { path = "../shared" }
 ```
 
 ```ref file=right/src/root.ref
-\module Source { \import shared.Truth[] \as T; \definition proposition: \Prop := T.proposition; }
+\module Source {
+  \import shared.Truth[] \as T;
+  \definition proposition: \Prop := T.proposition;
+}
 ```
 
 ```toml file=app/ref.toml
@@ -88,7 +100,9 @@ right = { path = "../right" }
 
 ```ref file=app/src/root.ref
 \module Client {
-  \module Child { \definition proposition: \Prop := \forall (P: \Prop) -> P -> P; }
+  \module Child {
+    \definition proposition: \Prop := \forall (P: \Prop) -> P -> P;
+  }
   \import .Child[] \as Local;
   \import left.Source[] \as L;
   \import right.Source[] \as R;
@@ -98,7 +112,7 @@ right = { path = "../right" }
 }
 ```
 
-## cyclic dependencies
+## Cyclic dependencies
 
 Package dependencies are cyclic.
 
@@ -131,7 +145,7 @@ a = { path = "../a" }
 \module Main {}
 ```
 
-## external parameter inference
+## External parameter inference
 
 An external module parameter retains an unresolved type.
 
@@ -149,12 +163,12 @@ expect = "reject"
 
 ```
 
-## external program module parameters are instantiated in nested modules
+## External Program parameters in child modules
 
 Program module parameters are also substituted into child modules in external files.
 
 ```toml case
-id = "external_program_module_parameters_are_instantiated_in_nested_modules"
+id = "external-program-parameters-in-child-modules"
 scope = "package"
 expect = "accept"
 ```
@@ -183,12 +197,12 @@ expect = "accept"
 \definition value: X := x;
 ```
 
-## external child module inherits parent import aliases
+## External child module inherits parent import aliases
 
 Child modules in external files can also use their parent's import aliases.
 
 ```toml case
-id = "external_child_module_inherits_parent_import_aliases"
+id = "external-child-module-inherits-parent-import-aliases"
 scope = "package"
 expect = "accept"
 ```
@@ -209,19 +223,21 @@ expect = "accept"
 \definition inherited: \Prop := Shared.value;
 ```
 
-## parent and external references share checked child declarations
+## Parent and external references share checked child declarations
 
 Child module declarations can be referenced both inside and outside the parent.
 
 ```toml case
-id = "parent_and_external_references_share_checked_child_declarations"
+id = "parent-and-external-references-share-checked-child-declarations"
 scope = "package"
 expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module Parent {
-  \module Child { \definition marker: \Prop := \forall (P: \Prop) -> P -> P; }
+  \module Child {
+    \definition marker: \Prop := \forall (P: \Prop) -> P -> P;
+  }
   \import \root.Parent[].Child[] \as Local;
   \infer Local.marker;
 }

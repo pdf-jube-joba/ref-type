@@ -5,7 +5,7 @@
 Structure fields can be used from local binders and subset definitions and reduce to the same values.
 
 ```toml case
-id = "shared_definitions_preserve_subset_and_local_scopes"
+id = "shared-definitions-preserve-subset-and-local-scopes"
 scope = "module"
 expect = "accept"
 name = "Sharing"
@@ -29,7 +29,7 @@ name = "Sharing"
 A stored value is not captured by a later binder with the same name and agrees with a directly written function.
 
 ```toml case
-id = "logical_block_fun_preserves_binder_order_and_scope"
+id = "logical-block-fun-preserves-binder-order-and-scope"
 scope = "module"
 expect = "accept"
 name = "BlockFunctions"
@@ -53,7 +53,7 @@ parameters = '''A: \Set, P: A -> \Set'''
 Let values and type aliases expand transparently and retain original references through nesting and same-named binders.
 
 ```toml case
-id = "logical_let_definitions_are_transparent_and_capture_avoiding"
+id = "logical-let-definitions-are-transparent-and-capture-avoiding"
 scope = "module"
 expect = "accept"
 name = "LocalDefinitions"
@@ -116,7 +116,7 @@ parameters = '''A: \Set, a: A'''
 After supplying an implication from P to Q, proving P yields a proof of Q.
 
 ```toml case
-id = "logical_enough_changes_the_remaining_goal"
+id = "logical-enough-changes-the-remaining-goal"
 scope = "module"
 expect = "accept"
 name = "Enough"
@@ -135,7 +135,7 @@ parameters = '''P, Q: \Prop, p: P, implication: P -> Q'''
 A let annotation makes x a value of the base type A, so returning it as a subset value without a membership proof is rejected.
 
 ```toml case
-id = "logical_let_preserves_the_declared_type"
+id = "logical-let-preserves-the-declared-type"
 scope = "module"
 expect = "reject"
 name = "LocalAnnotation"
@@ -154,7 +154,7 @@ parameters = '''A: \Set, S: \Pow (A), s: \Cast[A] (S)'''
 The variables p, q, and r are all bound as proofs of the outer P.
 
 ```toml case
-id = "grouped_product_binders_keep_the_outer_type"
+id = "grouped-product-binders-keep-the-outer-type"
 scope = "module"
 expect = "accept"
 name = "Grouped"
@@ -170,7 +170,7 @@ name = "Grouped"
 A declaration's grouped binders share the type annotation from before a same-named P is bound.
 
 ```toml case
-id = "grouped_lambda_binders_keep_the_outer_type"
+id = "grouped-lambda-binders-keep-the-outer-type"
 scope = "module"
 expect = "accept"
 name = "Grouped"
@@ -188,7 +188,7 @@ name = "Grouped"
 The inductive type's x, y, and z all have the same outer type A.
 
 ```toml case
-id = "grouped_declaration_binders_keep_the_outer_type"
+id = "grouped-declaration-binders-keep-the-outer-type"
 scope = "module"
 expect = "accept"
 name = "Grouped"
@@ -205,7 +205,7 @@ name = "Grouped"
 Membership and Cast can be bound to names as functions and applied to subsets.
 
 ```toml case
-id = "membership_and_cast_are_first_class_functions"
+id = "membership-and-cast-are-first-class-functions"
 scope = "module"
 expect = "accept"
 name = "SetOperators"
@@ -218,15 +218,14 @@ parameters = '''A: \Set, subset: \Pow A'''
 \definition Specialized: \Set := cast subset;
 ```
 
-## Unused let / 1
+## Unused lets still check value types
 
 A proposition proof is passed where a set value is required; definitions unused in the result are also checked.
 
 ```toml case
-id = "unused-let-0"
+id = "unused-let-rejects-proof-as-value"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 ```
 
@@ -234,15 +233,14 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: A := p \then \return \refl(a) };
 ```
 
-## Unused let / 2
+## Unused lets still check proof types
 
 A set value is passed where a proposition proof is required; definitions unused in the result are also checked.
 
 ```toml case
-id = "unused-let-1"
+id = "unused-let-rejects-value-as-proof"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 ```
 
@@ -250,15 +248,14 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: P := a \then \return \refl(a) };
 ```
 
-## Unused let / 3
+## Unused lets still resolve inference holes
 
 No constraints determine the type or value; definitions unused in the result are also checked.
 
 ```toml case
-id = "unused-let-2"
+id = "unused-let-rejects-unsolved-holes"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 ```
 
@@ -266,15 +263,14 @@ parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 \definition example: a = a := \block { \let unused: _ := _ \then \return \refl(a) };
 ```
 
-## Unused let / 4
+## Unused lets do not allow self-reference
 
 The definition references itself before being bound; definitions unused in the result are also checked.
 
 ```toml case
-id = "unused-let-3"
+id = "unused-let-cannot-reference-itself"
 scope = "module"
 expect = "reject"
-name = "Invalid"
 parameters = '''A: \Set, a: A, P: \Prop, p: P'''
 ```
 
