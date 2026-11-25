@@ -1,4 +1,3 @@
-//! Resolver-only measurement: cargo run --manifest-path benchmarks/Cargo.toml --bin resolve-bench -- PATH
 use std::{path::Path, time::Instant};
 
 fn main() {

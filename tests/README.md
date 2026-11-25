@@ -24,6 +24,19 @@ Select test documents or directories with positional arguments; `--filter` narro
 `logs/` retains each step's command, stdout, and stderr.
 Each invocation has a 30-second timeout, configurable with the runner's `--timeout` option.
 
+## Compatibility contract
+
+Keep this suite tied to the language's external acceptance contract: pass an input path to the checker in its ordinary checking mode and compare the exit code with the expected acceptance or rejection.
+The runner must append only the generated entry path to the selected command.
+Every case must remain runnable with a checker executable that accepts that path without additional options.
+
+Cases must not depend on optional checker flags, diagnostic wording, JSON report schemas, profiling counters, or implementation APIs.
+Standard output and standard error are captured to explain failures; they are not expected-output assertions.
+`--command` can select another executable or add options for local experiments, but those options must not become requirements of the cases.
+
+Implementation-specific CLI options, reports, cache statistics, and recovery behavior belong in the owning Rust crates' tests under `src/`.
+Internal refactoring must preserve acceptance and rejection for unchanged language rules without requiring changes to this suite's invocation contract.
+
 ## Cases
 
 Compare acceptance and rejection conditions for the same topic in one document and explain the reasons in prose.

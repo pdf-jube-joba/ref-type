@@ -35,7 +35,7 @@ cargo fmt --all -- --check
 ```
 
 Default Cargo commands select the implementation crates.
-`--workspace` also builds and checks `benchmarks/`; its binaries use the same `target/` directory.
+`--workspace` also builds and checks `benchmarks/resolver/`; its binaries use the same `target/` directory.
 No implementation crate depends on benchmark or Python tooling code.
 
 See the [language reference](../docs/language/README.md), [CLI usage](USAGE.md), [source acceptance tests](../tests/README.md), and [benchmarks](../benchmarks/README.md) for the separate entry points.

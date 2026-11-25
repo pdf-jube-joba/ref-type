@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+import ctypes
 from dataclasses import dataclass, fields
 import hashlib
 import json
@@ -15,11 +17,13 @@ import sys
 import tempfile
 import time
 
-from log_analysis import cost_profile
-from workloads import source_digest
+from .log_analysis import cost_profile
+from .sources import source_digest
 
-ROOT = Path(__file__).resolve().parents[1]
-BENCHMARKS = Path(__file__).resolve().parent
+BENCHMARKS = Path(__file__).resolve().parents[1]
+ROOT = BENCHMARKS.parent
+PR_SET_CHILD_SUBREAPER = 36
+PR_GET_CHILD_SUBREAPER = 37
 
 
 def target_directory():
@@ -85,6 +89,37 @@ def tail(path, size=65536):
         return file.read(size).decode("utf-8", errors="replace")
 
 
+@contextmanager
+def child_subreaper():
+    libc = ctypes.CDLL(None, use_errno=True)
+
+    def prctl(option, value):
+        if libc.prctl(option, value, 0, 0, 0) != 0:
+            code = ctypes.get_errno()
+            raise OSError(code, os.strerror(code))
+
+    previous = ctypes.c_int()
+    prctl(PR_GET_CHILD_SUBREAPER, ctypes.byref(previous))
+    prctl(PR_SET_CHILD_SUBREAPER, 1)
+    try:
+        yield
+    finally:
+        prctl(PR_SET_CHILD_SUBREAPER, previous.value)
+
+
+def session_processes(session):
+    processes = []
+    for path in Path("/proc").iterdir():
+        if path.name.isdecimal():
+            pid = int(path.name)
+            try:
+                if os.getsid(pid) == session:
+                    processes.append(pid)
+            except ProcessLookupError:
+                pass
+    return processes
+
+
 def measure(command, log, *, seconds, environment=None,
             progress_seconds=0, output_mib=8):
     def limits():
@@ -92,53 +127,70 @@ def measure(command, log, *, seconds, environment=None,
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 1))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
-    def reap(block=False):
-        waited, status, usage = os.wait4(child.pid, 0 if block else os.WNOHANG)
-        if waited:
-            child.returncode = os.waitstatus_to_exitcode(status)
-            return usage
-        return None
+    usages = []
 
-    def send(sig):
+    def reap(pid):
         try:
-            os.killpg(child.pid, sig)
-        except ProcessLookupError:
-            pass
+            waited, status, usage = os.wait4(pid, os.WNOHANG)
+        except ChildProcessError:
+            return False
+        if waited:
+            if pid == child.pid:
+                child.returncode = os.waitstatus_to_exitcode(status)
+            usages.append(usage)
+            return True
+        return False
+
+    def send(pids, sig):
+        groups = set()
+        for pid in pids:
+            try:
+                groups.add(os.getpgid(pid))
+            except ProcessLookupError:
+                pass
+        for group in groups:
+            try:
+                os.killpg(group, sig)
+            except ProcessLookupError:
+                pass
 
     def stop():
-        send(signal.SIGTERM)
+        send(session_processes(child.pid), signal.SIGTERM)
         deadline = time.monotonic() + 2
-        while time.monotonic() < deadline:
-            if usage := reap():
-                return usage
+        while pids := session_processes(child.pid):
+            for pid in pids:
+                reap(pid)
+            if time.monotonic() >= deadline:
+                send(pids, signal.SIGKILL)
             time.sleep(.02)
-        send(signal.SIGKILL)
-        return reap(True)
 
     log.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     next_progress = started + progress_seconds
     reason = None
-    with log.open("wb") as output:
+    with child_subreaper(), log.open("wb") as output:
         child = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=output, stderr=output,
                                  stdin=subprocess.DEVNULL, start_new_session=True, preexec_fn=limits)
         try:
-            while (usage := reap()) is None:
+            while not reap(child.pid):
                 now = time.monotonic()
                 if now - started >= seconds:
                     reason = "time_limit"
                 elif log.stat().st_size > output_mib * 2**20:
                     reason = "output_limit"
                 if reason:
-                    usage = stop()
+                    stop()
                     break
                 if progress_seconds > 0 and now >= next_progress:
                     print(f"  running {now - started:.0f}s: {log}", file=sys.stderr, flush=True)
                     next_progress = now + progress_seconds
                 time.sleep(.02)
+            if reason is None and session_processes(child.pid):
+                reason = "unfinished_children"
+                stop()
         except KeyboardInterrupt:
             reason = "interrupted"
-            usage = stop()
+            stop()
         except BaseException:
             stop()
             raise
@@ -146,8 +198,9 @@ def measure(command, log, *, seconds, environment=None,
                            or child.returncode != 0 and "memory allocation of" in tail(log)):
         reason = "resource_limit"
     return dict(command=command, exit=child.returncode, seconds=round(time.monotonic() - started, 3),
-                user_seconds=round(usage.ru_utime, 3), system_seconds=round(usage.ru_stime, 3),
-                peak_rss_kib=usage.ru_maxrss, stopped_by=reason, log=str(log),
+                user_seconds=round(sum(usage.ru_utime for usage in usages), 3),
+                system_seconds=round(sum(usage.ru_stime for usage in usages), 3),
+                peak_rss_kib=max(usage.ru_maxrss for usage in usages), stopped_by=reason, log=str(log),
                 profile=cost_profile(log))
 
 
