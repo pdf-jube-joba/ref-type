@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -141,6 +142,48 @@ print('done')
             nested.unlink()
             with self.assertRaises(FileNotFoundError):
                 sources.source_digest(entry)
+
+    def test_workspace_axes_use_ordinary_checks_and_sample_the_cache(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(directory)
+            checker = self.make_checker(root / "checker")
+            output = root / "report.json"
+            args = ["scaling", "--axes", "checkpoint-disk", "layered", "--sizes", "2", "--width", "1",
+                    "--runs", "1", "--binary", str(checker), "--work-dir", str(root / "scratch"),
+                    "--output", str(output)]
+            self.assertEqual(bench.main(args), 0)
+            rows = json.loads(output.read_text())["measurements"]
+            self.assertEqual([row["case"] for row in rows], ["checkpoint-disk-2", "layered-2"])
+            for row in rows:
+                self.assertNotIn("--full-check", row["command"])
+                self.assertIn("--cache-dir", row["command"])
+                self.assertGreaterEqual(row["cache_peak_allocated_bytes"], row["cache_final_allocated_bytes"])
+
+    def test_layered_workspace_registers_every_edge(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = generators.layered(Path(directory), 10, 2)
+            bs, cs = ([f"{prefix}{i}" for i in range(10)] for prefix in ("b", "c"))
+            packages = sources.packages([root])
+            self.assertEqual([path.name for path in packages], ["a", *bs, *cs, "d"])
+            for path in packages:
+                dependencies = tomllib.loads((path / "ref.toml").read_text())["dependencies"]
+                expected = bs if path.name in cs else cs if path.name == "d" else ["a"] if path.name in bs else []
+                self.assertEqual(set(dependencies), set(expected))
+
+    def test_disk_sampling_observes_files_deleted_before_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory) / "cache"
+            cache.mkdir()
+            program = ("import sys,time; from pathlib import Path; "
+                       "p=Path(sys.argv[1]); p.write_bytes(b'x' * 2**20); "
+                       "p.with_name('linked').hardlink_to(p); time.sleep(1.2); "
+                       "p.with_name('linked').unlink(); p.unlink()")
+            result = measurements.measure([sys.executable, "-c", program, str(cache / "object")],
+                                          Path(directory) / "run.log", seconds=5, sampled_cache=cache)
+            self.assertEqual(result["exit"], 0)
+            extra = result["cache_peak_allocated_bytes"] - result["cache_final_allocated_bytes"]
+            self.assertLessEqual(2**20, extra)
+            self.assertLess(extra, 2**21)
 
     def test_source_digest_tracks_packages_dependencies_and_workspace_manifest(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,6 +1,11 @@
 from common.sources import package
 
 
+def workspace(root, names):
+    (root / "ref.toml").write_text("[workspace]\npackages = [" + ", ".join(f'"{name}"' for name in names) + "]\n", encoding="utf-8")
+    return root
+
+
 def definitions(width, carrier="A"):
     return "\n".join(rf"\definition id{i}[x: {carrier}]: {carrier} := x;" for i in range(width))
 
@@ -43,11 +48,10 @@ def consumers(root, size, width):
         name = f"user{i}"
         names.append(name)
         package(root, name, ["base"], r"\module Use(A: \Set) { \import base.Core[A := A] \as B; \definition id[x: A]: A := B.id0 x; }")
-    (root / "ref.toml").write_text("[workspace]\npackages = [" + ", ".join(f'"{name}"' for name in names) + "]\n", encoding="utf-8")
-    return root
+    return workspace(root, names)
 
 
-def independent(root, size, width):
+def independent(root, size, width, *, name="groups"):
     groups = []
     for i in range(size):
         declarations = []
@@ -66,4 +70,37 @@ def independent(root, size, width):
             rf"\definition value{i}: G{i}.Carrier0 := G{i}.value0;",
         ])
     groups.append(r"\module ReadBack { " + "\n".join(reads) + " }")
-    return package(root, "groups", [], "\n".join(groups))
+    return package(root, name, [], "\n".join(groups))
+
+
+def checkpoint_disk(root, size, width):
+    names = [f"p{i}" for i in range(size)]
+    for name in names:
+        independent(root, 32, width, name=name)
+    return workspace(root, names)
+
+
+def layered(root, size, width):
+    def layer(name, dependencies):
+        lines = [r"\module Core {"]
+        for i, dependency in enumerate(dependencies):
+            lines.append(rf"\import {dependency}.Core[] \as Dep{i};")
+        for j in range(width):
+            if dependencies:
+                parts = " -> ".join(f"Dep{i}.p{j}" for i in range(len(dependencies)))
+                value = f"{parts} -> Dep0.p{j}"
+            else:
+                value = r"\forall (P: \Prop) -> P -> P"
+            lines.append(rf"\definition p{j}: \Prop := {value};")
+        lines.append("}")
+        package(root, name, dependencies, "\n".join(lines))
+
+    bs = [f"b{i}" for i in range(size)]
+    cs = [f"c{i}" for i in range(size)]
+    layer("a", [])
+    for name in bs:
+        layer(name, ["a"])
+    for name in cs:
+        layer(name, bs)
+    layer("d", cs)
+    return workspace(root, ["a", *bs, *cs, "d"])
