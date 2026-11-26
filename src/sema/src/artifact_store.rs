@@ -667,30 +667,127 @@ impl ArtifactStore {
         }
         result.map_err(|e| io_error(CacheOperation::WriteRecord, destination, e))
     }
+    fn encode_object(
+        &self,
+        kind: ObjectKind,
+        payload: &[u8],
+    ) -> Result<(ObjectRef, Vec<u8>), CacheError> {
+        if payload.len() as u64 > MAX_OBJECT {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let started = Instant::now();
+        let (codec, compressed) = compress(payload)?;
+        self.stats.lock().unwrap().compression_time += started.elapsed();
+        if compressed.len() as u64 > MAX_OBJECT {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let mut bytes = MAGIC.to_vec();
+        bytes.extend([kind as u8, codec, 0, 0]);
+        bytes.extend((compressed.len() as u64).to_le_bytes());
+        bytes.extend((payload.len() as u64).to_le_bytes());
+        bytes.extend(fingerprint(payload));
+        bytes.extend(compressed);
+        let object = ObjectRef {
+            digest: fingerprint(&bytes),
+            kind,
+            stored_bytes: bytes.len() as u64,
+            decoded_bytes: payload.len() as u64,
+        };
+        Ok((object, bytes))
+    }
+
+    pub(crate) fn batch_results(&self, results: &[crate::ModuleResult]) -> bool {
+        const MAX_BATCH_MODULES: usize = 16;
+        const MAX_BATCH_INPUT_BYTES: usize = 256 * 1024;
+        self.budget.load(Ordering::Relaxed) == DEFAULT_CACHE_BUDGET
+            && results.len() <= MAX_BATCH_MODULES
+            && results
+                .iter()
+                .try_fold(MAX_BATCH_INPUT_BYTES, |remaining, result| {
+                    remaining.checked_sub(postcard::experimental::serialized_size(result).ok()?)
+                })
+                .is_some()
+    }
+
+    pub(crate) fn publish_results<'a>(
+        &self,
+        package: &mut StoreManifest,
+        modules: impl Iterator<Item = (Fingerprint, &'a crate::ModuleResult)>,
+    ) -> Result<(), CacheError> {
+        self.failure(
+            (|| {
+                let mut objects = BTreeMap::new();
+                let mut records = Vec::new();
+                for (key, result) in modules {
+                    let (object, bytes) =
+                        self.encode_object(ObjectKind::Result, &serialize(result)?)?;
+                    let record = if result.status == crate::ModuleStatus::Verified {
+                        let module = crate::cache::module_manifest(key, result, object.clone());
+                        Some(Self::encode_manifest(&module)?)
+                    } else {
+                        None
+                    };
+                    records.push((object.digest, record));
+                    package.results.push((result.path.clone(), object.clone()));
+                    objects.entry(object.digest).or_insert(bytes);
+                }
+                let package_record = Self::encode_manifest(package);
+                let module_records = records.iter().filter_map(|(_, record)| record.as_ref());
+                let object_references = module_records.clone().count() + package.results.len();
+                let mut charge = module_records
+                    .chain(package_record.as_ref().ok())
+                    .fold(0u64, |total, (_, bytes)| {
+                        total.saturating_add(bytes.len() as u64)
+                    });
+                let _lock = self.lock()?;
+                let mut writes = BTreeMap::new();
+                for (digest, bytes) in objects {
+                    self.pin_written_object(&digest)?;
+                    let path = self.object_path(&digest);
+                    if !read_bounded(&path, MAX_OBJECT + HEADER as u64)
+                        .is_ok_and(|existing| fingerprint(&existing) == digest)
+                    {
+                        charge = charge.saturating_add(bytes.len() as u64);
+                        writes.insert(digest, (path, bytes));
+                    }
+                }
+                self.reserve_usage(charge)?;
+                let new_objects = writes.len();
+                let mut first_error = None;
+                for (digest, record) in records {
+                    let saved = (|| {
+                        if let Some((path, bytes)) = writes.get(&digest) {
+                            self.atomic_write(path, bytes)?;
+                            self.stats.lock().unwrap().result_write_bytes += bytes.len() as u64;
+                            writes.remove(&digest);
+                        }
+                        if let Some((manifest, bytes)) = record {
+                            self.validate_objects(&manifest)?;
+                            self.install_manifest(&manifest, Artifact, &bytes)?;
+                        }
+                        Ok(())
+                    })();
+                    if let Err(error) = saved {
+                        first_error.get_or_insert(error);
+                    }
+                }
+                if let Some(error) = first_error {
+                    return Err(error);
+                }
+                self.stats.lock().unwrap().shared_objects +=
+                    (object_references - new_objects) as u64;
+                let (manifest, bytes) = package_record?;
+                self.validate_objects(&manifest)?;
+                self.install_manifest(&manifest, Artifact, &bytes)
+            })(),
+            true,
+        )
+    }
+
     pub fn write_object(&self, kind: ObjectKind, payload: &[u8]) -> Result<ObjectRef, CacheError> {
         self.failure(
             (|| {
-                if payload.len() as u64 > MAX_OBJECT {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let started = Instant::now();
-                let (codec, compressed) = compress(payload)?;
-                self.stats.lock().unwrap().compression_time += started.elapsed();
-                if compressed.len() as u64 > MAX_OBJECT {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let mut bytes = MAGIC.to_vec();
-                bytes.extend([kind as u8, codec, 0, 0]);
-                bytes.extend((compressed.len() as u64).to_le_bytes());
-                bytes.extend((payload.len() as u64).to_le_bytes());
-                bytes.extend(fingerprint(payload));
-                bytes.extend(compressed);
-                let object = ObjectRef {
-                    digest: fingerprint(&bytes),
-                    kind,
-                    stored_bytes: bytes.len() as u64,
-                    decoded_bytes: payload.len() as u64,
-                };
+                let (object, bytes) = self.encode_object(kind, payload)?;
                 {
                     let _lock = self.lock()?;
                     self.pin_written_object(&object.digest)?;
@@ -811,72 +908,13 @@ impl ArtifactStore {
         self.publish_record(manifest, Checkpoint)
     }
     fn publish_record(&self, manifest: &StoreManifest, kind: RecordKind) -> Result<(), CacheError> {
-        let mut canonical = manifest.clone();
-        canonical.coverage.sort();
-        canonical.coverage.dedup();
-        canonical.dependencies.sort();
-        canonical.dependencies.dedup();
-        canonical
-            .results
-            .sort_by(|left, right| left.0.cmp(&right.0));
-        let manifest = &canonical;
         let collect = self.failure(
             (|| {
-                let payload = serialize(manifest)?;
-                if payload.len() as u64 > MAX_MANIFEST {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let mut bytes = b"REFMAN02".to_vec();
-                bytes.extend(fingerprint(&payload));
-                bytes.extend(payload);
+                let (manifest, bytes) = Self::encode_manifest(manifest)?;
                 let _lock = self.lock()?;
-                for object in manifest.objects() {
-                    let path = self.object_path(&object.digest);
-                    let metadata = fs::metadata(&path)
-                        .map_err(|e| io_error(CacheOperation::ReadRecord, &path, e))?;
-                    if metadata.len() != object.stored_bytes {
-                        return Err(invalid(MissReason::Corrupt));
-                    }
-                }
-                // Accounting is shared by concurrent writers under store.lock.
-                // Replaced records are charged conservatively until the next sweep.
-                let usage_path = self.root.join("usage");
-                let previous = fs::read(&usage_path)
-                    .ok()
-                    .and_then(|bytes| bytes.try_into().ok())
-                    .map(u64::from_le_bytes);
-                let previous = match previous {
-                    Some(previous) => previous,
-                    None => store_bytes(&self.root)?,
-                };
-                let usage = previous
-                    .saturating_add(bytes.len() as u64)
-                    .saturating_add(self.pending_bytes.swap(0, Ordering::Relaxed));
-                self.atomic_write(&usage_path, &usage.to_le_bytes())?;
-                {
-                    let mut stats = self.stats.lock().unwrap();
-                    stats.retained_bytes = usage;
-                    stats.retained_bytes_is_upper_bound = true;
-                }
-                if kind == Artifact {
-                    // The lock makes the marker and manifest visible as one publication.
-                    // A crash before the manifest leaves a harmless, lazily removed marker.
-                    self.atomic_metadata(
-                        &self
-                            .input_directory(&manifest.input)
-                            .join(hex(&manifest.key)),
-                        &[],
-                    )?;
-                }
-                self.atomic_write(&self.manifest_path(&manifest.key, kind), &bytes)?;
-                self.pin(|pins| {
-                    let mut changed = pins.insert_record(kind, manifest.key);
-                    for object in manifest.objects() {
-                        changed |= pins.objects.remove(&object.digest);
-                    }
-                    changed
-                })?;
-                self.touch(&manifest.key, kind)?;
+                self.validate_objects(&manifest)?;
+                let usage = self.reserve_usage(bytes.len() as u64)?;
+                self.install_manifest(&manifest, kind, &bytes)?;
                 Ok(usage > self.budget.load(Ordering::Relaxed))
             })(),
             true,
@@ -886,6 +924,90 @@ impl ArtifactStore {
         } else {
             Ok(())
         }
+    }
+    fn encode_manifest(manifest: &StoreManifest) -> Result<(StoreManifest, Vec<u8>), CacheError> {
+        let mut canonical = manifest.clone();
+        canonical.coverage.sort();
+        canonical.coverage.dedup();
+        canonical.dependencies.sort();
+        canonical.dependencies.dedup();
+        canonical
+            .results
+            .sort_by(|left, right| left.0.cmp(&right.0));
+        let payload = serialize(&canonical)?;
+        if payload.len() as u64 > MAX_MANIFEST {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let mut bytes = b"REFMAN02".to_vec();
+        bytes.extend(fingerprint(&payload));
+        bytes.extend(payload);
+        Ok((canonical, bytes))
+    }
+    fn validate_objects(&self, manifest: &StoreManifest) -> Result<(), CacheError> {
+        for object in manifest.objects() {
+            let path = self.object_path(&object.digest);
+            let metadata =
+                fs::metadata(&path).map_err(|e| io_error(CacheOperation::ReadRecord, &path, e))?;
+            if metadata.len() != object.stored_bytes {
+                return Err(invalid(MissReason::Corrupt));
+            }
+        }
+        Ok(())
+    }
+    fn reserve_usage(&self, charge: u64) -> Result<u64, CacheError> {
+        // Accounting is shared by concurrent writers under store.lock.
+        // Replaced records are charged conservatively until the next sweep.
+        let usage_path = self.root.join("usage");
+        let previous = fs::read(&usage_path)
+            .ok()
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u64::from_le_bytes);
+        let previous = match previous {
+            Some(previous) => previous,
+            None => store_bytes(&self.root)?,
+        };
+        let pending = self.pending_bytes.load(Ordering::Relaxed);
+        let usage = previous.saturating_add(charge).saturating_add(pending);
+        if let Err(error) = self.atomic_write(&usage_path, &usage.to_le_bytes()) {
+            if pending != 0 {
+                let _ = remove(&usage_path);
+            }
+            return Err(error);
+        }
+        self.pending_bytes.fetch_sub(pending, Ordering::Relaxed);
+        {
+            let mut stats = self.stats.lock().unwrap();
+            stats.retained_bytes = usage;
+            stats.retained_bytes_is_upper_bound = true;
+        }
+        Ok(usage)
+    }
+    fn install_manifest(
+        &self,
+        manifest: &StoreManifest,
+        kind: RecordKind,
+        bytes: &[u8],
+    ) -> Result<(), CacheError> {
+        if kind == Artifact {
+            // The lock makes the marker and manifest visible as one publication.
+            // A crash before the manifest leaves a harmless, lazily removed marker.
+            self.atomic_metadata(
+                &self
+                    .input_directory(&manifest.input)
+                    .join(hex(&manifest.key)),
+                &[],
+            )?;
+        }
+        self.atomic_write(&self.manifest_path(&manifest.key, kind), bytes)?;
+        self.pin(|pins| {
+            let mut changed = pins.insert_record(kind, manifest.key);
+            for object in manifest.objects() {
+                changed |= pins.objects.remove(&object.digest);
+            }
+            changed
+        })?;
+        self.touch(&manifest.key, kind)?;
+        Ok(())
     }
     fn touch(&self, key: &Fingerprint, kind: RecordKind) -> Result<(), CacheError> {
         self.atomic_metadata(&self.access_path(key, kind), &[])
@@ -1528,6 +1650,102 @@ mod tests {
         }
         assert_eq!(records.len(), protected.len() + 3);
         assert!(protected.iter().all(|key| records.contains_key(key)));
+    }
+
+    #[test]
+    fn result_batch_reserves_objects_and_records_before_partial_publication() {
+        let directory = Directory::new();
+        let store = directory.store();
+        let initial = 8_u64;
+        fs::write(store.root.join("usage"), initial.to_le_bytes()).unwrap();
+        let result = crate::ModuleResult {
+            path: vec!["Test".into()],
+            status: crate::ModuleStatus::Verified,
+            ..Default::default()
+        };
+        let mut package = StoreManifest {
+            key: fingerprint(b"package"),
+            input: fingerprint(b"source"),
+            coverage: vec![result.path.clone()],
+            ..Default::default()
+        };
+        let module_key = fingerprint(b"module");
+        let blocked = store.manifest_path(&package.key, Artifact);
+        fs::create_dir_all(&blocked).unwrap();
+        let publish = |package: &mut StoreManifest| {
+            store.publish_results(package, std::iter::once((module_key, &result)))
+        };
+        assert!(publish(&mut package).is_err());
+        let module = store.read_manifest(&module_key).unwrap();
+        let object = &module.results[0].1;
+        let records = [module.clone(), package.clone()]
+            .iter()
+            .map(|record| ArtifactStore::encode_manifest(record).unwrap().1.len() as u64)
+            .sum::<u64>();
+        let reserved = initial + records + object.stored_bytes;
+        assert_eq!(store.stats().retained_bytes, reserved);
+        assert_eq!(
+            store.read_object(object).unwrap(),
+            serialize(&result).unwrap()
+        );
+        assert!(store.read_manifest(&package.key).is_err());
+        fs::remove_dir(&blocked).unwrap();
+        package.results.clear();
+        publish(&mut package).unwrap();
+        assert_eq!(store.stats().retained_bytes, reserved + records);
+        assert_eq!(store.stats().result_write_bytes, object.stored_bytes);
+        assert_eq!(store.read_manifest(&package.key).unwrap(), package);
+        drop(store);
+        assert_eq!(directory.store().stats().retained_bytes, reserved + records);
+    }
+
+    #[test]
+    fn failed_result_publications_leave_independent_modules_reusable() {
+        for oversized in [false, true] {
+            let directory = Directory::new();
+            let store = directory.store();
+            let modules = ["First", "Middle", "Last"].map(|name| crate::ModuleResult {
+                path: vec![name.into()],
+                status: crate::ModuleStatus::Verified,
+                ..Default::default()
+            });
+            let keys = modules
+                .each_ref()
+                .map(|m| fingerprint(m.path[0].as_bytes()));
+            let key = fingerprint(b"package");
+            let mut package = StoreManifest {
+                key,
+                coverage: modules.iter().map(|m| m.path.clone()).collect(),
+                ..Default::default()
+            };
+            if oversized {
+                package
+                    .coverage
+                    .push(vec!["x".repeat(MAX_MANIFEST as usize)]);
+            } else {
+                let (object, _) = store
+                    .encode_object(ObjectKind::Result, &serialize(&modules[1]).unwrap())
+                    .unwrap();
+                fs::create_dir_all(store.object_path(&object.digest)).unwrap();
+            }
+            assert!(
+                store
+                    .publish_results(&mut package, keys.into_iter().zip(&modules))
+                    .is_err()
+            );
+            assert!(store.read_manifest(&key).is_err());
+            let root = store.directory().to_owned();
+            drop(store);
+            let disk = crate::cache::DiskCache::new(root);
+            for (index, module) in modules.iter().enumerate() {
+                let result = disk.read(&keys[index]);
+                if oversized || index != 1 {
+                    assert_eq!(result.unwrap().path, module.path);
+                } else {
+                    assert!(result.is_none());
+                }
+            }
+        }
     }
 
     #[test]
