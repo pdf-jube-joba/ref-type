@@ -667,30 +667,97 @@ impl ArtifactStore {
         }
         result.map_err(|e| io_error(CacheOperation::WriteRecord, destination, e))
     }
+    fn encode_object(
+        &self,
+        kind: ObjectKind,
+        payload: &[u8],
+    ) -> Result<(ObjectRef, Vec<u8>), CacheError> {
+        if payload.len() as u64 > MAX_OBJECT {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let started = Instant::now();
+        let (codec, compressed) = compress(payload)?;
+        self.stats.lock().unwrap().compression_time += started.elapsed();
+        if compressed.len() as u64 > MAX_OBJECT {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let mut bytes = MAGIC.to_vec();
+        bytes.extend([kind as u8, codec, 0, 0]);
+        bytes.extend((compressed.len() as u64).to_le_bytes());
+        bytes.extend((payload.len() as u64).to_le_bytes());
+        bytes.extend(fingerprint(payload));
+        bytes.extend(compressed);
+        let object = ObjectRef {
+            digest: fingerprint(&bytes),
+            kind,
+            stored_bytes: bytes.len() as u64,
+            decoded_bytes: payload.len() as u64,
+        };
+        Ok((object, bytes))
+    }
+
+    pub(crate) fn batch_results(&self) -> bool {
+        self.budget.load(Ordering::Relaxed) == DEFAULT_CACHE_BUDGET
+    }
+
+    pub(crate) fn publish_results<'a>(
+        &self,
+        package: &mut StoreManifest,
+        modules: impl Iterator<Item = (Fingerprint, &'a crate::ModuleResult)>,
+    ) -> Result<(), CacheError> {
+        self.failure(
+            (|| {
+                let mut objects = BTreeMap::new();
+                let mut records = Vec::new();
+                for (key, result) in modules {
+                    let (object, bytes) =
+                        self.encode_object(ObjectKind::Result, &serialize(result)?)?;
+                    if result.status == crate::ModuleStatus::Verified {
+                        let module = crate::cache::module_manifest(key, result, object.clone());
+                        records.push(Self::encode_manifest(&module)?);
+                    }
+                    package.results.push((result.path.clone(), object.clone()));
+                    objects.entry(object.digest).or_insert(bytes);
+                }
+                let object_references = records.len() + package.results.len();
+                records.push(Self::encode_manifest(package)?);
+                let _lock = self.lock()?;
+                let mut charge = records.iter().fold(0u64, |total, (_, bytes)| {
+                    total.saturating_add(bytes.len() as u64)
+                });
+                let mut writes = Vec::new();
+                for (digest, bytes) in objects {
+                    self.pin_written_object(&digest)?;
+                    let path = self.object_path(&digest);
+                    if !read_bounded(&path, MAX_OBJECT + HEADER as u64)
+                        .is_ok_and(|existing| fingerprint(&existing) == digest)
+                    {
+                        charge = charge.saturating_add(bytes.len() as u64);
+                        writes.push((path, bytes));
+                    }
+                }
+                self.reserve_usage(charge)?;
+                let new_objects = writes.len();
+                for (path, bytes) in writes {
+                    self.atomic_write(&path, &bytes)?;
+                    self.stats.lock().unwrap().result_write_bytes += bytes.len() as u64;
+                }
+                self.stats.lock().unwrap().shared_objects +=
+                    (object_references - new_objects) as u64;
+                for (manifest, bytes) in records {
+                    self.validate_objects(&manifest)?;
+                    self.install_manifest(&manifest, Artifact, &bytes)?;
+                }
+                Ok(())
+            })(),
+            true,
+        )
+    }
+
     pub fn write_object(&self, kind: ObjectKind, payload: &[u8]) -> Result<ObjectRef, CacheError> {
         self.failure(
             (|| {
-                if payload.len() as u64 > MAX_OBJECT {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let started = Instant::now();
-                let (codec, compressed) = compress(payload)?;
-                self.stats.lock().unwrap().compression_time += started.elapsed();
-                if compressed.len() as u64 > MAX_OBJECT {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let mut bytes = MAGIC.to_vec();
-                bytes.extend([kind as u8, codec, 0, 0]);
-                bytes.extend((compressed.len() as u64).to_le_bytes());
-                bytes.extend((payload.len() as u64).to_le_bytes());
-                bytes.extend(fingerprint(payload));
-                bytes.extend(compressed);
-                let object = ObjectRef {
-                    digest: fingerprint(&bytes),
-                    kind,
-                    stored_bytes: bytes.len() as u64,
-                    decoded_bytes: payload.len() as u64,
-                };
+                let (object, bytes) = self.encode_object(kind, payload)?;
                 {
                     let _lock = self.lock()?;
                     self.pin_written_object(&object.digest)?;
@@ -811,72 +878,13 @@ impl ArtifactStore {
         self.publish_record(manifest, Checkpoint)
     }
     fn publish_record(&self, manifest: &StoreManifest, kind: RecordKind) -> Result<(), CacheError> {
-        let mut canonical = manifest.clone();
-        canonical.coverage.sort();
-        canonical.coverage.dedup();
-        canonical.dependencies.sort();
-        canonical.dependencies.dedup();
-        canonical
-            .results
-            .sort_by(|left, right| left.0.cmp(&right.0));
-        let manifest = &canonical;
         let collect = self.failure(
             (|| {
-                let payload = serialize(manifest)?;
-                if payload.len() as u64 > MAX_MANIFEST {
-                    return Err(invalid(MissReason::SizeLimit));
-                }
-                let mut bytes = b"REFMAN02".to_vec();
-                bytes.extend(fingerprint(&payload));
-                bytes.extend(payload);
+                let (manifest, bytes) = Self::encode_manifest(manifest)?;
                 let _lock = self.lock()?;
-                for object in manifest.objects() {
-                    let path = self.object_path(&object.digest);
-                    let metadata = fs::metadata(&path)
-                        .map_err(|e| io_error(CacheOperation::ReadRecord, &path, e))?;
-                    if metadata.len() != object.stored_bytes {
-                        return Err(invalid(MissReason::Corrupt));
-                    }
-                }
-                // Accounting is shared by concurrent writers under store.lock.
-                // Replaced records are charged conservatively until the next sweep.
-                let usage_path = self.root.join("usage");
-                let previous = fs::read(&usage_path)
-                    .ok()
-                    .and_then(|bytes| bytes.try_into().ok())
-                    .map(u64::from_le_bytes);
-                let previous = match previous {
-                    Some(previous) => previous,
-                    None => store_bytes(&self.root)?,
-                };
-                let usage = previous
-                    .saturating_add(bytes.len() as u64)
-                    .saturating_add(self.pending_bytes.swap(0, Ordering::Relaxed));
-                self.atomic_write(&usage_path, &usage.to_le_bytes())?;
-                {
-                    let mut stats = self.stats.lock().unwrap();
-                    stats.retained_bytes = usage;
-                    stats.retained_bytes_is_upper_bound = true;
-                }
-                if kind == Artifact {
-                    // The lock makes the marker and manifest visible as one publication.
-                    // A crash before the manifest leaves a harmless, lazily removed marker.
-                    self.atomic_metadata(
-                        &self
-                            .input_directory(&manifest.input)
-                            .join(hex(&manifest.key)),
-                        &[],
-                    )?;
-                }
-                self.atomic_write(&self.manifest_path(&manifest.key, kind), &bytes)?;
-                self.pin(|pins| {
-                    let mut changed = pins.insert_record(kind, manifest.key);
-                    for object in manifest.objects() {
-                        changed |= pins.objects.remove(&object.digest);
-                    }
-                    changed
-                })?;
-                self.touch(&manifest.key, kind)?;
+                self.validate_objects(&manifest)?;
+                let usage = self.reserve_usage(bytes.len() as u64)?;
+                self.install_manifest(&manifest, kind, &bytes)?;
                 Ok(usage > self.budget.load(Ordering::Relaxed))
             })(),
             true,
@@ -886,6 +894,90 @@ impl ArtifactStore {
         } else {
             Ok(())
         }
+    }
+    fn encode_manifest(manifest: &StoreManifest) -> Result<(StoreManifest, Vec<u8>), CacheError> {
+        let mut canonical = manifest.clone();
+        canonical.coverage.sort();
+        canonical.coverage.dedup();
+        canonical.dependencies.sort();
+        canonical.dependencies.dedup();
+        canonical
+            .results
+            .sort_by(|left, right| left.0.cmp(&right.0));
+        let payload = serialize(&canonical)?;
+        if payload.len() as u64 > MAX_MANIFEST {
+            return Err(invalid(MissReason::SizeLimit));
+        }
+        let mut bytes = b"REFMAN02".to_vec();
+        bytes.extend(fingerprint(&payload));
+        bytes.extend(payload);
+        Ok((canonical, bytes))
+    }
+    fn validate_objects(&self, manifest: &StoreManifest) -> Result<(), CacheError> {
+        for object in manifest.objects() {
+            let path = self.object_path(&object.digest);
+            let metadata =
+                fs::metadata(&path).map_err(|e| io_error(CacheOperation::ReadRecord, &path, e))?;
+            if metadata.len() != object.stored_bytes {
+                return Err(invalid(MissReason::Corrupt));
+            }
+        }
+        Ok(())
+    }
+    fn reserve_usage(&self, charge: u64) -> Result<u64, CacheError> {
+        // Accounting is shared by concurrent writers under store.lock.
+        // Replaced records are charged conservatively until the next sweep.
+        let usage_path = self.root.join("usage");
+        let previous = fs::read(&usage_path)
+            .ok()
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u64::from_le_bytes);
+        let previous = match previous {
+            Some(previous) => previous,
+            None => store_bytes(&self.root)?,
+        };
+        let pending = self.pending_bytes.load(Ordering::Relaxed);
+        let usage = previous.saturating_add(charge).saturating_add(pending);
+        if let Err(error) = self.atomic_write(&usage_path, &usage.to_le_bytes()) {
+            if pending != 0 {
+                let _ = remove(&usage_path);
+            }
+            return Err(error);
+        }
+        self.pending_bytes.fetch_sub(pending, Ordering::Relaxed);
+        {
+            let mut stats = self.stats.lock().unwrap();
+            stats.retained_bytes = usage;
+            stats.retained_bytes_is_upper_bound = true;
+        }
+        Ok(usage)
+    }
+    fn install_manifest(
+        &self,
+        manifest: &StoreManifest,
+        kind: RecordKind,
+        bytes: &[u8],
+    ) -> Result<(), CacheError> {
+        if kind == Artifact {
+            // The lock makes the marker and manifest visible as one publication.
+            // A crash before the manifest leaves a harmless, lazily removed marker.
+            self.atomic_metadata(
+                &self
+                    .input_directory(&manifest.input)
+                    .join(hex(&manifest.key)),
+                &[],
+            )?;
+        }
+        self.atomic_write(&self.manifest_path(&manifest.key, kind), bytes)?;
+        self.pin(|pins| {
+            let mut changed = pins.insert_record(kind, manifest.key);
+            for object in manifest.objects() {
+                changed |= pins.objects.remove(&object.digest);
+            }
+            changed
+        })?;
+        self.touch(&manifest.key, kind)?;
+        Ok(())
     }
     fn touch(&self, key: &Fingerprint, kind: RecordKind) -> Result<(), CacheError> {
         self.atomic_metadata(&self.access_path(key, kind), &[])

@@ -96,13 +96,7 @@ impl DiskCache {
             crate::artifact_store::ObjectKind::Result,
             &crate::artifact_store::serialize(result)?,
         )?;
-        self.store.publish(&crate::artifact_store::StoreManifest {
-            key: *key,
-            input: *key,
-            coverage: vec![result.path.clone()],
-            results: vec![(result.path.clone(), object)],
-            ..Default::default()
-        })
+        self.store.publish(&module_manifest(*key, result, object))
     }
 
     pub fn read_environment(&self, key: &Fingerprint) -> Option<Vec<u8>> {
@@ -126,5 +120,19 @@ impl DiskCache {
             graph,
             ..Default::default()
         })
+    }
+}
+
+pub(crate) fn module_manifest(
+    key: Fingerprint,
+    result: &ModuleResult,
+    object: crate::artifact_store::ObjectRef,
+) -> crate::artifact_store::StoreManifest {
+    crate::artifact_store::StoreManifest {
+        key,
+        input: key,
+        coverage: vec![result.path.clone()],
+        results: vec![(result.path.clone(), object)],
+        ..Default::default()
     }
 }
