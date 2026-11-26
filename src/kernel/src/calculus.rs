@@ -10,9 +10,42 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) struct Instantiations {
     arguments: ContextInterner<Expression>,
     results: SubstitutionResults,
+    shifted_terms: ShiftedTerms,
 }
 
 type SubstitutionResults = Cache<(Expression, ContextId, usize), Expression>;
+
+type ShiftedTerms = Cache<(Expression, usize, usize), Expression, { 1 << 15 }>;
+
+struct ShiftedArguments<'a> {
+    paths: &'a mut ShiftedTerms,
+    amount: usize,
+}
+
+trait ShiftValues {
+    fn get(&self, e: Expression, cutoff: usize) -> Option<Expression>;
+    fn insert(&mut self, e: Expression, cutoff: usize, result: Expression);
+}
+
+impl ShiftValues for FxHashMap<(Expression, usize), Expression> {
+    fn get(&self, e: Expression, cutoff: usize) -> Option<Expression> {
+        self.get(&(e, cutoff)).copied()
+    }
+
+    fn insert(&mut self, e: Expression, cutoff: usize, result: Expression) {
+        self.insert((e, cutoff), result);
+    }
+}
+
+impl ShiftValues for ShiftedArguments<'_> {
+    fn get(&self, e: Expression, cutoff: usize) -> Option<Expression> {
+        self.paths.get(&(e, self.amount, cutoff)).copied()
+    }
+
+    fn insert(&mut self, e: Expression, cutoff: usize, result: Expression) {
+        self.paths.insert((e, self.amount, cutoff), result);
+    }
+}
 
 impl Instantiations {
     pub fn apply(
@@ -36,6 +69,7 @@ impl Instantiations {
             id,
             Some(&self.arguments),
             &mut self.results,
+            Some(&mut self.shifted_terms),
         )
     }
 
@@ -43,13 +77,21 @@ impl Instantiations {
         self.results.len()
     }
 
+    #[cfg(test)]
+    pub fn shifted_types(&self) -> usize {
+        self.shifted_terms.len()
+    }
+
     pub fn begin_scratch(&mut self) -> usize {
+        self.shifted_terms.begin_scratch();
         self.results.begin_scratch();
         self.arguments.len()
     }
 
     pub fn finish_scratch(&mut self, arena: &Arena, mark: usize) {
         let mark = self.arguments.finish_scratch(mark, |e| arena.is_live(*e));
+        self.shifted_terms
+            .finish_scratch(|(term, _, _), result| arena.is_live(*term) && arena.is_live(*result));
         self.results.finish_scratch(|(term, arguments, _), result| {
             arguments.within(mark) && arena.is_live(*term) && arena.is_live(*result)
         });
@@ -62,17 +104,27 @@ pub fn shift(
     amount: usize,
     cutoff: usize,
 ) -> Result<Expression, crate::error::Error> {
+    shift_with(arena, e, amount, cutoff, &mut FxHashMap::default())
+}
+
+fn shift_with(
+    arena: &Arena,
+    e: Expression,
+    amount: usize,
+    cutoff: usize,
+    shifts: &mut impl ShiftValues,
+) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
         e: Expression,
         amount: usize,
         cutoff: usize,
-        cache: &mut FxHashMap<(Expression, usize), Expression>,
+        cache: &mut impl ShiftValues,
     ) -> Result<Expression, crate::error::Error> {
         if arena.max_loose_bound(e).is_none_or(|i| i < cutoff) {
             return Ok(e);
         }
-        if let Some(&e) = cache.get(&(e, cutoff)) {
+        if let Some(e) = ShiftValues::get(cache, e, cutoff) {
             return Ok(e);
         }
         let result = match *arena.read(e) {
@@ -93,13 +145,13 @@ pub fn shift(
                 )
             })?,
         };
-        cache.insert((e, cutoff), result);
+        ShiftValues::insert(cache, e, cutoff, result);
         Ok(result)
     }
     if amount == 0 {
         return Ok(e);
     }
-    walk(arena, e, amount, cutoff, &mut FxHashMap::default())
+    walk(arena, e, amount, cutoff, shifts)
 }
 
 /// Simultaneous telescope substitution; arguments are ordered outermost first.
@@ -123,7 +175,8 @@ pub fn instantiate_at(
         inner,
         ContextId::default(),
         None,
-        &mut Cache::default(),
+        &mut SubstitutionResults::default(),
+        None,
     )
 }
 
@@ -135,6 +188,7 @@ fn substitute(
     id: ContextId,
     contexts: Option<&ContextInterner<Expression>>,
     cache: &mut SubstitutionResults,
+    shifted: Option<&mut ShiftedTerms>,
 ) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
@@ -144,6 +198,7 @@ fn substitute(
         mut id: ContextId,
         contexts: Option<&ContextInterner<Expression>>,
         cache: &mut SubstitutionResults,
+        mut shifted: Option<&mut ShiftedTerms>,
     ) -> Result<Expression, crate::error::Error> {
         let Some(bound) = arena.max_loose_bound(e).filter(|&i| i >= depth) else {
             return Ok(e);
@@ -164,7 +219,21 @@ fn substitute(
             Node::Bound(index) if index >= depth => {
                 let index = index - depth;
                 if index < arguments.len() {
-                    shift(arena, arguments[arguments.len() - index - 1], depth, 0)?
+                    let term = arguments[arguments.len() - index - 1];
+                    if let Some(shifted) = shifted.as_deref_mut() {
+                        shift_with(
+                            arena,
+                            term,
+                            depth,
+                            0,
+                            &mut ShiftedArguments {
+                                paths: shifted,
+                                amount: depth,
+                            },
+                        )?
+                    } else {
+                        shift(arena, term, depth, 0)?
+                    }
                 } else {
                     arena.bound(index - arguments.len() + depth)
                 }
@@ -180,6 +249,7 @@ fn substitute(
                     id,
                     contexts,
                     cache,
+                    shifted.as_deref_mut(),
                 )
             })?,
         };
@@ -202,7 +272,7 @@ fn substitute(
     {
         return Ok(e);
     }
-    walk(arena, e, arguments, inner, id, contexts, cache)
+    walk(arena, e, arguments, inner, id, contexts, cache, shifted)
 }
 
 /// Abstract an occurrence's distinct variable arguments into its declaration telescope.

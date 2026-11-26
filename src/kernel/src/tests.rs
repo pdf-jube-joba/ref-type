@@ -590,6 +590,95 @@ fn shared_instantiations_distinguish_arguments_and_reclaim_scratch_keys() {
 }
 
 #[test]
+fn substitution_shifts_preserve_binders_and_reclaim_shared_terms() {
+    use crate::calculus::Instantiations;
+    let a = Arena::new();
+    let mut terms = Instantiations::default();
+    let prop = sort(&a, BaseSort::Prop);
+    let argument = lambda(
+        &a,
+        Mode::Pure,
+        a.bound(0),
+        product(&a, a.bound(0), a.bound(2)),
+    );
+    let left = product(&a, prop, a.bound(1));
+    let right = product(&a, prop, a.bound(2));
+    let nested = product(&a, prop, product(&a, prop, a.bound(2)));
+    let first = product(
+        &a,
+        prop,
+        lambda(
+            &a,
+            Mode::Pure,
+            a.bound(1),
+            product(&a, a.bound(0), a.bound(3)),
+        ),
+    );
+    assert_eq!(terms.apply(&a, left, &[argument]).unwrap(), first);
+    assert_eq!(terms.apply(&a, right, &[argument, prop]).unwrap(), first);
+    let second = product(
+        &a,
+        prop,
+        product(
+            &a,
+            prop,
+            lambda(
+                &a,
+                Mode::Pure,
+                a.bound(2),
+                product(&a, a.bound(0), a.bound(4)),
+            ),
+        ),
+    );
+    assert_eq!(terms.apply(&a, nested, &[argument]).unwrap(), second);
+    let shared = terms.shifted_types();
+    assert!(shared >= 2);
+    let unchanged = a.bound(64);
+    let large = product(&a, prop, a.bound(0));
+    for target in [left, right] {
+        let mark = a.scratch_mark();
+        let query = terms.begin_scratch();
+        let temporary = product(&a, unchanged, large);
+        let choices = [temporary, prop];
+        let scope = if target == left {
+            &choices[..1]
+        } else {
+            &choices[..]
+        };
+        let value = terms.apply(&a, target, scope).unwrap();
+        assert!(terms.shifted_types() > shared);
+        a.finish_scratch(mark, []);
+        terms.finish_scratch(&a, query);
+        assert!(!a.is_live(value));
+        assert!(!a.is_live(temporary));
+        assert_eq!(terms.shifted_types(), shared);
+        assert_eq!(terms.apply(&a, left, &[argument]).unwrap(), first);
+    }
+}
+
+#[test]
+fn discarded_shift_results_do_not_reuse_imported_expression_ids() {
+    use crate::calculus::Instantiations;
+    let a = Arena::new();
+    let mut terms = Instantiations::default();
+    let prefix = sort(&a, BaseSort::Prop);
+    let target = product(&a, prefix, a.bound(1));
+    let mark = a.scratch_mark();
+    let key = terms.begin_scratch();
+    let source = a.bound(9);
+    let old = terms.apply(&a, target, &[source]).unwrap();
+    assert!(a.is_live(old));
+    a.rollback_import(mark);
+    terms.finish_scratch(&a, key);
+    assert_eq!(terms.shifted_types(), 0);
+    let replacement = a.bound(31);
+    assert_eq!(replacement, source);
+    let bind = product(&a, prefix, a.bound(1));
+    let value = terms.apply(&a, bind, &[replacement]).unwrap();
+    assert_eq!(value, product(&a, prefix, a.bound(32)));
+}
+
+#[test]
 fn binder_traversal_includes_motives_annotations_and_proofs() {
     let a = Arena::new();
     let set = sort(&a, BaseSort::Set(0));
