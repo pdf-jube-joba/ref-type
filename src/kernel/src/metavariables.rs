@@ -50,8 +50,15 @@ pub struct Snapshot {
     entries: Vec<Option<Entry>>,
     constraints: Vec<Constraint>,
 }
+#[derive(Debug, Default)]
+struct SolvedExpressions {
+    arena: Option<ArenaGeneration>,
+    entries: crate::sharing::Cache<Expression, (), 4096>,
+}
+
 #[derive(Debug)]
 pub struct MetaContext {
+    solved: std::cell::RefCell<SolvedExpressions>,
     session: u64,
     history: Vec<Constraint>,
     recorded: FxHashSet<Constraint>,
@@ -75,6 +82,7 @@ impl Default for MetaContext {
             constraints: Vec::new(),
             revision: 0,
             zonked: Default::default(),
+            solved: Default::default(),
             inferred: Default::default(),
         }
     }
@@ -94,6 +102,10 @@ impl MetaContext {
     }
     fn changed(&mut self) {
         self.revision += 1;
+        self.clear_caches();
+    }
+    fn clear_caches(&mut self) {
+        self.solved.get_mut().entries.clear();
         self.zonked.get_mut().clear();
         self.inferred.clear();
     }
@@ -337,8 +349,7 @@ impl MetaContext {
         for constraint in self.history.drain(snapshot.history_len..) {
             self.recorded.remove(&constraint);
         }
-        self.zonked.get_mut().clear();
-        self.inferred.clear();
+        self.clear_caches();
         Ok(())
     }
     pub fn constrain(&mut self, constraint: Constraint) {
@@ -404,10 +415,23 @@ impl MetaContext {
         roots: impl IntoIterator<Item = Expression>,
     ) -> Result<Vec<MetaId>, Error> {
         let mut pending = roots.into_iter().collect::<Vec<_>>();
+        let mut solved = self.solved.borrow_mut();
+        let generation = arena.generation();
+        if solved.arena != Some(generation) {
+            solved.entries.clear();
+            solved.arena = Some(generation);
+        }
         let mut nodes = FxHashSet::default();
         let mut metas = FxHashSet::default();
+        let mut lookups = 0;
+        let mut hits = 0;
         while let Some(e) = pending.pop() {
             if !arena.contains_meta(e) {
+                continue;
+            }
+            lookups += 1;
+            if solved.entries.get(&e).is_some() {
+                hits += 1;
                 continue;
             }
             if !nodes.insert(e) {
@@ -431,11 +455,19 @@ impl MetaContext {
                 Ok::<_, Error>(())
             })?;
         }
+        timing::costs::count("kernel.unresolved-lookups", || lookups);
+        timing::costs::count("kernel.unresolved-hits", || hits);
         let mut ids = metas
             .into_iter()
             .filter(|&id| self.entry(id).is_ok_and(|e| e.assignment.is_none()))
             .collect::<Vec<_>>();
-        ids.sort_by_key(|id| id.index);
+        if ids.is_empty() {
+            for expression in nodes {
+                solved.entries.insert(expression, ());
+            }
+        } else {
+            ids.sort_by_key(|id| id.index);
+        }
         Ok(ids)
     }
 

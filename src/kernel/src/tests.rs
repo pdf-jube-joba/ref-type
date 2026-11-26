@@ -2320,3 +2320,78 @@ fn transparent_congruence_ignores_unused_captures_but_checks_their_types() {
             .is_err()
     );
 }
+
+#[test]
+fn unresolved_follows_solutions_expected_types_and_rollback() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let outer = metas.fresh(arena, vec![], None);
+    let inner = metas.fresh(arena, vec![], None);
+    let Node::Meta { id, .. } = arena.get(inner) else {
+        panic!()
+    };
+    let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+    metas.unify(&env, &vec![], outer, inner).unwrap();
+    let snapshot = metas.snapshot();
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [id]);
+    metas.unify(&env, &vec![], inner, set).unwrap();
+    assert!(metas.unresolved(arena, [outer]).unwrap().is_empty());
+    let expected = metas.ensure_type(arena, id).unwrap();
+    let Node::Meta {
+        id: expected_id, ..
+    } = arena.get(expected)
+    else {
+        panic!()
+    };
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [expected_id]);
+    metas.unify(&env, &vec![], expected, set).unwrap();
+    assert!(metas.unresolved(arena, [outer]).unwrap().is_empty());
+    metas.rollback(snapshot).unwrap();
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [id]);
+    assert!(matches!(
+        metas.unresolved(arena, [expected]),
+        Err(Error::InvalidMeta(_))
+    ));
+}
+
+#[test]
+fn unresolved_distinguishes_arenas_and_reused_expression_indices() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let solved = metas.fresh(arena, vec![], None);
+    let open = metas.fresh(arena, vec![], None);
+    let Node::Meta { id, .. } = arena.get(open) else {
+        panic!()
+    };
+    let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+    metas.unify(&env, &vec![], solved, set).unwrap();
+    let mark = arena.scratch_mark();
+    let old = arena.alloc(Node::PowerSet { set: solved });
+    assert!(metas.unresolved(arena, [old]).unwrap().is_empty());
+    let generation = arena.generation();
+    assert_eq!(arena.finish_scratch(mark, []), 1);
+    assert!(!arena.is_live(old));
+    assert_ne!(arena.generation(), generation);
+    let retired = arena.alloc(Node::Ascribe {
+        term: solved,
+        ty: set,
+    });
+    assert!(metas.unresolved(arena, [retired]).unwrap().is_empty());
+    arena.rollback_import(mark);
+    let reused = arena.alloc(Node::PowerSet { set: open });
+    assert_eq!(reused, old);
+    assert_eq!(metas.unresolved(arena, [reused]).unwrap(), [id]);
+    let next_reused = arena.alloc(Node::Ascribe {
+        term: open,
+        ty: set,
+    });
+    assert_eq!(next_reused, retired);
+    assert_eq!(metas.unresolved(arena, [next_reused]).unwrap(), [id]);
+    assert!(metas.unresolved(arena, [solved]).unwrap().is_empty());
+    let other = crate::syntax::Arena::new();
+    let same_index = other.alloc(arena.get(open));
+    assert_eq!(same_index, solved);
+    assert_eq!(metas.unresolved(&other, [same_index]).unwrap(), [id]);
+}
