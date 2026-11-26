@@ -452,6 +452,7 @@ impl CrateEnv {
             return Ok((last, dependencies));
         }
         let remapping = construction.expect("new namespace construction");
+        timing::costs::count("namespace.views-created", || groups.len() as u64);
         let mut inherited = Vec::new();
         for (key, id, previous) in groups {
             if let Some(previous) = self.namespace_binding_id(previous) {

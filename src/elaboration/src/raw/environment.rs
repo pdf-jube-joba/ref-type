@@ -344,6 +344,7 @@ impl ModuleEnv {
         let Some(view) = &self.view else {
             return &self.items[index];
         };
+        timing::costs::count("namespace.view-item-lookups", || 1);
         if view.identity == view.source {
             return &self.items[index];
         }

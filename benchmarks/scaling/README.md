@@ -40,3 +40,22 @@ The first command stresses checkpoint replacement by saving at every eligible mo
 Reports default to `benchmarks/runs/scaling/report.json`.
 Generated sources and caches are removed when the suite exits.
 See the [shared options](../README.md) for resource limits, profiling, work directories, and reports.
+
+The opt-in Linux recovery axis interrupts the normal CLI after a checkpoint containing
+the generated views, while it checks the final module. Each run copies that seed into
+a private cache. A damaged copy exercises selection of a second candidate in the same
+invocation. Use a long enough tail for the supervisor to observe the checkpoint.
+
+```sh
+cargo build --locked --release -p cli
+python3 benchmarks/bench.py scaling --binary target/release/cli --axes recovery --sizes 128 --width 1800 --runs 3
+```
+
+Size controls distinct namespace instantiations. Every eighth import projects a member.
+Width controls the number of tail definitions. The runner checks the five expected module paths.
+For each cache condition the first run records candidate object IDs, view allocations,
+member item lookups (including repeated accesses), and time to the first observed source
+step. The latter includes supervisor event polling latency (about 50 ms).
+Subsequent rows measure ordinary CLI wall time and peak RSS without the extra profiling.
+The checker report also includes checked steps, module reuse, materializations, and retained
+namespace table capacity. This capacity estimate excludes separately allocated payloads.

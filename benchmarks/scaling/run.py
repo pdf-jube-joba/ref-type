@@ -3,6 +3,7 @@ from pathlib import Path
 import tempfile
 
 from common.measurements import MeasurementOptions, Measurements
+from . import recovery
 from .generators import chain, checkpoint_disk, consumers, independent, layered, namespace
 
 
@@ -11,7 +12,7 @@ WORKSPACE_AXES = ["checkpoint-disk", "layered"]
 
 
 def configure(parser):
-    parser.add_argument("--axes", nargs="+", choices=DEFAULT_AXES + WORKSPACE_AXES, default=DEFAULT_AXES)
+    parser.add_argument("--axes", nargs="+", choices=DEFAULT_AXES + WORKSPACE_AXES + ["recovery"], default=DEFAULT_AXES)
     parser.add_argument("--sizes", type=int, nargs="+", default=[16, 32, 64])
     parser.add_argument("--width", type=int, default=32)
     parser.add_argument("--imports", type=int, default=32)
@@ -31,6 +32,9 @@ def run(args):
         for axis in args.axes:
             for size in args.sizes:
                 directory = root / f"{axis}-{size}"
+                if axis == "recovery":
+                    recovery.run(measurements, directory, size, args.width, args.runs)
+                    continue
                 if axis == "chain":
                     entry = chain(directory, size, args.width)
                 elif axis == "consumers":
