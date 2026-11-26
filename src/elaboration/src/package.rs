@@ -171,9 +171,11 @@ impl PackageChecker {
         &mut self,
         module: &Module,
         interval: Option<Duration>,
-        progress: impl FnMut(PackageProgress),
+        mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        self.append_selection(module, false, None, interval, None, progress)
+        self.append_selection(module, None, None, interval, None, |_, event| {
+            progress(event)
+        })
     }
 
     pub fn append_selected_with_checkpoints(
@@ -181,15 +183,15 @@ impl PackageChecker {
         module: &Module,
         selected_paths: &BTreeSet<Vec<String>>,
         interval: Option<Duration>,
-        progress: impl FnMut(PackageProgress),
+        mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
         self.append_selection(
             module,
-            false,
+            None,
             Some(selected_paths),
             interval,
             None,
-            progress,
+            |_, event| progress(event),
         )
     }
 
@@ -203,11 +205,11 @@ impl PackageChecker {
         input: ArtifactOwner,
         boundary: &ArtifactBoundary,
         catalog: &mut ArtifactCatalog,
-        progress: impl FnMut(PackageProgress),
+        mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
         self.append_selection(
             module,
-            false,
+            None,
             Some(selected_paths),
             interval,
             Some(ArtifactCheckpoint {
@@ -216,7 +218,7 @@ impl PackageChecker {
                 boundary,
                 catalog,
             }),
-            progress,
+            |_, event| progress(event),
         )
     }
 
@@ -225,26 +227,56 @@ impl PackageChecker {
         module: &Module,
         selected_paths: &BTreeSet<Vec<String>>,
         interval: Option<Duration>,
-        progress: impl FnMut(PackageProgress),
+        mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        self.append_selection(module, true, Some(selected_paths), interval, None, progress)
+        self.append_session_selected_after(module, selected_paths, interval, 0, |_, event| {
+            progress(event)
+        })
+    }
+
+    pub fn append_session_selected_after(
+        &mut self,
+        module: &Module,
+        selected_paths: &BTreeSet<Vec<String>>,
+        interval: Option<Duration>,
+        prepared_through: usize,
+        progress: impl FnMut(usize, PackageProgress),
+    ) -> Result<(), crate::Diagnostic> {
+        self.append_selection(
+            module,
+            Some(prepared_through),
+            Some(selected_paths),
+            interval,
+            None,
+            progress,
+        )
     }
 
     fn append_selection(
         &mut self,
         module: &Module,
-        resolve_selected: bool,
+        prepared_through: Option<usize>,
         selected_paths: Option<&BTreeSet<Vec<String>>>,
         mut interval: Option<Duration>,
         mut artifact_checkpoint: Option<ArtifactCheckpoint<'_>>,
-        mut progress: impl FnMut(PackageProgress),
+        mut progress: impl FnMut(usize, PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
         self.workspace.release_resolution_tables();
+        let offset = prepared_through
+            .filter(|&length| {
+                length != 0
+                    && !self.pending
+                    && self.resolution.order().len() == length
+                    && self.completed.len() == length
+                    && self.completed.last() == Some(&(length - 1))
+                    && !self.has_resolution(module.name.as_str())
+            })
+            .unwrap_or(0);
         let project = self
             .resolution
             .append_selected(
                 module,
-                if resolve_selected {
+                if prepared_through.is_some() {
                     selected_paths
                 } else {
                     None
@@ -275,21 +307,33 @@ impl PackageChecker {
             }
             prefix.pop();
         }
-        let mut paths = std::collections::HashMap::new();
-        let mut seen = std::collections::HashSet::new();
-        for root in &project.modules {
-            collect(root, &mut Vec::new(), &mut paths, &mut seen);
-        }
-        let paths: Vec<_> = project
-            .order
+        let module_paths = |roots: &[resolve::hir::Module]| {
+            let mut paths = HashMap::new();
+            let mut seen = std::collections::HashSet::new();
+            for root in roots {
+                collect(root, &mut Vec::new(), &mut paths, &mut seen);
+            }
+            paths
+        };
+        let step_module = |step: &resolve::CheckStep| match *step {
+            resolve::CheckStep::Parameters(id)
+            | resolve::CheckStep::Declaration { module: id, .. } => id,
+        };
+        let suffix = project
+            .modules
+            .last()
+            .filter(|_| offset != 0)
+            .and_then(|root| {
+                let paths = module_paths(std::slice::from_ref(root));
+                project.order[offset..]
+                    .iter()
+                    .all(|step| paths.contains_key(&step_module(step)))
+                    .then_some((offset, paths))
+            });
+        let (offset, paths) = suffix.unwrap_or_else(|| (0, module_paths(&project.modules)));
+        let paths: Vec<_> = project.order[offset..]
             .iter()
-            .map(|step| {
-                let id = match step {
-                    resolve::CheckStep::Parameters(id)
-                    | resolve::CheckStep::Declaration { module: id, .. } => id,
-                };
-                paths[id].clone()
-            })
+            .map(|step| paths[&step_module(step)].clone())
             .collect();
         let mut last = HashMap::new();
         for (position, path) in paths.iter().enumerate() {
@@ -297,13 +341,14 @@ impl PackageChecker {
                 .iter()
                 .position(|part| part.starts_with('<'))
                 .unwrap_or(path.len());
-            last.insert(&path[..end], position + 1);
+            last.insert(&path[..end], offset + position + 1);
         }
         let boundaries: BTreeSet<_> = last.into_values().collect();
         let selected: BTreeSet<_> = paths
             .iter()
             .enumerate()
             .filter_map(|(position, path)| {
+                let position = offset + position;
                 let source_end = path
                     .iter()
                     .position(|part| part.starts_with('<'))
@@ -322,6 +367,7 @@ impl PackageChecker {
             })
             .collect();
         let start = selected.first().copied().unwrap_or(end);
+        let mut progress = |event| progress(offset, event);
         progress(PackageProgress::Prepared {
             paths,
             start,

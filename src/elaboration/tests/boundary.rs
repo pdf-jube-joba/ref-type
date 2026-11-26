@@ -210,3 +210,54 @@ fn nested_imports_preserve_structure_field_argument_environments() {
     );
     Checker::default().check(&project).unwrap();
 }
+
+#[test]
+fn a_completed_last_step_does_not_hide_an_unchecked_declaration() {
+    use elaboration::{PackageChecker, PackageProgress};
+    use std::collections::BTreeSet;
+
+    let mut modules = syntax::parse::str_parse_modules(
+        r"\module Old {
+            \module Gap { \definition bad: \Prop := \Set; }
+            \module Last {}
+        }
+        \module New {}",
+    )
+    .unwrap();
+    let new = modules.pop().unwrap();
+    let old = modules.pop().unwrap();
+    let mut checker = PackageChecker::default();
+    let mut prepared = 0;
+    checker
+        .append_selected_with_checkpoints(
+            &old,
+            &BTreeSet::from([vec!["Old".into(), "Last".into()]]),
+            None,
+            |event| {
+                if let PackageProgress::Prepared { paths, .. } = event {
+                    prepared = paths.len();
+                }
+            },
+        )
+        .unwrap();
+    assert_eq!(checker.checkpoint_position(), prepared);
+    assert!(checker.session_statistics().completed_steps < prepared);
+    let mut checked_gap = false;
+    let result = checker.append_session_selected_after(
+        &new,
+        &BTreeSet::from([vec!["Old".into(), "Gap".into()], vec!["New".into()]]),
+        None,
+        prepared,
+        |offset, event| {
+            if let PackageProgress::Prepared {
+                paths, selected, ..
+            } = event
+            {
+                assert_eq!(offset, 0);
+                checked_gap = selected.iter().any(|&i| paths[i] == ["Old", "Gap"]);
+            }
+        },
+    );
+    assert!(checked_gap);
+    assert!(result.is_err());
+}
