@@ -4,6 +4,9 @@ use std::{cell::RefCell, io, rc::Rc};
 pub trait GraphStore: std::fmt::Debug {
     fn identity(&self) -> String;
     fn write(&self, bytes: &[u8]) -> io::Result<Vec<u8>>;
+    fn write_checkpoint_segment(&self, bytes: &[u8]) -> io::Result<Vec<u8>> {
+        self.write(bytes)
+    }
     fn read(&self, reference: &[u8]) -> io::Result<Vec<u8>>;
     fn retain(&self, reference: &[u8]) -> io::Result<()>;
 }

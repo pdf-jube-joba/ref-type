@@ -8,6 +8,7 @@ use std::{cell::RefCell, collections::BTreeMap, io, rc::Rc, sync::Arc};
 pub(crate) struct GraphPages {
     store: Arc<ArtifactStore>,
     references: RefCell<BTreeMap<Fingerprint, ObjectRef>>,
+    stage_checkpoint: bool,
 }
 impl std::fmt::Debug for GraphPages {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -18,10 +19,24 @@ impl std::fmt::Debug for GraphPages {
 }
 impl GraphPages {
     pub(crate) fn new(store: Arc<ArtifactStore>) -> Rc<Self> {
+        Self::with_checkpoint_staging(store, false)
+    }
+    pub(crate) fn for_package_check(store: Arc<ArtifactStore>) -> Rc<Self> {
+        Self::with_checkpoint_staging(store, true)
+    }
+    fn with_checkpoint_staging(store: Arc<ArtifactStore>, stage_checkpoint: bool) -> Rc<Self> {
         Rc::new(Self {
             store,
             references: RefCell::new(BTreeMap::new()),
+            stage_checkpoint,
         })
+    }
+    fn track(&self, reference: ObjectRef) -> io::Result<Vec<u8>> {
+        let encoded = crate::artifact_store::serialize(&reference).map_err(io::Error::other)?;
+        self.references
+            .borrow_mut()
+            .insert(reference.digest, reference);
+        Ok(encoded)
     }
     pub(crate) fn clear(&self) {
         self.references.borrow_mut().clear();
@@ -54,11 +69,17 @@ impl elaboration::GraphStore for GraphPages {
             .store
             .write_object(ObjectKind::Environment, bytes)
             .map_err(io::Error::other)?;
-        let encoded = crate::artifact_store::serialize(&reference).map_err(io::Error::other)?;
-        self.references
-            .borrow_mut()
-            .insert(reference.digest, reference);
-        Ok(encoded)
+        self.track(reference)
+    }
+    fn write_checkpoint_segment(&self, bytes: &[u8]) -> io::Result<Vec<u8>> {
+        if !self.stage_checkpoint {
+            return self.write(bytes);
+        }
+        let reference = self
+            .store
+            .write_checkpoint_object(ObjectKind::Environment, bytes)
+            .map_err(io::Error::other)?;
+        self.track(reference)
     }
     fn read(&self, reference: &[u8]) -> io::Result<Vec<u8>> {
         let reference: ObjectRef =

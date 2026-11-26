@@ -115,7 +115,7 @@ impl PackageRun<'_, '_> {
             let state =
                 bytes.map_err(|error| crate::error::CacheError::Codec(error.to_string()))?;
             let bytes = artifact_store::serialize(&(*b"REFSES02", &metadata, state))?;
-            let environment = store.write_object(ObjectKind::Checkpoint, &bytes)?;
+            let environment = store.write_checkpoint_object(ObjectKind::Checkpoint, &bytes)?;
             store.publish_checkpoint(&StoreManifest {
                 key,
                 input,
@@ -123,7 +123,8 @@ impl PackageRun<'_, '_> {
                 environment: Some(environment),
                 graph,
                 ..Default::default()
-            })
+            })?;
+            store.finish_checkpoint_write()
         })();
         match saved {
             Ok(()) => {
@@ -345,7 +346,8 @@ impl PackageRun<'_, '_> {
                 checker.expression_count()
             );
         }
-        let pages = GraphPages::new(self.database.disk.as_ref().unwrap().shared_store());
+        let pages =
+            GraphPages::for_package_check(self.database.disk.as_ref().unwrap().shared_store());
         let state = match elaboration::with_graph_store(pages.clone(), || checker.checkpoint()) {
             Ok(state) => state,
             Err(error) => {
@@ -359,7 +361,9 @@ impl PackageRun<'_, '_> {
         if let Some(disk) = &self.database.disk {
             let saved = (|| {
                 let bytes = artifact_store::serialize(&(*b"REFSES02", &*metadata, &state))?;
-                let object = disk.store().write_object(ObjectKind::Checkpoint, &bytes)?;
+                let object = disk
+                    .store()
+                    .write_checkpoint_object(ObjectKind::Checkpoint, &bytes)?;
                 let manifest = StoreManifest {
                     key: metadata.key,
                     input: metadata.input,
@@ -375,7 +379,8 @@ impl PackageRun<'_, '_> {
                     key: request,
                     input: request,
                     ..manifest
-                })
+                })?;
+                disk.store().finish_checkpoint_write()
             })();
             if let Err(error) = saved {
                 self.database.stats.cache_write_failures += 1;
@@ -534,7 +539,7 @@ impl PackageRun<'_, '_> {
                 .database
                 .disk
                 .as_ref()
-                .map(|disk| GraphPages::new(disk.shared_store()));
+                .map(|disk| GraphPages::for_package_check(disk.shared_store()));
             let mut check = || {
                 checker.append_session_selected(root, &paths, interval, |event| match event {
                     PackageProgress::Prepared {
