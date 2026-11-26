@@ -41,7 +41,7 @@ impl Buffer {
         }
         let reference = self
             .store
-            .write(&self.buffer)
+            .write_checkpoint_segment(&self.buffer)
             .map_err(|_| Error::SerializeBufferFull)?;
         self.index.segments.push(reference);
         self.buffer.clear();

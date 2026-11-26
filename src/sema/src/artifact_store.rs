@@ -20,6 +20,7 @@ use std::{
 pub const DEFAULT_CACHE_BUDGET: u64 = u64::MAX;
 const MAX_OBJECT: u64 = 512 * 1024 * 1024;
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
+const CHECKPOINT_SWEEP_BYTES: u64 = 64 * 1024 * 1024;
 // A lease spans many manifests. Compact fingerprints avoid JSON byte arrays,
 // and the same bound applies to publication, worker recovery and collection.
 const MAX_PINS: u64 = 64 * 1024 * 1024;
@@ -277,6 +278,8 @@ pub struct ArtifactStore {
     budget: AtomicU64,
     pending_bytes: AtomicU64,
     lease: Mutex<Option<Lease>>,
+    checkpoint_lease: Mutex<Option<Lease>>,
+    checkpoint_bytes_since_sweep: AtomicU64,
     stats: Mutex<CacheStoreStats>,
 }
 impl Drop for ArtifactStore {
@@ -284,6 +287,7 @@ impl Drop for ArtifactStore {
         // Only the lease owner ends a session. A supervised worker borrows that
         // lease; collecting on every worker exit repeatedly scans the whole store
         // while its artifacts remain protected by the supervisor anyway.
+        self.checkpoint_lease.get_mut().unwrap().take();
         let ended_session = self
             .lease
             .get_mut()
@@ -292,6 +296,7 @@ impl Drop for ArtifactStore {
             .is_some_and(|lease| lease.owner);
         let usage = self.root.join("usage");
         let collection_needed = self.pending_bytes.load(Ordering::Relaxed) != 0
+            || self.checkpoint_bytes_since_sweep.load(Ordering::Relaxed) != 0
             || read_bounded(&usage, 8)
                 .ok()
                 .and_then(|bytes| bytes.try_into().ok())
@@ -335,6 +340,8 @@ impl ArtifactStore {
             budget: AtomicU64::new(DEFAULT_CACHE_BUDGET),
             pending_bytes: AtomicU64::new(0),
             lease: Mutex::new(None),
+            checkpoint_lease: Mutex::new(None),
+            checkpoint_bytes_since_sweep: AtomicU64::new(0),
             stats: Mutex::new(CacheStoreStats::default()),
         }
     }
@@ -482,6 +489,36 @@ impl ArtifactStore {
             .join("access")
             .join(format!("{}-{}", hex(key), kind as u8))
     }
+    fn new_owned_lease(&self) -> Result<Lease, CacheError> {
+        let dir = self.root.join("leases");
+        fs::create_dir_all(&dir).map_err(|e| io_error(CacheOperation::CreateDirectory, &dir, e))?;
+        let (path, file) = loop {
+            let path = dir.join(format!(
+                "{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            match OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .open(&path)
+            {
+                Ok(file) => break (path, file),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(io_error(CacheOperation::WriteRecord, &path, e)),
+            }
+        };
+        file.lock()
+            .map_err(|e| io_error(CacheOperation::Lock, &path, e))?;
+        Ok(Lease {
+            path,
+            _file: file,
+            pins: Pins::default(),
+            owner: true,
+            generation: 0,
+        })
+    }
     // Called under store.lock; the lease's separate advisory lock is its liveness token.
     fn pin(&self, update: impl FnOnce(&mut Pins) -> bool) -> Result<(), CacheError> {
         let mut lease = self.lease.lock().unwrap();
@@ -510,33 +547,7 @@ impl ArtifactStore {
             }
         }
         if lease.is_none() {
-            let dir = self.root.join("leases");
-            let (path, file) = loop {
-                let path = dir.join(format!(
-                    "{}-{}",
-                    std::process::id(),
-                    NEXT.fetch_add(1, Ordering::Relaxed)
-                ));
-                match OpenOptions::new()
-                    .create_new(true)
-                    .read(true)
-                    .write(true)
-                    .open(&path)
-                {
-                    Ok(file) => break (path, file),
-                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                    Err(e) => return Err(io_error(CacheOperation::WriteRecord, &path, e)),
-                }
-            };
-            file.lock()
-                .map_err(|e| io_error(CacheOperation::Lock, &path, e))?;
-            *lease = Some(Lease {
-                path,
-                _file: file,
-                pins: Pins::default(),
-                owner: true,
-                generation: 0,
-            });
+            *lease = Some(self.new_owned_lease()?);
         }
         let lease = lease.as_mut().unwrap();
         // Pin data is atomically replaced separately from the persistent liveness lock.
@@ -596,13 +607,44 @@ impl ArtifactStore {
     fn pin_written_object(&self, digest: &Fingerprint) -> Result<(), CacheError> {
         self.pin(|_| false)?;
         let lease = self.lease.lock().unwrap();
-        let path = lease.as_ref().unwrap().path.with_extension("objects");
+        Self::journal_object(lease.as_ref().unwrap(), digest)
+    }
+
+    fn journal_object(lease: &Lease, digest: &Fingerprint) -> Result<(), CacheError> {
+        let path = lease.path.with_extension("objects");
         OpenOptions::new()
             .create(true)
             .append(true)
             .open(&path)
             .and_then(|mut file| file.write_all(digest))
             .map_err(|error| io_error(CacheOperation::WriteRecord, &path, error))
+    }
+
+    fn pin_checkpoint_object(&self, digest: &Fingerprint) -> Result<(), CacheError> {
+        let mut staging = self.checkpoint_lease.lock().unwrap();
+        if staging.is_none() {
+            let lease = self.new_owned_lease()?;
+            let mut bytes = 1u64.to_le_bytes().to_vec();
+            bytes.extend(PIN_MAGIC);
+            bytes.extend(serialize(&lease.pins)?);
+            self.atomic_metadata(&lease.path.with_extension("pins"), &bytes)?;
+            *staging = Some(lease);
+        }
+        Self::journal_object(staging.as_ref().unwrap(), digest)
+    }
+
+    pub(crate) fn finish_checkpoint_write(&self) -> Result<(), CacheError> {
+        {
+            let _lock = self.lock()?;
+            self.checkpoint_lease.lock().unwrap().take();
+        }
+        let bytes = self.checkpoint_bytes_since_sweep.load(Ordering::Relaxed);
+        if bytes >= CHECKPOINT_SWEEP_BYTES {
+            self.collect()?;
+            self.checkpoint_bytes_since_sweep
+                .fetch_sub(bytes, Ordering::Relaxed);
+        }
+        Ok(())
     }
 
     fn failure<T>(&self, result: Result<T, CacheError>, writing: bool) -> Result<T, CacheError> {
@@ -785,12 +827,31 @@ impl ArtifactStore {
     }
 
     pub fn write_object(&self, kind: ObjectKind, payload: &[u8]) -> Result<ObjectRef, CacheError> {
+        self.store_object(kind, payload, false)
+    }
+    pub(crate) fn write_checkpoint_object(
+        &self,
+        kind: ObjectKind,
+        payload: &[u8],
+    ) -> Result<ObjectRef, CacheError> {
+        self.store_object(kind, payload, true)
+    }
+    fn store_object(
+        &self,
+        kind: ObjectKind,
+        payload: &[u8],
+        checkpoint: bool,
+    ) -> Result<ObjectRef, CacheError> {
         self.failure(
             (|| {
                 let (object, bytes) = self.encode_object(kind, payload)?;
                 {
                     let _lock = self.lock()?;
-                    self.pin_written_object(&object.digest)?;
+                    if checkpoint {
+                        self.pin_checkpoint_object(&object.digest)?;
+                    } else {
+                        self.pin_written_object(&object.digest)?;
+                    }
                 }
                 let path = self.object_path(&object.digest);
                 let reused = read_bounded(&path, MAX_OBJECT + HEADER as u64)
@@ -801,6 +862,10 @@ impl ArtifactStore {
                     self.atomic_write(&path, &bytes)?;
                     self.pending_bytes
                         .fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                    if checkpoint {
+                        self.checkpoint_bytes_since_sweep
+                            .fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                    }
                     let mut stats = self.stats.lock().unwrap();
                     if kind == ObjectKind::Result {
                         stats.result_write_bytes += bytes.len() as u64;
@@ -2008,6 +2073,50 @@ mod tests {
             Err(CacheError::Invalid(MissReason::Missing))
         ));
         assert_eq!(reader.read_checkpoint(&artifact.key).unwrap(), checkpoint);
+    }
+
+    #[test]
+    fn newer_checkpoint_releases_superseded_objects_during_the_session() {
+        let directory = Directory::new();
+        let writer = directory.store();
+        let collector = directory.store();
+        let active_page = writer
+            .write_object(ObjectKind::Environment, b"reachable from the live arena")
+            .unwrap();
+        let key = fingerprint(b"the active request");
+        let save = |payload: &[u8]| {
+            let segment = writer
+                .write_checkpoint_object(ObjectKind::Environment, payload)
+                .unwrap();
+            let object = writer
+                .write_checkpoint_object(ObjectKind::Checkpoint, payload)
+                .unwrap();
+            collector.collect().unwrap();
+            writer
+                .publish_checkpoint(&StoreManifest {
+                    key,
+                    environment: Some(object.clone()),
+                    graph: vec![segment.clone()],
+                    ..Default::default()
+                })
+                .unwrap();
+            writer.finish_checkpoint_write().unwrap();
+            (object, segment)
+        };
+        let (previous, previous_segment) = save(b"previous generation");
+        let (latest, latest_segment) = save(b"latest generation");
+        collector.collect().unwrap();
+        assert!(!writer.object_path(&previous.digest).exists());
+        assert!(!writer.object_path(&previous_segment.digest).exists());
+        assert_eq!(
+            collector.read_object(&latest).unwrap(),
+            b"latest generation"
+        );
+        assert_eq!(
+            collector.read_object(&latest_segment).unwrap(),
+            b"latest generation"
+        );
+        assert!(writer.object_path(&active_page.digest).exists());
     }
 
     #[test]
