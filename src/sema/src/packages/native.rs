@@ -123,15 +123,13 @@ impl PackageRun<'_, '_> {
                 environment: Some(environment),
                 graph,
                 ..Default::default()
-            })?;
-            store.finish_checkpoint_write()
+            })
         })();
         match saved {
             Ok(()) => {
                 self.database.stats.checkpoint_writes += 1;
-                self.progress
-                    .storage_stats(self.database.cache_store_stats());
                 self.progress.checkpoint_saved(steps);
+                self.finish_checkpoint_write();
             }
             Err(error) => {
                 self.database.stats.checkpoint_skips += 1;
@@ -139,6 +137,16 @@ impl PackageRun<'_, '_> {
             }
         }
         self.progress.phase(ProgressPhase::Checking);
+    }
+
+    fn finish_checkpoint_write(&self) {
+        if let Some(disk) = &self.database.disk
+            && let Err(error) = disk.store().finish_checkpoint_write()
+        {
+            eprintln!("Failed to reclaim superseded checkpoint data: {error}");
+        }
+        self.progress
+            .storage_stats(self.database.cache_store_stats());
     }
 
     fn prefix_score(
@@ -379,8 +387,7 @@ impl PackageRun<'_, '_> {
                     key: request,
                     input: request,
                     ..manifest
-                })?;
-                disk.store().finish_checkpoint_write()
+                })
             })();
             if let Err(error) = saved {
                 self.database.stats.cache_write_failures += 1;
@@ -395,9 +402,8 @@ impl PackageRun<'_, '_> {
             .prefixes
             .insert(metadata.key, metadata.clone());
         self.progress
-            .storage_stats(self.database.cache_store_stats());
-        self.progress
             .checkpoint_saved(checker.checkpoint_position());
+        self.finish_checkpoint_write();
     }
 
     fn prefix_header(
