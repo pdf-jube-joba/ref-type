@@ -11,6 +11,7 @@ import resource
 import shlex
 import shutil
 import signal
+import stat
 import statistics
 import subprocess
 import sys
@@ -83,6 +84,27 @@ def directory_bytes(directory):
     return total
 
 
+def allocated_bytes(directory):
+    total = 0
+    seen_links = set()
+    pending = [directory]
+    while pending:
+        path = pending.pop()
+        try:
+            info = path.lstat()
+            if stat.S_ISDIR(info.st_mode):
+                pending.extend(path.iterdir())
+            elif info.st_nlink > 1:
+                identity = (info.st_dev, info.st_ino)
+                if identity in seen_links:
+                    continue
+                seen_links.add(identity)
+        except (FileNotFoundError, NotADirectoryError):
+            continue
+        total += info.st_blocks * 512
+    return total
+
+
 def tail(path, size=65536):
     with path.open("rb") as file:
         file.seek(max(0, path.stat().st_size - size))
@@ -121,7 +143,7 @@ def session_processes(session):
 
 
 def measure(command, log, *, seconds, environment=None,
-            progress_seconds=0, output_mib=8):
+            progress_seconds=0, output_mib=8, sampled_cache=None):
     def limits():
         cpu = math.ceil(seconds)
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 1))
@@ -167,6 +189,8 @@ def measure(command, log, *, seconds, environment=None,
     log.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     next_progress = started + progress_seconds
+    next_sample = started
+    peak_allocated = 0
     reason = None
     with child_subreaper(), log.open("wb") as output:
         child = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=output, stderr=output,
@@ -181,6 +205,9 @@ def measure(command, log, *, seconds, environment=None,
                 if reason:
                     stop()
                     break
+                if sampled_cache is not None and now >= next_sample:
+                    peak_allocated = max(peak_allocated, allocated_bytes(sampled_cache))
+                    next_sample = time.monotonic() + .5
                 if progress_seconds > 0 and now >= next_progress:
                     print(f"  running {now - started:.0f}s: {log}", file=sys.stderr, flush=True)
                     next_progress = now + progress_seconds
@@ -197,11 +224,16 @@ def measure(command, log, *, seconds, environment=None,
     if reason is None and (child.returncode in (-signal.SIGKILL, -signal.SIGXCPU)
                            or child.returncode != 0 and "memory allocation of" in tail(log)):
         reason = "resource_limit"
-    return dict(command=command, exit=child.returncode, seconds=round(time.monotonic() - started, 3),
+    result = dict(command=command, exit=child.returncode, seconds=round(time.monotonic() - started, 3),
                 user_seconds=round(sum(usage.ru_utime for usage in usages), 3),
                 system_seconds=round(sum(usage.ru_stime for usage in usages), 3),
                 peak_rss_kib=max(usage.ru_maxrss for usage in usages), stopped_by=reason, log=str(log),
                 profile=cost_profile(log))
+    if sampled_cache is not None:
+        final_allocated = allocated_bytes(sampled_cache)
+        result.update(cache_peak_allocated_bytes=max(peak_allocated, final_allocated),
+                      cache_final_allocated_bytes=final_allocated)
+    return result
 
 
 class Measurements:
@@ -240,10 +272,13 @@ class Measurements:
                 summary[label] = dict(runs=len(successful),
                                       median_seconds=statistics.median(row["seconds"] for row in successful),
                                       peak_rss_kib=max(row["peak_rss_kib"] for row in successful))
+                if "cache_peak_allocated_bytes" in successful[0]:
+                    summary[label]["cache_peak_allocated_bytes"] = max(
+                        row["cache_peak_allocated_bytes"] for row in successful)
         self.report["summary"] = summary
         save_json(self.output, self.report)
 
-    def run(self, label, path, cache=None):
+    def run(self, label, path, cache=None, *, extra=(), sample_cache=False):
         path = path.resolve()
         index = len(self.report["measurements"])
         basename = f"{index:03}-" + re.sub(r"[^\w.-]+", "-", label)
@@ -257,11 +292,11 @@ class Measurements:
             command += ["--cache-dir", str(cache)] if cache is not None else ["--no-cache"]
             if self.options.module:
                 command += ["--module", self.options.module]
-        command += self.options.extra
+        command += [*extra, *self.options.extra]
         before = source_digest(path)
         row = measure(command, log, seconds=self.options.seconds,
                       environment=self.environment, progress_seconds=self.options.progress_seconds,
-                      output_mib=self.options.output_mib)
+                      output_mib=self.options.output_mib, sampled_cache=cache if sample_cache else None)
         try:
             unchanged = source_digest(path) == before
         except (OSError, ValueError):
@@ -279,7 +314,9 @@ class Measurements:
                                  and row["checker"].get("outcome") == "accepted"))
         self.report["measurements"].append(row)
         self.save()
-        print(f"{label}: {row['seconds']:.3f}s, {row['peak_rss_kib']} KiB, exit {row['exit']}", flush=True)
+        disk = (f", cache peak {row['cache_peak_allocated_bytes'] / 2**20:.1f} MiB"
+                if sample_cache else "")
+        print(f"{label}: {row['seconds']:.3f}s, {row['peak_rss_kib']} KiB{disk}, exit {row['exit']}", flush=True)
         if row["stopped_by"] == "interrupted":
             raise KeyboardInterrupt
         return row
