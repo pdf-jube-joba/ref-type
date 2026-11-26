@@ -394,7 +394,7 @@ impl<'a> Checker<'a> {
                 self.under(var, input, |ch| ch.check_open(body, output))?;
                 self.metas
                     .constrain(crate::metavariables::Constraint::Validate {
-                        context: self.context.clone(),
+                        context: self.context.as_slice().into(),
                         term,
                         expected: Some(expected),
                     });

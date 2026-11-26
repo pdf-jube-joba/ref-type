@@ -152,7 +152,7 @@ fn indirect_occurs_check_and_orphan_obligations() {
     let set = env.arena.sort(Sort::Base(BaseSort::Set(0)));
     metas.unify(&env, &vec![], b, set).unwrap();
     metas.constrain(Constraint::IsSort {
-        context: vec![],
+        context: [].into(),
         term: env.arena.bound(0),
     });
     assert!(metas.finish(&env).is_err());
@@ -1462,7 +1462,7 @@ fn flex_flex_uses_the_smaller_scope_and_origins_follow_dependencies() {
         .set_origin(id, crate::metavariables::OriginId(17))
         .unwrap();
     let constraint = Constraint::Equal {
-        context: vec![binding(set)],
+        context: [binding(set)].into(),
         left: small,
         right: large,
     };
@@ -1495,7 +1495,7 @@ fn restricting_a_hole_preserves_its_diagnostic_origin() {
     metas.set_origin(id, origin).unwrap();
     let restricted = metas.restrict(&env, id, 0).unwrap();
     let constraint = Constraint::Equal {
-        context: vec![],
+        context: [].into(),
         left: restricted,
         right: set,
     };
@@ -1764,12 +1764,49 @@ fn inductive_registration_checks_the_arity_terminal_sort() {
 }
 
 #[test]
+fn failed_solve_restores_ordered_constraints_and_frozen_bindings() {
+    let env = Environment::new();
+    let mut metas = MetaContext::new();
+    let mut ctx = context(&env);
+    ctx.push(binding(env.arena.bound(0)));
+    let value = env.arena.bound(0);
+    let ty = env.arena.bound(1);
+    let invalid = Constraint::IsSort {
+        context: ctx.as_slice().into(),
+        term: value,
+    };
+    let valid = Constraint::HasType {
+        context: ctx.as_slice().into(),
+        term: value,
+        expected: ty,
+    };
+    metas.constrain(invalid.clone());
+    metas.constrain(valid.clone());
+    ctx.reverse();
+
+    let snapshot = metas.snapshot();
+    assert!(metas.solve_pending(&env).is_err());
+    assert_eq!(metas.constraints(), &[invalid.clone(), valid.clone()]);
+    assert!(!metas.is_discharged(&valid));
+
+    let extra = Constraint::IsSort {
+        context: ctx.into(),
+        term: value,
+    };
+    metas.constrain(extra);
+    assert_eq!(metas.history().len(), 3);
+    metas.rollback(snapshot).unwrap();
+    assert_eq!(metas.constraints(), &[invalid.clone(), valid.clone()]);
+    assert_eq!(metas.history(), &[invalid, valid]);
+}
+
+#[test]
 fn constraint_outcomes_survive_unrelated_goals_and_follow_rollback() {
     let env = Environment::new();
     let mut metas = MetaContext::new();
     let proposition = env.arena.sort(Sort::Base(BaseSort::Prop));
     let constraint = Constraint::Equal {
-        context: vec![],
+        context: [].into(),
         left: proposition,
         right: proposition,
     };
