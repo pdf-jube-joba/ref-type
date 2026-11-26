@@ -745,12 +745,19 @@ impl PackageRun<'_, '_> {
             coverage: results.iter().map(|r| r.path.clone()).collect(),
             ..Default::default()
         };
+        let batch = self
+            .database
+            .disk
+            .as_ref()
+            .is_some_and(|disk| disk.store().batch_results());
         for result in &results {
             let i = self.graph.indices[&result.path];
             self.database
                 .checked
                 .insert(self.keys[i], Arc::new(result.clone()));
-            if let Some(disk) = &self.database.disk {
+            if let Some(disk) = &self.database.disk
+                && !batch
+            {
                 if disk.write(&self.keys[i], result).is_err() {
                     self.database.stats.cache_write_failures += 1;
                 }
@@ -762,7 +769,17 @@ impl PackageRun<'_, '_> {
             }
         }
         if let Some(disk) = &self.database.disk {
-            if disk.store().publish(&manifest).is_err() {
+            let saved = if batch {
+                disk.store().publish_results(
+                    &mut manifest,
+                    results
+                        .iter()
+                        .map(|result| (self.keys[self.graph.indices[&result.path]], result)),
+                )
+            } else {
+                disk.store().publish(&manifest)
+            };
+            if saved.is_err() {
                 self.database.stats.cache_write_failures += 1;
             } else {
                 self.database.stats.package_writes += 1;

@@ -401,3 +401,34 @@ fn saved_locations_use_package_identity_and_relative_file() {
     let bytes = sema::artifact_store::serialize(&malformed).unwrap();
     assert!(sema::artifact_store::deserialize::<sema::syntax::SourceId>(&bytes).is_err());
 }
+
+#[test]
+fn retry_after_failed_usage_rename_charges_the_reused_object() {
+    use sema::artifact_store::ObjectKind;
+    let directory = Fixture::new();
+    let store = ArtifactStore::new(&directory.0);
+    let usage = directory.0.join("usage");
+    fs::create_dir(&usage).unwrap();
+    let object = store
+        .write_object(ObjectKind::Result, b"verified result")
+        .unwrap();
+    let record = StoreManifest {
+        results: vec![(Vec::new(), object.clone())],
+        ..Default::default()
+    };
+    assert!(store.publish(&record).is_err());
+    assert!(files(&directory.0.join("artifacts")).is_empty());
+    fs::remove_dir(&usage).unwrap();
+    fs::write(&usage, 8_u64.to_le_bytes()).unwrap();
+    assert_eq!(
+        store
+            .write_object(ObjectKind::Result, b"verified result")
+            .unwrap(),
+        object
+    );
+    store.publish(&record).unwrap();
+    let manifests = files(&directory.0.join("artifacts"));
+    assert_eq!(manifests.len(), 1);
+    let expected = 8 + object.stored_bytes + fs::metadata(&manifests[0]).unwrap().len();
+    assert_eq!(store.stats().retained_bytes, expected);
+}
