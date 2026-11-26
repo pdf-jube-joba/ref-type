@@ -1,6 +1,7 @@
 //! Contextual metavariables and transactional unification on shared PTS terms.
 use crate::{calculus::*, environment::Environment, syntax::*};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::rc::Rc;
 
 pub use crate::error::{Error, TypeMismatch};
 
@@ -17,21 +18,21 @@ pub struct Entry {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Constraint {
     Equal {
-        context: Context,
+        context: Rc<[Binding]>,
         left: Expression,
         right: Expression,
     },
     HasType {
-        context: Context,
+        context: Rc<[Binding]>,
         term: Expression,
         expected: Expression,
     },
     IsSort {
-        context: Context,
+        context: Rc<[Binding]>,
         term: Expression,
     },
     Validate {
-        context: Context,
+        context: Rc<[Binding]>,
         term: Expression,
         expected: Option<Expression>,
     },
@@ -503,15 +504,16 @@ impl MetaContext {
             .as_mut()
             .ok_or(Error::InvalidMeta(id))?;
         entry.assignment = Some(value);
-        let entry = entry.clone();
+        let context = Rc::from(entry.context.as_slice());
+        let expected = entry.expected;
         self.constrain(Constraint::Validate {
-            context: entry.context.clone(),
+            context: Rc::clone(&context),
             term: value,
-            expected: entry.expected,
+            expected,
         });
-        if let Some(expected) = entry.expected {
+        if let Some(expected) = expected {
             self.constrain(Constraint::HasType {
-                context: entry.context.clone(),
+                context,
                 term: value,
                 expected,
             });
@@ -535,19 +537,16 @@ impl MetaContext {
                 Err(rigid_mismatch(env, left, right))
             };
         }
-        self.record(Constraint::Equal {
-            context: context.clone(),
+        let equality = Constraint::Equal {
+            context: context.as_slice().into(),
             left,
             right,
-        });
+        };
+        self.record(equality.clone());
         let snapshot = self.snapshot();
         match self.unify_inner(env, context, left, right, &mut FxHashSet::default()) {
             Ok(Outcome::Blocked) => {
-                self.constrain(Constraint::Equal {
-                    context: context.clone(),
-                    left,
-                    right,
-                });
+                self.constrain(equality);
                 Ok(Outcome::Blocked)
             }
             Ok(Outcome::Solved) => Ok(Outcome::Solved),
@@ -560,7 +559,7 @@ impl MetaContext {
     fn unify_inner(
         &mut self,
         env: &Environment,
-        context: &Context,
+        context: &[Binding],
         left: Expression,
         right: Expression,
         active: &mut FxHashSet<(Expression, Expression)>,
@@ -573,7 +572,7 @@ impl MetaContext {
                 }
                 for (i, binding) in declaration.iter().enumerate() {
                     let expected = instantiate(&env.arena, binding.ty, &arguments[..i])?;
-                    self.check(env, context.clone(), arguments[i], expected)?;
+                    self.check(env, context.to_vec(), arguments[i], expected)?;
                 }
             }
         }
@@ -708,7 +707,7 @@ impl MetaContext {
     fn unify_child(
         &mut self,
         env: &Environment,
-        context: &Context,
+        context: &[Binding],
         parent: Expression,
         slot: usize,
         depth: usize,
@@ -719,7 +718,7 @@ impl MetaContext {
         if depth == 0 {
             return self.unify_inner(env, context, left, right, active);
         }
-        let mut checker = crate::check::Checker::new(env, self, context.clone());
+        let mut checker = crate::check::Checker::new(env, self, context.to_vec());
         checker.solving = true;
         let context = checker.child_context(parent, slot)?;
         self.unify_inner(env, &context, left, right, active)
@@ -777,7 +776,7 @@ impl MetaContext {
         match result {
             Ok(Outcome::Solved) => {
                 self.constrain(Constraint::Validate {
-                    context,
+                    context: context.into(),
                     term,
                     expected: Some(expected),
                 });
@@ -785,7 +784,7 @@ impl MetaContext {
             }
             Ok(Outcome::Blocked) => {
                 self.constrain(Constraint::HasType {
-                    context,
+                    context: context.into(),
                     term,
                     expected,
                 });
@@ -800,13 +799,13 @@ impl MetaContext {
     fn attempt_type(
         &mut self,
         env: &Environment,
-        context: &Context,
+        context: &[Binding],
         term: Expression,
         expected: Option<Expression>,
         solving: bool,
     ) -> Result<Outcome, Error> {
         let result = {
-            let mut checker = crate::check::Checker::new(env, self, context.clone());
+            let mut checker = crate::check::Checker::new(env, self, context.to_vec());
             checker.solving = solving;
             if solving {
                 match expected {
@@ -865,7 +864,7 @@ impl MetaContext {
         match result {
             Ok(ty) => {
                 self.constrain(Constraint::Validate {
-                    context,
+                    context: context.into(),
                     term,
                     expected: Some(ty),
                 });
@@ -888,7 +887,7 @@ impl MetaContext {
                 }
                 let ty = self.fresh(&env.arena, context.clone(), None);
                 self.constrain(Constraint::HasType {
-                    context,
+                    context: context.into(),
                     term,
                     expected: ty,
                 });
@@ -934,7 +933,7 @@ impl MetaContext {
                             expected,
                         } => self.attempt_type(env, context, *term, *expected, false)?,
                         Constraint::IsSort { context, term } => {
-                            let result = crate::check::Checker::new(env, self, context.clone())
+                            let result = crate::check::Checker::new(env, self, context.to_vec())
                                 .formation(*term);
                             match result {
                                 Ok(_) => Outcome::Solved,

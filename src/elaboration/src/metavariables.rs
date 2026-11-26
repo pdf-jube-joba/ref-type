@@ -269,7 +269,7 @@ impl MetaStore {
             &[term, expected],
             |env, context, terms| {
                 self.constraints[index].core = Some(Constraint::HasType {
-                    context: context.clone(),
+                    context: context.as_slice().into(),
                     term: terms[0],
                     expected: terms[1],
                 });
@@ -314,7 +314,7 @@ impl MetaStore {
         self.constrain(env, constraint);
         crate::kernel_bridge::logical(env, context, &[term], |_env, context, terms| {
             self.core.constrain(Constraint::IsSort {
-                context,
+                context: context.into(),
                 term: terms[0],
             });
             Ok(())
@@ -353,7 +353,7 @@ impl MetaStore {
             &[left, right],
             |env, context, terms| {
                 self.constraints[index].core = Some(Constraint::Equal {
-                    context: context.clone(),
+                    context: context.as_slice().into(),
                     left: terms[0],
                     right: terms[1],
                 });
