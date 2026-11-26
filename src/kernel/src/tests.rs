@@ -590,6 +590,95 @@ fn shared_instantiations_distinguish_arguments_and_reclaim_scratch_keys() {
 }
 
 #[test]
+fn substitution_shifts_preserve_binders_and_reclaim_shared_terms() {
+    use crate::calculus::Instantiations;
+    let a = Arena::new();
+    let mut terms = Instantiations::default();
+    let prop = sort(&a, BaseSort::Prop);
+    let argument = lambda(
+        &a,
+        Mode::Pure,
+        a.bound(0),
+        product(&a, a.bound(0), a.bound(2)),
+    );
+    let left = product(&a, prop, a.bound(1));
+    let right = product(&a, prop, a.bound(2));
+    let nested = product(&a, prop, product(&a, prop, a.bound(2)));
+    let first = product(
+        &a,
+        prop,
+        lambda(
+            &a,
+            Mode::Pure,
+            a.bound(1),
+            product(&a, a.bound(0), a.bound(3)),
+        ),
+    );
+    assert_eq!(terms.apply(&a, left, &[argument]).unwrap(), first);
+    assert_eq!(terms.apply(&a, right, &[argument, prop]).unwrap(), first);
+    let second = product(
+        &a,
+        prop,
+        product(
+            &a,
+            prop,
+            lambda(
+                &a,
+                Mode::Pure,
+                a.bound(2),
+                product(&a, a.bound(0), a.bound(4)),
+            ),
+        ),
+    );
+    assert_eq!(terms.apply(&a, nested, &[argument]).unwrap(), second);
+    let shared = terms.shifted_types();
+    assert!(shared >= 2);
+    let unchanged = a.bound(64);
+    let large = product(&a, prop, a.bound(0));
+    for target in [left, right] {
+        let mark = a.scratch_mark();
+        let query = terms.begin_scratch();
+        let temporary = product(&a, unchanged, large);
+        let choices = [temporary, prop];
+        let scope = if target == left {
+            &choices[..1]
+        } else {
+            &choices[..]
+        };
+        let value = terms.apply(&a, target, scope).unwrap();
+        assert!(terms.shifted_types() > shared);
+        a.finish_scratch(mark, []);
+        terms.finish_scratch(&a, query);
+        assert!(!a.is_live(value));
+        assert!(!a.is_live(temporary));
+        assert_eq!(terms.shifted_types(), shared);
+        assert_eq!(terms.apply(&a, left, &[argument]).unwrap(), first);
+    }
+}
+
+#[test]
+fn discarded_shift_results_do_not_reuse_imported_expression_ids() {
+    use crate::calculus::Instantiations;
+    let a = Arena::new();
+    let mut terms = Instantiations::default();
+    let prefix = sort(&a, BaseSort::Prop);
+    let target = product(&a, prefix, a.bound(1));
+    let mark = a.scratch_mark();
+    let key = terms.begin_scratch();
+    let source = a.bound(9);
+    let old = terms.apply(&a, target, &[source]).unwrap();
+    assert!(a.is_live(old));
+    a.rollback_import(mark);
+    terms.finish_scratch(&a, key);
+    assert_eq!(terms.shifted_types(), 0);
+    let replacement = a.bound(31);
+    assert_eq!(replacement, source);
+    let bind = product(&a, prefix, a.bound(1));
+    let value = terms.apply(&a, bind, &[replacement]).unwrap();
+    assert_eq!(value, product(&a, prefix, a.bound(32)));
+}
+
+#[test]
 fn binder_traversal_includes_motives_annotations_and_proofs() {
     let a = Arena::new();
     let set = sort(&a, BaseSort::Set(0));
@@ -2319,4 +2408,79 @@ fn transparent_congruence_ignores_unused_captures_but_checks_their_types() {
             .infer(ill_typed)
             .is_err()
     );
+}
+
+#[test]
+fn unresolved_follows_solutions_expected_types_and_rollback() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let outer = metas.fresh(arena, vec![], None);
+    let inner = metas.fresh(arena, vec![], None);
+    let Node::Meta { id, .. } = arena.get(inner) else {
+        panic!()
+    };
+    let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+    metas.unify(&env, &vec![], outer, inner).unwrap();
+    let snapshot = metas.snapshot();
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [id]);
+    metas.unify(&env, &vec![], inner, set).unwrap();
+    assert!(metas.unresolved(arena, [outer]).unwrap().is_empty());
+    let expected = metas.ensure_type(arena, id).unwrap();
+    let Node::Meta {
+        id: expected_id, ..
+    } = arena.get(expected)
+    else {
+        panic!()
+    };
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [expected_id]);
+    metas.unify(&env, &vec![], expected, set).unwrap();
+    assert!(metas.unresolved(arena, [outer]).unwrap().is_empty());
+    metas.rollback(snapshot).unwrap();
+    assert_eq!(metas.unresolved(arena, [outer]).unwrap(), [id]);
+    assert!(matches!(
+        metas.unresolved(arena, [expected]),
+        Err(Error::InvalidMeta(_))
+    ));
+}
+
+#[test]
+fn unresolved_distinguishes_arenas_and_reused_expression_indices() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let solved = metas.fresh(arena, vec![], None);
+    let open = metas.fresh(arena, vec![], None);
+    let Node::Meta { id, .. } = arena.get(open) else {
+        panic!()
+    };
+    let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+    metas.unify(&env, &vec![], solved, set).unwrap();
+    let mark = arena.scratch_mark();
+    let old = arena.alloc(Node::PowerSet { set: solved });
+    assert!(metas.unresolved(arena, [old]).unwrap().is_empty());
+    let generation = arena.generation();
+    assert_eq!(arena.finish_scratch(mark, []), 1);
+    assert!(!arena.is_live(old));
+    assert_ne!(arena.generation(), generation);
+    let retired = arena.alloc(Node::Ascribe {
+        term: solved,
+        ty: set,
+    });
+    assert!(metas.unresolved(arena, [retired]).unwrap().is_empty());
+    arena.rollback_import(mark);
+    let reused = arena.alloc(Node::PowerSet { set: open });
+    assert_eq!(reused, old);
+    assert_eq!(metas.unresolved(arena, [reused]).unwrap(), [id]);
+    let next_reused = arena.alloc(Node::Ascribe {
+        term: open,
+        ty: set,
+    });
+    assert_eq!(next_reused, retired);
+    assert_eq!(metas.unresolved(arena, [next_reused]).unwrap(), [id]);
+    assert!(metas.unresolved(arena, [solved]).unwrap().is_empty());
+    let other = crate::syntax::Arena::new();
+    let same_index = other.alloc(arena.get(open));
+    assert_eq!(same_index, solved);
+    assert_eq!(metas.unresolved(&other, [same_index]).unwrap(), [id]);
 }

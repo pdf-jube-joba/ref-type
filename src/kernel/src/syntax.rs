@@ -636,8 +636,23 @@ impl std::hash::Hash for NodeHash {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ArenaGeneration(u64);
+
+impl Default for ArenaGeneration {
+    fn default() -> Self {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        Self(
+            NEXT.try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                .expect("arena generations exhausted"),
+        )
+    }
+}
+
 #[derive(Debug, Default)]
 struct Storage {
+    generation: ArenaGeneration,
     nodes: crate::node_store::NodeStore,
     interned: FxHashMap<NodeHash, Expression>,
     hot: crate::sharing::Cache<NodeHash, (Node, Expression), { 1 << 16 }>,
@@ -790,11 +805,15 @@ impl Arena {
     pub fn trim(&self) -> std::io::Result<()> {
         self.0.borrow_mut().nodes.trim(None)
     }
+    pub(crate) fn generation(&self) -> ArenaGeneration {
+        self.0.borrow().generation
+    }
     pub(crate) fn scratch_mark(&self) -> usize {
         self.0.borrow().nodes.len()
     }
     pub(crate) fn rollback_import(&self, mark: usize) {
         let mut storage = self.0.borrow_mut();
+        storage.generation = ArenaGeneration::default();
         storage.hot.clear();
         for index in mark..storage.nodes.len() {
             storage.discard(index);
@@ -832,6 +851,9 @@ impl Arena {
             if !live.contains(&Expression(index as u32)) {
                 storage.discard(index);
             }
+        }
+        if before != storage.live {
+            storage.generation = ArenaGeneration::default();
         }
         before - storage.live
     }
