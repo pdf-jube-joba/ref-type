@@ -696,8 +696,17 @@ impl ArtifactStore {
         Ok((object, bytes))
     }
 
-    pub(crate) fn batch_results(&self) -> bool {
+    pub(crate) fn batch_results(&self, results: &[crate::ModuleResult]) -> bool {
+        const MAX_BATCH_MODULES: usize = 16;
+        const MAX_BATCH_INPUT_BYTES: usize = 256 * 1024;
         self.budget.load(Ordering::Relaxed) == DEFAULT_CACHE_BUDGET
+            && results.len() <= MAX_BATCH_MODULES
+            && results
+                .iter()
+                .try_fold(MAX_BATCH_INPUT_BYTES, |remaining, result| {
+                    remaining.checked_sub(postcard::experimental::serialized_size(result).ok()?)
+                })
+                .is_some()
     }
 
     pub(crate) fn publish_results<'a>(
@@ -712,20 +721,26 @@ impl ArtifactStore {
                 for (key, result) in modules {
                     let (object, bytes) =
                         self.encode_object(ObjectKind::Result, &serialize(result)?)?;
-                    if result.status == crate::ModuleStatus::Verified {
+                    let record = if result.status == crate::ModuleStatus::Verified {
                         let module = crate::cache::module_manifest(key, result, object.clone());
-                        records.push(Self::encode_manifest(&module)?);
-                    }
+                        Some(Self::encode_manifest(&module)?)
+                    } else {
+                        None
+                    };
+                    records.push((object.digest, record));
                     package.results.push((result.path.clone(), object.clone()));
                     objects.entry(object.digest).or_insert(bytes);
                 }
-                let object_references = records.len() + package.results.len();
-                records.push(Self::encode_manifest(package)?);
+                let package_record = Self::encode_manifest(package);
+                let module_records = records.iter().filter_map(|(_, record)| record.as_ref());
+                let object_references = module_records.clone().count() + package.results.len();
+                let mut charge = module_records
+                    .chain(package_record.as_ref().ok())
+                    .fold(0u64, |total, (_, bytes)| {
+                        total.saturating_add(bytes.len() as u64)
+                    });
                 let _lock = self.lock()?;
-                let mut charge = records.iter().fold(0u64, |total, (_, bytes)| {
-                    total.saturating_add(bytes.len() as u64)
-                });
-                let mut writes = Vec::new();
+                let mut writes = BTreeMap::new();
                 for (digest, bytes) in objects {
                     self.pin_written_object(&digest)?;
                     let path = self.object_path(&digest);
@@ -733,22 +748,37 @@ impl ArtifactStore {
                         .is_ok_and(|existing| fingerprint(&existing) == digest)
                     {
                         charge = charge.saturating_add(bytes.len() as u64);
-                        writes.push((path, bytes));
+                        writes.insert(digest, (path, bytes));
                     }
                 }
                 self.reserve_usage(charge)?;
                 let new_objects = writes.len();
-                for (path, bytes) in writes {
-                    self.atomic_write(&path, &bytes)?;
-                    self.stats.lock().unwrap().result_write_bytes += bytes.len() as u64;
+                let mut first_error = None;
+                for (digest, record) in records {
+                    let saved = (|| {
+                        if let Some((path, bytes)) = writes.get(&digest) {
+                            self.atomic_write(path, bytes)?;
+                            self.stats.lock().unwrap().result_write_bytes += bytes.len() as u64;
+                            writes.remove(&digest);
+                        }
+                        if let Some((manifest, bytes)) = record {
+                            self.validate_objects(&manifest)?;
+                            self.install_manifest(&manifest, Artifact, &bytes)?;
+                        }
+                        Ok(())
+                    })();
+                    if let Err(error) = saved {
+                        first_error.get_or_insert(error);
+                    }
+                }
+                if let Some(error) = first_error {
+                    return Err(error);
                 }
                 self.stats.lock().unwrap().shared_objects +=
                     (object_references - new_objects) as u64;
-                for (manifest, bytes) in records {
-                    self.validate_objects(&manifest)?;
-                    self.install_manifest(&manifest, Artifact, &bytes)?;
-                }
-                Ok(())
+                let (manifest, bytes) = package_record?;
+                self.validate_objects(&manifest)?;
+                self.install_manifest(&manifest, Artifact, &bytes)
             })(),
             true,
         )
@@ -1667,6 +1697,55 @@ mod tests {
         assert_eq!(store.read_manifest(&package.key).unwrap(), package);
         drop(store);
         assert_eq!(directory.store().stats().retained_bytes, reserved + records);
+    }
+
+    #[test]
+    fn failed_result_publications_leave_independent_modules_reusable() {
+        for oversized in [false, true] {
+            let directory = Directory::new();
+            let store = directory.store();
+            let modules = ["First", "Middle", "Last"].map(|name| crate::ModuleResult {
+                path: vec![name.into()],
+                status: crate::ModuleStatus::Verified,
+                ..Default::default()
+            });
+            let keys = modules
+                .each_ref()
+                .map(|m| fingerprint(m.path[0].as_bytes()));
+            let key = fingerprint(b"package");
+            let mut package = StoreManifest {
+                key,
+                coverage: modules.iter().map(|m| m.path.clone()).collect(),
+                ..Default::default()
+            };
+            if oversized {
+                package
+                    .coverage
+                    .push(vec!["x".repeat(MAX_MANIFEST as usize)]);
+            } else {
+                let (object, _) = store
+                    .encode_object(ObjectKind::Result, &serialize(&modules[1]).unwrap())
+                    .unwrap();
+                fs::create_dir_all(store.object_path(&object.digest)).unwrap();
+            }
+            assert!(
+                store
+                    .publish_results(&mut package, keys.into_iter().zip(&modules))
+                    .is_err()
+            );
+            assert!(store.read_manifest(&key).is_err());
+            let root = store.directory().to_owned();
+            drop(store);
+            let disk = crate::cache::DiskCache::new(root);
+            for (index, module) in modules.iter().enumerate() {
+                let result = disk.read(&keys[index]);
+                if oversized || index != 1 {
+                    assert_eq!(result.unwrap().path, module.path);
+                } else {
+                    assert!(result.is_none());
+                }
+            }
+        }
     }
 
     #[test]

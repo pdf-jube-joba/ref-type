@@ -749,7 +749,7 @@ impl PackageRun<'_, '_> {
             .database
             .disk
             .as_ref()
-            .is_some_and(|disk| disk.store().batch_results());
+            .is_some_and(|disk| disk.store().batch_results(&results));
         for result in &results {
             let i = self.graph.indices[&result.path];
             self.database
