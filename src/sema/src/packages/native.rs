@@ -488,6 +488,7 @@ impl PackageRun<'_, '_> {
         let roots = self.graph.roots.to_vec();
         let mut saved_position = checker.checkpoint_position();
         let mut entered_local = false;
+        let mut step_modules = Vec::new();
         for root in &roots {
             let selected: BTreeSet<_> = wanted
                 .iter()
@@ -529,7 +530,6 @@ impl PackageRun<'_, '_> {
                 .map(|&i| self.graph.units[i].path.clone())
                 .collect();
             let mut did = BTreeSet::new();
-            let mut step_modules = Vec::new();
             let mut remaining = BTreeMap::<usize, usize>::new();
             metadata
                 .inputs
@@ -547,34 +547,32 @@ impl PackageRun<'_, '_> {
                 .as_ref()
                 .map(|disk| GraphPages::for_package_check(disk.shared_store()));
             let mut check = || {
-                checker.append_session_selected(root, &paths, interval, |event| match event {
+                let prepared_through = step_modules.len();
+                let progress = |offset, event| match event {
                     PackageProgress::Prepared {
                         paths,
                         start,
                         selected: steps,
                     } => {
-                        let order: Vec<_> = paths
-                            .iter()
-                            .map(|path| {
-                                (1..=path.len())
-                                    .rev()
-                                    .find_map(|length| self.graph.indices.get(&path[..length]))
-                                    .copied()
-                                    .expect("prefix source module")
-                            })
-                            .collect();
-                        did.extend(steps.iter().map(|&position| order[position]));
-                        for &index in &order {
+                        step_modules.truncate(offset);
+                        step_modules.extend(paths.iter().map(|path| {
+                            (1..=path.len())
+                                .rev()
+                                .find_map(|length| self.graph.indices.get(&path[..length]))
+                                .copied()
+                                .expect("prefix source module")
+                        }));
+                        did.extend(steps.iter().map(|&position| step_modules[position]));
+                        for &index in &step_modules[offset..] {
                             if selected.contains(&index) {
                                 remaining.entry(index).or_default();
                             }
                         }
                         for &position in &steps {
-                            *remaining.entry(order[position]).or_default() += 1;
+                            *remaining.entry(step_modules[position]).or_default() += 1;
                         }
-                        step_modules = order.clone();
                         self.progress
-                            .begin_batch(&order, start, order.len(), &steps);
+                            .begin_batch(&step_modules, start, step_modules.len(), &steps);
                     }
                     PackageProgress::Step(elaboration::CheckStepProgress::Started(position)) => {
                         self.progress.start_step(position)
@@ -615,7 +613,14 @@ impl PackageRun<'_, '_> {
                             .map_or_else(Vec::new, |pages| pages.references()),
                     ),
                     _ => {}
-                })
+                };
+                checker.append_session_selected_after(
+                    root,
+                    &paths,
+                    interval,
+                    prepared_through,
+                    progress,
+                )
             };
             let checked = if let Some(pages) = &pages {
                 elaboration::with_graph_store(pages.clone(), check)
