@@ -1623,6 +1623,53 @@ mod tests {
     }
 
     #[test]
+    fn result_batch_reserves_objects_and_records_before_partial_publication() {
+        let directory = Directory::new();
+        let store = directory.store();
+        let initial = 8_u64;
+        fs::write(store.root.join("usage"), initial.to_le_bytes()).unwrap();
+        let result = crate::ModuleResult {
+            path: vec!["Test".into()],
+            status: crate::ModuleStatus::Verified,
+            ..Default::default()
+        };
+        let mut package = StoreManifest {
+            key: fingerprint(b"package"),
+            input: fingerprint(b"source"),
+            coverage: vec![result.path.clone()],
+            ..Default::default()
+        };
+        let module_key = fingerprint(b"module");
+        let blocked = store.manifest_path(&package.key, Artifact);
+        fs::create_dir_all(&blocked).unwrap();
+        let publish = |package: &mut StoreManifest| {
+            store.publish_results(package, std::iter::once((module_key, &result)))
+        };
+        assert!(publish(&mut package).is_err());
+        let module = store.read_manifest(&module_key).unwrap();
+        let object = &module.results[0].1;
+        let records = [module.clone(), package.clone()]
+            .iter()
+            .map(|record| ArtifactStore::encode_manifest(record).unwrap().1.len() as u64)
+            .sum::<u64>();
+        let reserved = initial + records + object.stored_bytes;
+        assert_eq!(store.stats().retained_bytes, reserved);
+        assert_eq!(
+            store.read_object(object).unwrap(),
+            serialize(&result).unwrap()
+        );
+        assert!(store.read_manifest(&package.key).is_err());
+        fs::remove_dir(&blocked).unwrap();
+        package.results.clear();
+        publish(&mut package).unwrap();
+        assert_eq!(store.stats().retained_bytes, reserved + records);
+        assert_eq!(store.stats().result_write_bytes, object.stored_bytes);
+        assert_eq!(store.read_manifest(&package.key).unwrap(), package);
+        drop(store);
+        assert_eq!(directory.store().stats().retained_bytes, reserved + records);
+    }
+
+    #[test]
     fn warm_store_reports_persisted_usage_without_a_write() {
         let directory = Directory::new();
         let writer = directory.store();
