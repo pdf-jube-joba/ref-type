@@ -17,6 +17,7 @@ from common.log_analysis import analyze, cost_profile
 from common.measurements import BENCHMARKS, MeasurementOptions, Measurements, save_json, target_directory
 from common.sources import packages
 from scaling.run import configure as configure_scaling, run as run_scaling
+from workloads.run import configure as configure_workloads, run as run_workloads
 
 
 def cases():
@@ -69,7 +70,8 @@ def main(argv=None):
                                 ("case", "measure a named case from cases.toml"),
                                 ("libraries", "measure packages in dependency order"),
                                 ("cache", "measure generated chain, diamond, and editing workloads"),
-                                ("scaling", "measure generated workloads across increasing sizes")]:
+                                ("scaling", "measure generated workloads across increasing sizes"),
+                                ("workloads", "measure standalone checker workload families")]:
         command = commands.add_parser(action, help=description)
         if action in ("run", "case", "libraries"):
             if action == "case":
@@ -84,8 +86,10 @@ def main(argv=None):
             command.set_defaults(command=None)
             if action == "cache":
                 command.add_argument("--depth", type=int, default=8)
-            else:
+            elif action == "scaling":
                 configure_scaling(command)
+            else:
+                configure_workloads(command)
         command.add_argument("--binary", type=Path)
         command.add_argument("--module")
         command.add_argument("--seconds", type=float, default=None if action == "case" else 300)
@@ -97,7 +101,8 @@ def main(argv=None):
         command.add_argument("--work-dir", type=Path, default=BENCHMARKS / "runs/scratch")
         command.add_argument("--output", type=Path)
         command.add_argument("--extra", nargs=argparse.REMAINDER, default=[], help="remaining checker arguments")
-        command.set_defaults(function={"cache": run_cache, "scaling": run_scaling}.get(action, run_paths))
+        command.set_defaults(function={"cache": run_cache, "scaling": run_scaling,
+                                       "workloads": run_workloads}.get(action, run_paths))
     analysis = commands.add_parser("analyze", help="summarize completed or interrupted logs")
     analysis.add_argument("log", type=Path)
     analysis.add_argument("--top", type=int, default=10)
@@ -137,6 +142,8 @@ def main(argv=None):
         parser.error("resource limits and runs must be positive; depth and progress interval must be nonnegative")
     if args.action == "scaling" and min(*args.sizes, args.width, args.imports, args.resident_mib) < 1:
         parser.error("sizes, widths and budgets must be positive")
+    if args.action == "workloads" and args.sizes and min(args.sizes) < 1:
+        parser.error("sizes must be positive")
     return args.function(args)
 
 

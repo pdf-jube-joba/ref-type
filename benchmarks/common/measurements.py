@@ -278,7 +278,7 @@ class Measurements:
         self.report["summary"] = summary
         save_json(self.output, self.report)
 
-    def run(self, label, path, cache=None, *, extra=(), sample_cache=False):
+    def run(self, label, path, cache=None, *, extra=(), sample_cache=False, check_coverage=None):
         path = path.resolve()
         index = len(self.report["measurements"])
         basename = f"{index:03}-" + re.sub(r"[^\w.-]+", "-", label)
@@ -293,6 +293,8 @@ class Measurements:
             if self.options.module:
                 command += ["--module", self.options.module]
         command += [*extra, *self.options.extra]
+        if not self.options.command:
+            checker_report.unlink(missing_ok=True)
         before = source_digest(path)
         row = measure(command, log, seconds=self.options.seconds,
                       environment=self.environment, progress_seconds=self.options.progress_seconds,
@@ -312,11 +314,16 @@ class Measurements:
                             and (self.options.command is not None or isinstance(row["checker"], dict)
                                  and row["checker"].get("version") == 2
                                  and row["checker"].get("outcome") == "accepted"))
+        if check_coverage and row["completed"]:
+            row["coverage_error"] = check_coverage(row["checker"])
+            row["completed"] = row["coverage_error"] is None
         self.report["measurements"].append(row)
         self.save()
         disk = (f", cache peak {row['cache_peak_allocated_bytes'] / 2**20:.1f} MiB"
                 if sample_cache else "")
         print(f"{label}: {row['seconds']:.3f}s, {row['peak_rss_kib']} KiB{disk}, exit {row['exit']}", flush=True)
+        if row.get("coverage_error"):
+            print(f"  {row['coverage_error']}", file=sys.stderr, flush=True)
         if row["stopped_by"] == "interrupted":
             raise KeyboardInterrupt
         return row
