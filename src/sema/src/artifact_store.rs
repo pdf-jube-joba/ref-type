@@ -313,7 +313,7 @@ impl Drop for ArtifactStore {
         }
     }
 }
-fn hex(key: &Fingerprint) -> String {
+pub(crate) fn hex(key: &Fingerprint) -> String {
     key.iter().map(|b| format!("{b:02x}")).collect()
 }
 fn io_error(operation: CacheOperation, path: &Path, source: std::io::Error) -> CacheError {

@@ -42,6 +42,21 @@ impl Metadata {
     }
 }
 
+fn trace_candidate(route: &str, manifest: &StoreManifest, object: &artifact_store::ObjectRef) {
+    if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
+        let bytes = manifest
+            .graph
+            .iter()
+            .fold(object.decoded_bytes, |sum, page| {
+                sum.saturating_add(page.decoded_bytes)
+            });
+        eprintln!(
+            "restore route={route} object={} decoded_bytes={bytes}",
+            artifact_store::hex(&object.digest)
+        );
+    }
+}
+
 impl PackageRun<'_, '_> {
     fn resume_prefix(
         &mut self,
@@ -54,7 +69,9 @@ impl PackageRun<'_, '_> {
         if manifest.input != request || manifest.resolver.is_some() {
             return None;
         }
-        let bytes = store.read_object(manifest.environment.as_ref()?).ok()?;
+        let object = manifest.environment.as_ref()?;
+        trace_candidate("request", &manifest, object);
+        let bytes = store.read_object(object).ok()?;
         let (magic, metadata, bytes): ([u8; 8], Metadata, Vec<u8>) =
             artifact_store::deserialize(&bytes).ok()?;
         let continuing = metadata.continuing();
@@ -262,12 +279,14 @@ impl PackageRun<'_, '_> {
                     return Some((metadata.clone(), bytes.to_vec()));
                 }
                 let manifest = manifest?;
+                let object = manifest.environment.as_ref()?;
+                trace_candidate("prefix", &manifest, object);
                 let bytes = self
                     .database
                     .disk
                     .as_ref()?
                     .store()
-                    .read_object(manifest.environment.as_ref()?)
+                    .read_object(object)
                     .ok()?;
                 let (magic, metadata, state): ([u8; 8], Metadata, Vec<u8>) =
                     artifact_store::deserialize(&bytes).ok()?;
