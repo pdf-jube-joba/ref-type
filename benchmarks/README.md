@@ -12,6 +12,7 @@ Default Cargo commands build the implementation crates; `--workspace` also inclu
 | [checker/](checker/README.md) | End-to-end checker measurements | `cases.toml`, `.ref` inputs |
 | [resolver/](resolver/README.md) | Source loading and name resolution | `Cargo.toml`, `resolve.rs`, `cases.toml`, `.ref` inputs |
 | [cache/](cache/README.md) | Cache reuse and invalidation scenarios | `scenarios.py` |
+| [workloads/](workloads/README.md) | Standalone checker workloads derived from focused library profiles | `run.py`, `generators.py` |
 | [scaling/](scaling/README.md) | Measurements across generated workload dimensions | `run.py`, `generators.py` |
 | `common/` | Process supervision, reports, log analysis, and source/package helpers | `measurements.py`, `log_analysis.py`, `sources.py` |
 | `tests/` | Small regression tests for the benchmark tools | `test_bench.py` |
@@ -62,10 +63,12 @@ python3 -m unittest discover -s benchmarks -v
 | `run PATH...` | Repeated measurements of specified inputs |
 | `libraries PATH...` | Measure package or workspace dependencies first |
 | `cache` | Generated workloads covering chains, diamonds, edits, and dependency-order changes |
+| `workloads` | Quick and stress presets for proof terms, Program terms, macro expansion and focused file checks |
 | `scaling` | Generated workloads with varying dependency depth, declaration counts, imports, and resident budgets |
 | `analyze LOG` | Analyze completed and interrupted logs |
 
 ```sh
+python3 benchmarks/bench.py workloads --binary target/release/cli
 python3 benchmarks/bench.py cache --binary target/release/cli --depth 8
 python3 benchmarks/bench.py run benchmarks/checker/shared-bodies.ref --runs 3
 python3 benchmarks/bench.py libraries /path/to/package --binary target/release/cli

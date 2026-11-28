@@ -18,6 +18,7 @@ from unittest.mock import patch
 import bench
 from common import log_analysis, measurements, sources
 from scaling import generators
+from workloads.run import coverage
 
 
 class BenchmarkTests(unittest.TestCase):
@@ -118,6 +119,36 @@ print('done')
                         self.assertEqual(report["sizes"], [1, 2])
                         for row in report["measurements"]:
                             self.assertIn("--full-check", row["command"])
+
+    def test_workload_rejects_missing_coverage_and_stale_report(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(directory)
+            checker = self.make_checker(root / "checker")
+            output = root / "report.json"
+            args = ["workloads", "--families", "transport", "--sizes", "3", "--binary", str(checker),
+                    "--work-dir", str(root / "work"), "--output", str(output)]
+            self.assertEqual(bench.main(args), 1)
+            row = json.loads(output.read_text())["measurements"][0]
+            self.assertIn("verified_modules", row["coverage_error"])
+            stale = root / "report-logs/000-transport-3-off.checker.json"
+            stale.write_text(json.dumps({
+                "version": 2, "outcome": "accepted", "verified_modules": [["sample"], ["sample", "Work"]],
+                "checked_modules": [["sample", "Work"]], "execution": {"source_steps": 3},
+            }))
+            shutil.copy2(shutil.which("true"), checker)
+            self.assertEqual(bench.main(args), 1)
+            self.assertIsNone(json.loads(output.read_text())["measurements"][0]["checker"])
+
+    def test_focused_coverage_distinguishes_checked_and_reused_targets(self):
+        report = {"verified_modules": [["sample"], ["sample", "Focus"]], "checked_modules": [],
+                  "cache": {"verification_reused": True}, "execution": {"source_steps": 0}}
+        self.assertIsNone(coverage(report, "Focus", "warm"))
+        self.assertIsNotNone(coverage(report, "Focus", "edit"))
+        report["checked_modules"] = [["sample", "Focus"]]
+        self.assertIsNotNone(coverage(report, "Focus", "warm"))
+        self.assertIsNotNone(coverage(report, "Focus", "edit"))
+        report["execution"]["source_steps"] = 1
+        self.assertIsNone(coverage(report, "Focus", "edit"))
 
     def test_source_digest_tracks_external_modules_without_unrelated_files(self):
         with tempfile.TemporaryDirectory() as directory:
