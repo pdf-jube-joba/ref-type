@@ -307,3 +307,41 @@ parameters = '''X, Y: \Set,
 
 ```
 
+## Convertible index alias in a nested module argument
+
+A nested import accepts a structure argument when the index in its type is convertible to the index expected by the imported module. Here both indices come from the same definition after specializing the enclosing module. See [issue #118](https://github.com/pdf-jube-joba/ref-type/issues/118).
+
+```toml case
+id = "convertible-index-alias-in-nested-import"
+scope = "package"
+entry = "alias.ref"
+expect = "accept"
+```
+
+```ref file=alias.ref
+\module Repro {
+\inductive Nat: \VType := | zero: Nat | succ: Nat -> Nat ;
+\module Models(n: Nat^) {
+  \structure Model := { index: Nat^, };
+}
+\module Library(n: Nat^) {
+  \definition dimension: Nat^ := n;
+  \import \root.Repro[].Models[n := dimension] \as Source;
+  \module Between(M: Source.Model) {
+    \module Level {
+      \definition answer: Nat^ := M.index;
+    }
+  }
+}
+\module Caller(n: Nat^) {
+  \import \root.Repro[].Library[n := n] \as Lib;
+  \import \root.Repro[].Models[n := Lib.dimension] \as Source;
+  \module Between(M: Source.Model) {
+    \module Level {
+      \import Lib.Between[M := M].Level[] \as Value;
+      \definition answer: Nat^ := Value.answer;
+    }
+  }
+}
+}
+```
