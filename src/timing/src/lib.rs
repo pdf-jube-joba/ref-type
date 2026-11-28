@@ -6,6 +6,7 @@ use std::{
 };
 
 pub mod costs;
+pub mod profiling;
 
 #[derive(Default, Debug)]
 pub struct Measurements {

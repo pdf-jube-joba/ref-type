@@ -39,7 +39,7 @@ pub use checkpoint::MAX_ENVIRONMENT_BYTES;
 pub mod diagnostics;
 pub use diagnostics::DiagnosticMode;
 
-pub mod profiling;
+pub use timing::profiling;
 
 mod package;
 pub use package::{

@@ -583,13 +583,16 @@ impl Session {
         if let Some(value) = &mut resolver.location {
             location(value)?;
         }
-        for scope in &mut resolver.scopes {
-            for binding in scope.macros.iter_mut().chain(&mut scope.used) {
-                if let Some(value) = &mut binding.introduction_location {
-                    location(value)?;
-                }
-                if let Some(value) = &mut Arc::make_mut(&mut binding.definition).location {
-                    location(value)?;
+        {
+            let _phase = timing::profiling::Phase::start("resolve.reconnect-scope-macros");
+            for scope in &mut resolver.scopes {
+                for binding in scope.macros.iter_mut().chain(&mut scope.used) {
+                    if let Some(value) = &mut binding.introduction_location {
+                        location(value)?;
+                    }
+                    if let Some(value) = &mut Arc::make_mut(&mut binding.definition).location {
+                        location(value)?;
+                    }
                 }
             }
         }

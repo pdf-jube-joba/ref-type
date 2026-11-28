@@ -12,6 +12,7 @@ Default Cargo commands build the implementation crates; `--workspace` also inclu
 | [checker/](checker/README.md) | End-to-end checker measurements | `cases.toml`, `.ref` inputs |
 | [resolver/](resolver/README.md) | Source loading and name resolution | `Cargo.toml`, `resolve.rs`, `cases.toml`, `.ref` inputs |
 | [cache/](cache/README.md) | Cache reuse and invalidation scenarios | `scenarios.py` |
+| [checkpoint-macros/](checkpoint-macros/README.md) | Shared macro checkpoint restore and first fresh declaration | `run.py` |
 | [scaling/](scaling/README.md) | Measurements across generated workload dimensions | `run.py`, `generators.py` |
 | `common/` | Process supervision, reports, log analysis, and source/package helpers | `measurements.py`, `log_analysis.py`, `sources.py` |
 | `tests/` | Small regression tests for the benchmark tools | `test_bench.py` |
