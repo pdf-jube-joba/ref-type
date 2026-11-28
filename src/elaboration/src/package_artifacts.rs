@@ -222,6 +222,8 @@ pub struct PackageArtifact {
     pub environment: Vec<u8>,
 }
 
+const RESOLVER_ARTIFACT_VERSION: u32 = 4;
+
 impl PackageArtifact {
     fn header(&self) -> artifact::Result<ArtifactHeader> {
         if self.resolver.len() > MAX_PACKAGE_BYTES {
@@ -229,7 +231,7 @@ impl PackageArtifact {
         }
         let (header, _): (ArtifactHeader, _) =
             postcard::take_from_bytes(&self.resolver).map_err(error)?;
-        if header.version != 3 {
+        if header.version != RESOLVER_ARTIFACT_VERSION {
             return Err(Error("unsupported resolver artifact version".into()));
         }
         Ok(header)
@@ -419,11 +421,12 @@ impl PackageChecker {
             return Err(Error("package object size limit exceeded".into()));
         }
         let decoding = crate::profiling::Phase::start("artifact.decode");
-        let mut resolver: ResolverObject =
-            postcard::from_bytes(&package.resolver).map_err(error)?;
-        if resolver.version != 3 {
+        let (version, _) = postcard::take_from_bytes::<u32>(&package.resolver).map_err(error)?;
+        if version != RESOLVER_ARTIFACT_VERSION {
             return Err(Error("unsupported resolver artifact version".into()));
         }
+        let mut resolver: ResolverObject =
+            postcard::from_bytes(&package.resolver).map_err(error)?;
         if resolver.pending != resume {
             return Err(Error("package artifact/checkpoint kind mismatch".into()));
         }
@@ -734,7 +737,7 @@ impl State<'_> {
         let serialization_phase = crate::profiling::Phase::start("artifact.serialize");
         let resolver_bytes = artifact::canonical::to_vec_detailed(
             &ResolverObject {
-                version: 3,
+                version: RESOLVER_ARTIFACT_VERSION,
                 owner,
                 input,
                 dependencies: exact_dependencies,
@@ -1235,8 +1238,15 @@ mod tests {
     fn partial_artifacts_merge_in_both_orders_and_keep_missing_scopes_pending() {
         let source = r"\module Parts {
             \inductive T: \Set := | zero: T;
-            \module Box(A: \Set) { \definition apply[x: A]: A := x; }
+            \inductive U: \Set := | unit: U;
+            \module Box(A: \Set) {
+                \definition apply[x: A]: A := x;
+                \macro chosen() := A;
+            }
             \import Box[A := T] \as Common;
+            \import Box[A := U] \as Other;
+            \use Common.chosen \as first_type;
+            \use Other.chosen \as second_type;
             \module Left { \definition left: T := Common.apply T::zero; }
             \module Right {
                 \import \root.Parts[].Box[A := T] \as Extra;
@@ -1275,13 +1285,24 @@ mod tests {
             r"\module Uses {
             \import \root.Parts[] \as P;
             \import \root.Parts[].Left[] \as Left;
-            \definition value: P.T := Left.left;
+            \import \root.Parts[].Box[A := P.T] \as Local;
+            \use Local.chosen \as local_type;
+            \use P.first_type \as first_type;
+            \use P.second_type \as second_type;
+            \definition value: first_type!{} := Left.left;
+            \definition unit: second_type!{} := P.U::unit;
         }",
             10,
         );
         for partials in [[&left, &right], [&right, &left]] {
             let mut target = PackageChecker::default();
             let mut target_catalog = ArtifactCatalog::default();
+            export(
+                &mut target,
+                &mut target_catalog,
+                r"\module Noise { \macro unrelated() := \Prop; }",
+                4,
+            );
             for partial in partials {
                 (target, target_catalog) = target
                     .import_artifact_owned(partial, target_catalog, |_| None)
@@ -1296,9 +1317,24 @@ mod tests {
                 r"\module Last {
                 \import \root.Parts[] \as P;
                 \import \root.Uses[] \as U;
-                \definition value: P.T := U.value;
+                \use U.local_type;
+                \use U.first_type \as first_type;
+                \use U.second_type \as second_type;
+                \definition value: first_type!{} := U.value;
+                \definition local: local_type!{} := P.T::zero;
+                \definition unit: second_type!{} := P.U::unit;
             }",
             );
+            let invalid = syntax::parse::str_parse_modules(
+                r"\module Invalid {
+                \import \root.Parts[] \as P;
+                \use P.first_type;
+                \definition wrong: first_type!{} := P.U::unit;
+            }",
+            )
+            .unwrap()
+            .remove(0);
+            assert!(target.append(&invalid, |_| {}).is_err());
         }
         let mut interleaved = PackageChecker::default();
         let mut interleaved_catalog = ArtifactCatalog::default();

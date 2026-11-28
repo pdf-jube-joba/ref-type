@@ -585,13 +585,30 @@ impl Session {
         }
         {
             let _phase = timing::profiling::Phase::start("resolve.reconnect-scope-macros");
+            let mut reconnected = FxHashMap::default();
             for scope in &mut resolver.scopes {
                 for binding in scope.macros.iter_mut().chain(&mut scope.used) {
                     if let Some(value) = &mut binding.introduction_location {
                         location(value)?;
                     }
-                    if let Some(value) = &mut Arc::make_mut(&mut binding.definition).location {
-                        location(value)?;
+                    let Some(original) = &binding.definition.location else {
+                        continue;
+                    };
+                    match reconnected.entry(Arc::as_ptr(&binding.definition)) {
+                        std::collections::hash_map::Entry::Occupied(entry) => {
+                            binding.definition = Arc::clone(entry.get());
+                        }
+                        std::collections::hash_map::Entry::Vacant(entry) => {
+                            let file = source(&original.source.id)?;
+                            if !Arc::ptr_eq(&original.source, &file) {
+                                let restored = SourceLocation {
+                                    source: file,
+                                    span: original.span,
+                                };
+                                Arc::make_mut(&mut binding.definition).location = Some(restored);
+                            }
+                            entry.insert(binding.definition.clone());
+                        }
                     }
                 }
             }

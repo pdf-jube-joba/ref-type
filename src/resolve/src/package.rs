@@ -1,6 +1,7 @@
 //! Resolver package boundaries, owned tables, and transactional relocation.
 use super::*;
 use artifact::{Identity, Relocate, Relocation};
+use scope_checkpoint::StoredMacro;
 
 const SPACES: [&str; 5] = [
     "resolve.module",
@@ -33,49 +34,43 @@ impl Relocate for Allocations {
 }
 
 #[derive(Relocate, serde::Serialize, serde::Deserialize)]
-struct StoredMacro {
-    name: Identifier,
-    definition: MacroDefinitionId,
-    instance: ModuleId,
-    declaration_order: (usize, usize),
-    introduction_location: Option<SourceLocation>,
+enum StoredTemplate {
+    Local(Arc<MacroDefinition>),
+    Dependency {
+        scope: ModuleId,
+        used: bool,
+        index: usize,
+        id: MacroDefinitionId,
+    },
 }
-impl StoredMacro {
-    fn capture(value: &MacroBinding) -> Self {
-        Self {
-            name: value.name.clone(),
-            definition: value.definition.id,
-            instance: value.instance,
-            declaration_order: value.declaration_order,
-            introduction_location: value.introduction_location.clone(),
-        }
-    }
-    fn restore(
-        self,
-        definitions: &HashMap<MacroDefinitionId, Arc<MacroDefinition>>,
-    ) -> artifact::Result<MacroBinding> {
-        Ok(MacroBinding {
-            name: self.name,
-            definition: definitions
-                .get(&self.definition)
+
+impl StoredTemplate {
+    fn restore(self, dependencies: &[Scope]) -> artifact::Result<Arc<MacroDefinition>> {
+        match self {
+            Self::Local(definition) => Ok(definition),
+            Self::Dependency {
+                scope,
+                used,
+                index,
+                id,
+            } => dependencies
+                .get(scope.0 as usize)
+                .and_then(|s| (if used { &s.used } else { &s.macros }).get(index))
+                .map(|binding| &binding.definition)
+                .filter(|definition| definition.id == id)
                 .cloned()
-                .ok_or_else(|| artifact::Error("missing imported macro definition".into()))?,
-            instance: self.instance,
-            declaration_order: self.declaration_order,
-            introduction_location: self.introduction_location,
-        })
+                .ok_or_else(|| artifact::Error("missing dependency macro template".into())),
+        }
     }
 }
 
-/// A package owns each table entry exactly once. Macro imports contain only
-/// definition identities, so dependency templates are never copied into a user.
 #[derive(Relocate, serde::Serialize, serde::Deserialize)]
 pub struct PackageExport {
     allocations: Allocations,
     data: Resolver,
     scopes: Vec<(ModuleId, Scope)>,
     scope_macros: Vec<(ModuleId, Vec<StoredMacro>, Vec<StoredMacro>)>,
-    definitions: Vec<Arc<MacroDefinition>>,
+    definitions: Vec<StoredTemplate>,
     root_children: FxHashMap<String, ModuleId>,
     roots: Vec<Module>,
 }
@@ -291,33 +286,51 @@ impl Session {
             .collect();
         let mut scopes = Vec::new();
         let mut scope_macros = Vec::new();
-        let mut definitions = HashMap::new();
-        for (index, scope) in r
-            .scopes
-            .iter()
-            .enumerate()
-            .skip(boundary.counters[0] as usize)
-        {
+        let mut definitions = Vec::new();
+        let mut indices = FxHashMap::default();
+        let mut foreign = FxHashMap::default();
+        let mut capture = |binding: &MacroBinding| {
+            let pointer = Arc::as_ptr(&binding.definition);
+            let slot = indices.entry(pointer).or_insert_with(|| {
+                let slot = definitions.len();
+                if binding.id.0 < boundary.counters[2] {
+                    foreign.insert(pointer, slot);
+                }
+                definitions.push(StoredTemplate::Local(binding.definition.clone()));
+                slot
+            });
+            StoredMacro::capture(binding, *slot)
+        };
+        let first = boundary.counters[0] as usize;
+        for (index, scope) in r.scopes.iter().enumerate().skip(first) {
             let id = ModuleId(index as u32);
             let mut scope = scope.clone();
             let macros = std::mem::take(&mut scope.macros);
             let used = std::mem::take(&mut scope.used);
-            for binding in macros.iter().chain(&used) {
-                if (boundary.counters[2]..ends[2]).contains(&binding.definition.id.0) {
-                    definitions
-                        .entry(binding.definition.id)
-                        .or_insert_with(|| binding.definition.clone());
-                }
-            }
             scope_macros.push((
                 id,
-                macros.iter().map(StoredMacro::capture).collect(),
-                used.iter().map(StoredMacro::capture).collect(),
+                macros.iter().map(&mut capture).collect(),
+                used.iter().map(&mut capture).collect(),
             ));
             scopes.push((id, scope));
         }
-        let mut definitions: Vec<_> = definitions.into_values().collect();
-        definitions.sort_by_key(|definition| definition.id.0);
+        for (i, scope) in r.scopes.iter().take(first).enumerate() {
+            if foreign.is_empty() {
+                break;
+            }
+            for (used, bindings) in [(false, &scope.macros), (true, &scope.used)] {
+                for (index, binding) in bindings.iter().enumerate() {
+                    if let Some(slot) = foreign.remove(&Arc::as_ptr(&binding.definition)) {
+                        definitions[slot] = StoredTemplate::Dependency {
+                            scope: ModuleId(i as u32),
+                            used,
+                            index,
+                            id: binding.id,
+                        };
+                    }
+                }
+            }
+        }
         Ok(PackageExport {
             allocations: Allocations(std::array::from_fn(|i| {
                 (boundary.counters[i]..ends[i]).collect()
@@ -536,19 +549,11 @@ impl Session {
         }) {
             return Err(artifact::Error("duplicate package root".into()));
         }
-        let mut definitions = HashMap::new();
-        for scope in &r.scopes {
-            for binding in scope.macros.iter().chain(&scope.used) {
-                definitions
-                    .entry(binding.definition.id)
-                    .or_insert_with(|| binding.definition.clone());
-            }
-        }
-        for definition in package.definitions {
-            if definitions.insert(definition.id, definition).is_some() {
-                return Err(artifact::Error("duplicate macro definition".into()));
-            }
-        }
+        let definitions = package
+            .definitions
+            .into_iter()
+            .map(|template| template.restore(&r.scopes))
+            .collect::<artifact::Result<Vec<_>>>()?;
         for ((id, scope), (macro_id, macros, used)) in
             package.scopes.iter_mut().zip(package.scope_macros)
         {
@@ -712,7 +717,10 @@ mod tests {
             &mut remap_dependencies(&right_a, &target_a),
         );
         assert!(
-            package_b.definitions.is_empty(),
+            matches!(
+                package_b.definitions.as_slice(),
+                [StoredTemplate::Dependency { .. }]
+            ),
             "B references A's macro template without storing its body"
         );
         import(

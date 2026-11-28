@@ -30,9 +30,9 @@ Program parameter reflection retains the original ID and argument expression in 
 ## Package artifacts
 
 `Session::boundary` records an ownership boundary; `export_package` saves subsequently added scopes, bindings, declarations, macros, and structure information.
-Dependency macros are referenced by definition ID.
+A package stores each distinct local macro template once. Aliases of an existing dependency template refer to its binding slot in the relocated dependency scope. Specializations with the same definition ID can carry different captured bindings.
 `reserve_import` reserves IDs; `import_package` relocates and validates references before publication.
-`restore_sources` reconnects source text to the current snapshot.
+`restore_sources` reconnects each shared template to the current snapshot once and reconnects the introduction location of every alias separately.
 
 See [benchmarks](../../benchmarks/README.md) for measurements, and [macros](../../docs/language/macro.md) and [structures](../../docs/language/structure.md) for expansion rules.
 
