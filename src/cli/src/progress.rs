@@ -114,6 +114,7 @@ impl State {
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
             ProgressEvent::StorageFailed { .. }
+            | ProgressEvent::RestoringCheckpoint(_)
             | ProgressEvent::CheckpointSaved { .. }
             | ProgressEvent::StorageStats(_)
             | ProgressEvent::SessionStatistics(_)
@@ -191,6 +192,9 @@ impl State {
         let detail = match event {
             ProgressEvent::Phase(phase) => format!("phase={phase:?}"),
             ProgressEvent::Planned(_) => "event=planned".into(),
+            ProgressEvent::RestoringCheckpoint(object) => {
+                format!("event=checkpoint-restore active={}", object.is_some())
+            }
             ProgressEvent::ModuleStarted(path) => format!("event=start module={}", path.join(".")),
             ProgressEvent::ModuleFinished { path, action } => format!(
                 "event=complete action={action:?} module={} module_seconds={:.6}",

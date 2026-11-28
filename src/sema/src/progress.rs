@@ -49,6 +49,7 @@ pub struct ProgressPlan {
 pub enum ProgressEvent {
     Phase(ProgressPhase),
     Planned(ProgressPlan),
+    RestoringCheckpoint(Option<[u8; 32]>),
     ModuleStarted(Vec<String>),
     /// Checking is complete; analysis and cache storage may still follow.
     ModuleFinished {

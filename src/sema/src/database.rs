@@ -34,6 +34,7 @@ pub struct CheckOptions {
     pub diagnostics: elaboration::DiagnosticMode,
     /// Minimum work time between module-boundary package checkpoints (default 30s).
     pub checkpoint_interval: Option<std::time::Duration>,
+    pub excluded_checkpoint_objects: BTreeSet<Fingerprint>,
 }
 
 struct LoadedProject {

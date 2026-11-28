@@ -5,7 +5,7 @@ mod supervisor;
 
 use anyhow::Context;
 use clap::Parser;
-use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
+use std::{cell::RefCell, collections::BTreeSet, io::IsTerminal, path::PathBuf, time::Duration};
 
 thread_local! {
     static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
@@ -32,6 +32,9 @@ struct Args {
     #[arg(skip)]
     #[serde(default)]
     worker_progress: bool,
+    #[arg(skip)]
+    #[serde(default)]
+    excluded_checkpoint_objects: BTreeSet<[u8; 32]>,
     /// Check only the specified module, its children, and their references (e.g. std.Data.Nat)
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
@@ -107,6 +110,7 @@ impl Args {
             collect_statistics: self.stats,
             module_only: self.module_only,
             checkpoint_interval: self.checkpoint_seconds.map(Duration::from_secs),
+            excluded_checkpoint_objects: self.excluded_checkpoint_objects.clone(),
             diagnostics: match self.diagnostics {
                 Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
                 Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,

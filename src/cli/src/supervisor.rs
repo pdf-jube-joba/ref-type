@@ -218,6 +218,7 @@ struct Events {
     timings: Vec<ModuleProgress>,
     outputs: Vec<sema::QueryOutput>,
     checkpoint: Option<usize>,
+    restoring_object: Option<[u8; 32]>,
     completed: BTreeSet<usize>,
     repeated: u64,
     storage: sema::artifact_store::CacheStoreStats,
@@ -235,6 +236,7 @@ impl Events {
             timings: Vec::new(),
             outputs: Vec::new(),
             checkpoint: None,
+            restoring_object: None,
             completed: BTreeSet::new(),
             repeated: 0,
             storage: Default::default(),
@@ -273,6 +275,9 @@ impl Events {
                     progress::receive(&ProgressEvent::Planned(plan.clone()));
                 }
                 Message::Event(ProgressEvent::Finished { .. }, _) => {}
+                Message::Event(ProgressEvent::RestoringCheckpoint(object), _) => {
+                    self.restoring_object = object;
+                }
                 Message::Event(ProgressEvent::DeclarationFinished { position, success }, _) => {
                     if success && !self.completed.insert(position) {
                         self.repeated += 1;
@@ -571,6 +576,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         .map_or_else(|| "project".to_owned(), |path| path.join("."));
     let started = Instant::now();
     let mut last_checkpoint = 0;
+    let mut excluded_checkpoint_objects = BTreeSet::new();
     let mut workers = 0u64;
     let mut resources = report::Execution::default();
     let mut timings: BTreeMap<Vec<String>, ModuleProgress> = BTreeMap::new();
@@ -593,6 +599,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         let mut request = args.clone();
         request.worker = Some(workspace.directory.clone());
         request.worker_progress = display.enabled();
+        request
+            .excluded_checkpoint_objects
+            .clone_from(&excluded_checkpoint_objects);
         request.full_check = false;
         request.no_cache = args.no_cache;
         request.clear_cache = false;
@@ -668,14 +677,24 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                 .time_limit_seconds
                 .is_none_or(|limit| started.elapsed() < Duration::from_secs(limit))
             && (outcome.memory_limited || outcome.status.signal().is_some())
-            && let Some(checkpoint) = outcome.events.checkpoint
-            && checkpoint > last_checkpoint
         {
-            resources.lost_steps += outcome.events.completed.range(checkpoint..).count() as u64;
-            storage.merge(&outcome.events.storage);
-            last_checkpoint = checkpoint;
-            display.message(&format!("Resuming checking from checkpoint {checkpoint}."));
-            continue;
+            let checkpoint = outcome.events.checkpoint.unwrap_or(0);
+            let failed_restore = outcome.memory_limited
+                && outcome
+                    .events
+                    .restoring_object
+                    .is_some_and(|object| excluded_checkpoint_objects.insert(object));
+            if failed_restore || checkpoint > last_checkpoint {
+                resources.lost_steps += outcome.events.completed.range(checkpoint..).count() as u64;
+                storage.merge(&outcome.events.storage);
+                last_checkpoint = last_checkpoint.max(checkpoint);
+                if failed_restore {
+                    display.message("The worker stopped during checkpoint restoration. Retrying without that object.");
+                } else {
+                    display.message(&format!("Resuming checking from checkpoint {checkpoint}."));
+                }
+                continue;
+            }
         }
         if !outcome.status.success() {
             success = false;

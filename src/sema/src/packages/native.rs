@@ -57,6 +57,28 @@ fn trace_candidate(route: &str, manifest: &StoreManifest, object: &artifact_stor
     }
 }
 
+struct RestoreAttempt(Option<fn(&ProgressEvent)>);
+
+impl RestoreAttempt {
+    fn begin(options: &CheckOptions, object: &artifact_store::ObjectRef) -> Option<Self> {
+        if options.excluded_checkpoint_objects.contains(&object.digest) {
+            return None;
+        }
+        if let Some(report) = options.progress_events {
+            report(&ProgressEvent::RestoringCheckpoint(Some(object.digest)));
+        }
+        Some(Self(options.progress_events))
+    }
+}
+
+impl Drop for RestoreAttempt {
+    fn drop(&mut self) {
+        if let Some(report) = self.0 {
+            report(&ProgressEvent::RestoringCheckpoint(None));
+        }
+    }
+}
+
 impl PackageRun<'_, '_> {
     fn resume_prefix(
         &mut self,
@@ -70,6 +92,7 @@ impl PackageRun<'_, '_> {
             return None;
         }
         let object = manifest.environment.as_ref()?;
+        let attempt = RestoreAttempt::begin(self.options, object)?;
         trace_candidate("request", &manifest, object);
         let bytes = store.read_object(object).ok()?;
         let (magic, metadata, bytes): ([u8; 8], Metadata, Vec<u8>) =
@@ -94,6 +117,7 @@ impl PackageRun<'_, '_> {
         let checker = elaboration::with_graph_store(pages, || {
             PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())
         })?;
+        drop(attempt);
         self.database.stats.checkpoint_hits += 1;
         self.progress.environment_reused(
             metadata
@@ -272,6 +296,7 @@ impl PackageRun<'_, '_> {
         let mut candidates: Vec<_> = candidates.into_values().collect();
         candidates.sort_by_key(|entry| std::cmp::Reverse(entry.0));
         for (score, memory, manifest) in candidates {
+            let mut disk_attempt = None;
             let loaded = (|| {
                 if let Some(metadata) = memory
                     && let Some(bytes) = self.database.package_environments.get(&metadata.key)
@@ -280,6 +305,7 @@ impl PackageRun<'_, '_> {
                 }
                 let manifest = manifest?;
                 let object = manifest.environment.as_ref()?;
+                disk_attempt = Some(RestoreAttempt::begin(self.options, object)?);
                 trace_candidate("prefix", &manifest, object);
                 let bytes = self
                     .database
@@ -314,6 +340,7 @@ impl PackageRun<'_, '_> {
             if let Some(checker) = elaboration::with_graph_store(pages, || {
                 PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())
             }) {
+                drop(disk_attempt);
                 self.database.stats.environment_hits += 1;
                 if let Some(disk) = &self.database.disk {
                     disk.store().record_relocation(started.elapsed());
