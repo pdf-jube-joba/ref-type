@@ -660,6 +660,10 @@ impl Resolver {
         let source = self.origins.get(&module).copied().unwrap_or(module);
         self.paths.get(&source).cloned().unwrap_or_default()
     }
+    fn in_current_module_chain(&self, module: ModuleId) -> bool {
+        std::iter::successors(Some(self.current), |id| self.scopes[id.0 as usize].parent)
+            .any(|ancestor| ancestor == module)
+    }
     fn error(&self, error: impl Into<crate::error::Error>) -> Diagnostic {
         Diagnostic {
             error: error.into(),
@@ -1586,17 +1590,8 @@ impl Resolver {
                     })
                 })?;
             target = self.origins.get(&target).copied().unwrap_or(target);
-            if self.input.contains_key(&target) {
-                let mut ancestor = Some(self.current);
-                while let Some(id) = ancestor {
-                    if id == target {
-                        break;
-                    }
-                    ancestor = self.scopes[id.0 as usize].parent;
-                }
-                if ancestor.is_none() {
-                    self.module(target)?;
-                }
+            if self.input.contains_key(&target) && !self.in_current_module_chain(target) {
+                self.module(target)?;
             }
             child.1 = self.input.get(&target).and_then(|module| module.name.1);
             let inputs = self.module_inputs.get(&target).cloned().unwrap_or_default();
@@ -1612,11 +1607,12 @@ impl Resolver {
                     if input.signature.is_some() {
                         let mut input = input.clone();
                         for expression in input.arguments.values_mut() {
-                            *expression =
-                                structures::substitute(expression, &argument_substitutions);
+                            *expression = self
+                                .substitute_front_expression(expression, &argument_substitutions);
                         }
                         for bind in &mut input.callback_parameters {
-                            *bind.ty = structures::substitute(&bind.ty, &argument_substitutions);
+                            *bind.ty =
+                                self.substitute_front_expression(&bind.ty, &argument_substitutions);
                         }
                         let (fields, guards) =
                             self.callback_arguments(&input, &argument, locals)?;

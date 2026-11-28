@@ -399,9 +399,21 @@ impl Resolver {
                     // Recover omitted parent arguments from the new environment.
                     let argument = if let Some(argument) = scope.substitutions.get(&name.1?) {
                         self.substitute_front_expression(&argument, substitutions)
-                    } else {
+                    } else if let Some(argument) = substitutions.get(&name.1?) {
                         // This value already belongs to the caller environment.
-                        substitutions.get(&name.1?)?.borrow().clone()
+                        argument.borrow().clone()
+                    } else if self.in_current_module_chain(current) {
+                        SExp::AccessPath {
+                            access: LocalAccess::Resolved {
+                                module: current,
+                                access: name.clone(),
+                                display: name.0.clone(),
+                                span: *span,
+                            },
+                            parameters: Vec::new(),
+                        }
+                    } else {
+                        return None;
                     };
                     arguments.push((name.clone(), argument));
                 }
@@ -417,7 +429,7 @@ impl Resolver {
         })
     }
 
-    fn substitute_front_expression<T: Borrow<SExp>>(
+    pub(super) fn substitute_front_expression<T: Borrow<SExp>>(
         &self,
         expression: &SExp,
         substitutions: &HashMap<BindingId, T>,
